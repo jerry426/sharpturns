@@ -468,6 +468,15 @@
       <Setter Property="FontSize" Value="12" />
       <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
+    <!-- The Workbench's on/off setting label colors. -->
+    <Style Selector="TextBlock.settingLabel">
+      <Setter Property="Foreground" Value="#E55353" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.settingLabel.on">
+      <Setter Property="Foreground" Value="#00B00C" />
+    </Style>
 
     <Style Selector="TextBlock.sectionHeader">
       <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />

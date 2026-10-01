@@ -19,9 +19,12 @@ public static class ProjectColor
         : Default;
 }
 
-/// <summary>Model, Effort, and OutputStyle are CLI values; null uses the CLI's own default.</summary>
+/// <summary>
+/// Model, Effort, and OutputStyle are CLI values; null uses the CLI's own default. AutoSummarize compresses each
+/// turn that completes.
+/// </summary>
 public sealed record Conversation(long Id, long ProjectId, string Title, string? Model, string? Effort, DateTimeOffset UpdatedAt,
-    string? OutputStyle = null);
+    string? OutputStyle = null, bool AutoSummarize = false);
 
 public enum TurnStatus { Running, Completed, Stopped, Failed }
 

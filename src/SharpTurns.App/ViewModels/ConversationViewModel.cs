@@ -50,8 +50,9 @@ public sealed partial class ConversationViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(SendLabel))]
     private bool _isRunning;
 
-    /// <summary>A turn's summary is being generated; one at a time.</summary>
+    /// <summary>A turn's summary is being generated; one at a time. Sending waits, since the summary changes the history.</summary>
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SendCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteTurnCommand))]
     [NotifyCanExecuteChangedFor(nameof(ToggleHydrationCommand))]
     [NotifyCanExecuteChangedFor(nameof(ToggleCompressionCommand))]
@@ -73,6 +74,10 @@ public sealed partial class ConversationViewModel : ObservableObject
     [ObservableProperty]
     private string _selectedOutputStyle;
 
+    /// <summary>Compresses each turn that completes, before the next can be sent.</summary>
+    [ObservableProperty]
+    private bool _autoSummarize;
+
     /// <summary>conversationUpdated receives the conversation when a turn starts and moves its updated time.</summary>
     internal ConversationViewModel(Conversation conversation, Project project, ConversationStore store, ClaudeTurnRunner runner,
         TurnSummarizer summarizer, Action<ClaudeCliRateLimitSnapshot> rateLimitsChanged, Action<Conversation> conversationUpdated)
@@ -88,6 +93,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         _selectedModel = conversation.Model ?? DefaultModel;
         _selectedEffort = conversation.Effort ?? DefaultEffort;
         _selectedOutputStyle = conversation.OutputStyle ?? DefaultOutputStyle;
+        _autoSummarize = conversation.AutoSummarize;
         Turns.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(TurnCount));
@@ -202,7 +208,7 @@ public sealed partial class ConversationViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanClearComposer))]
     private void ClearComposer() => ComposerText = "";
 
-    private bool CanSend() => !string.IsNullOrWhiteSpace(ComposerText) && !IsAddingImage
+    private bool CanSend() => !string.IsNullOrWhiteSpace(ComposerText) && !IsAddingImage && !IsCompressing
         && (!IsRunning || QueuedMessages.Count < ClaudeCliInputQueue.Capacity);
 
     // Concurrent: Send stays available during a turn to queue messages for it.
@@ -232,6 +238,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         Status = "Starting…";
         _turnLifetime = new CancellationTokenSource();
         _queue = new ClaudeCliInputQueue();
+        var completed = false;
         try
         {
             void Show(Action update) => Dispatcher.UIThread.Post(() =>
@@ -268,6 +275,7 @@ public sealed partial class ConversationViewModel : ObservableObject
             // Finish first: clearing IsRunning re-checks the card commands, which need the finished record.
             turn.Finish(result.Turn);
             IsRunning = false;
+            completed = result.Turn.Status == TurnStatus.Completed;
             QueuedMessages.Clear();
             Status = result.Turn.Status switch
             {
@@ -297,6 +305,8 @@ public sealed partial class ConversationViewModel : ObservableObject
             _queue = null;
             TurnContentChanged?.Invoke(this, EventArgs.Empty);
         }
+        // Stopped and failed turns stay as they are, so the user can see what happened and retry.
+        if (completed && AutoSummarize) await CompressAsync(turn, automatic: true);
     }
 
     private void StartElapsed()
@@ -403,14 +413,21 @@ public sealed partial class ConversationViewModel : ObservableObject
             catch (Exception e) { Status = $"Couldn't expand turn {record.TurnNumber}: {e.Message}"; }
             return;
         }
+        await CompressAsync(turn, automatic: false);
+    }
+
+    // Owns its errors: the outcome goes to the status line, and a turn that isn't compressed stays as it was.
+    private async Task CompressAsync(TurnViewModel turn, bool automatic)
+    {
+        var record = turn.Record!;
         IsCompressing = true;
         turn.IsCompressing = true;
-        Status = $"Compressing turn {record.TurnNumber}…";
+        Status = automatic ? $"Auto-summarizing turn {record.TurnNumber}…" : $"Compressing turn {record.TurnNumber}…";
         try
         {
             var compressed = await _summarizer.CompressAsync(record);
             turn.ApplyRecord(compressed);
-            Status = $"Compressed turn {record.TurnNumber}"
+            Status = (automatic ? "Auto-summarized" : "Compressed") + $" turn {record.TurnNumber}"
                 + (TurnCompression.Reduction(compressed) is { } reduction
                     ? string.Create(CultureInfo.CurrentCulture, $" ({reduction:0.0}x replay reduction)") : "")
                 + ". The next turn starts a new CLI session.";
@@ -419,7 +436,12 @@ public sealed partial class ConversationViewModel : ObservableObject
         {
             Status = "Couldn't start the claude CLI. Install it and make sure it's on your PATH.";
         }
-        catch (Exception e) { Status = $"Couldn't compress turn {record.TurnNumber}: {e.Message}"; }
+        catch (Exception e)
+        {
+            Status = automatic
+                ? $"Auto-Summarize left turn {record.TurnNumber} uncompressed: {e.Message}"
+                : $"Couldn't compress turn {record.TurnNumber}: {e.Message}";
+        }
         finally
         {
             turn.IsCompressing = false;
@@ -461,5 +483,16 @@ public sealed partial class ConversationViewModel : ObservableObject
         Conversation = Conversation with { OutputStyle = style };
         try { await _store.SetConversationOutputStyleAsync(Conversation.Id, style); }
         catch (Exception e) { Status = "Couldn't save the output style: " + e.Message; }
+    }
+
+    partial void OnAutoSummarizeChanged(bool value) => _ = SaveAutoSummarizeAsync();
+
+    // Owns its errors so property-change callers can fire and forget it. Earlier turns are left as they are.
+    private async Task SaveAutoSummarizeAsync()
+    {
+        if (AutoSummarize == Conversation.AutoSummarize) return;
+        Conversation = Conversation with { AutoSummarize = AutoSummarize };
+        try { await _store.SetConversationAutoSummarizeAsync(Conversation.Id, AutoSummarize); }
+        catch (Exception e) { Status = "Couldn't save the Auto-Summarize setting: " + e.Message; }
     }
 }
