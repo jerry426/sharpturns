@@ -54,7 +54,7 @@
                 <PathIcon Width="16" Height="16" Data="{StaticResource DeleteIconGeometry}" />
               </Button>
             </Grid>
-            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="6">
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="6">
               <TextBlock Classes="cardLabel" Text="ID:" />
               <TextBlock Grid.Column="1" Classes="cardValue" Text="{Binding CurrentConversation.Conversation.Id}" />
               <TextBlock Grid.Row="1" Classes="cardLabel" Text="Turns:" />
@@ -65,6 +65,14 @@
                          IsVisible="{Binding CurrentConversation.LastTurn, Converter={x:Static ObjectConverters.IsNotNull}}" />
               <TextBlock Grid.Row="3" Classes="cardLabel" Text="Workspace:" />
               <TextBlock Grid.Row="3" Grid.Column="1" Classes="cardValue" Text="{Binding SelectedProject.WorkingDirectory}" />
+              <TextBlock Grid.Row="4" Classes="cardLabel" Text="Model:" VerticalAlignment="Center" />
+              <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding CurrentConversation.ModelOptions}"
+                        SelectedItem="{Binding CurrentConversation.SelectedModel}" MinHeight="28" FontSize="11"
+                        HorizontalAlignment="Stretch" ToolTip.Tip="Model for this conversation" />
+              <TextBlock Grid.Row="5" Classes="cardLabel" Text="Effort:" VerticalAlignment="Center" />
+              <ComboBox Grid.Row="5" Grid.Column="1" ItemsSource="{Binding CurrentConversation.EffortOptions}"
+                        SelectedItem="{Binding CurrentConversation.SelectedEffort}" MinHeight="28" FontSize="11"
+                        HorizontalAlignment="Stretch" ToolTip.Tip="Effort for this conversation" />
             </Grid>
           </StackPanel>
         </Border>

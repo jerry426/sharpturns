@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Globalization;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -23,9 +25,17 @@ public sealed partial class ConversationViewModel : ObservableObject
     [ObservableProperty]
     private string _title;
 
+    private readonly Stopwatch _elapsed = new();
+    private DispatcherTimer? _elapsedTimer;
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SendCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearComposerCommand))]
     private string _composerText = "";
+
+    /// <summary>Elapsed time of the latest turn started in this session, as mm:ss; empty until one starts.</summary>
+    [ObservableProperty]
+    private string _elapsedText = "";
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SendCommand))]
@@ -63,7 +73,11 @@ public sealed partial class ConversationViewModel : ObservableObject
             OnPropertyChanged(nameof(TurnCount));
             OnPropertyChanged(nameof(LastTurn));
         };
-        Attachments.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasAttachments));
+        Attachments.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(HasAttachments));
+            OnPropertyChanged(nameof(ImageButtonToolTip));
+        };
         QueuedMessages.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(HasQueuedMessages));
@@ -87,6 +101,10 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     public bool HasAttachments => Attachments.Count > 0;
 
+    public string ImageButtonToolTip => HasAttachments
+        ? $"Attach more images to the next turn ({Attachments.Count} of {MaxAttachments} attached)"
+        : "Attach PNG, JPEG, GIF, WebP, or BMP images to the next turn";
+
     /// <summary>Sent while a turn runs; each leaves this list when the CLI accepts it.</summary>
     public ObservableCollection<ClaudeCliUserMessage> QueuedMessages { get; } = [];
 
@@ -94,10 +112,15 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     public string SendLabel => IsRunning ? "Queue" : "Send";
 
-    /// <summary>CLI model aliases; the default entry uses the CLI's own default.</summary>
-    public IReadOnlyList<string> ModelOptions { get; } = [DefaultModel, "opus", "sonnet", "haiku"];
+    // Shared by every conversation so the sidebar's pickers keep the same ItemsSource when the conversation changes;
+    // a new ItemsSource clears the selection, which would write back to the conversation.
+    private static readonly IReadOnlyList<string> SharedModelOptions = [DefaultModel, "opus", "sonnet", "haiku"];
+    private static readonly IReadOnlyList<string> SharedEffortOptions = [DefaultEffort, "low", "medium", "high", "xhigh", "max"];
 
-    public IReadOnlyList<string> EffortOptions { get; } = [DefaultEffort, "low", "medium", "high", "xhigh", "max"];
+    /// <summary>CLI model aliases; the default entry uses the CLI's own default.</summary>
+    public IReadOnlyList<string> ModelOptions => SharedModelOptions;
+
+    public IReadOnlyList<string> EffortOptions => SharedEffortOptions;
 
     /// <summary>Shows a question non-modally; returns the answer, or null when declined or the token is canceled.</summary>
     public Func<QuestionDialogViewModel, CancellationToken, Task<string?>>? ShowQuestionAsync { get; set; }
@@ -150,6 +173,11 @@ public sealed partial class ConversationViewModel : ObservableObject
     [RelayCommand]
     private void RemoveAttachment(ImageAttachmentViewModel attachment) => Attachments.Remove(attachment);
 
+    private bool CanClearComposer() => ComposerText.Length > 0;
+
+    [RelayCommand(CanExecute = nameof(CanClearComposer))]
+    private void ClearComposer() => ComposerText = "";
+
     private bool CanSend() => !string.IsNullOrWhiteSpace(ComposerText) && !IsAddingImage
         && (!IsRunning || QueuedMessages.Count < ClaudeCliInputQueue.Capacity);
 
@@ -176,6 +204,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         Turns.Add(turn);
         TurnContentChanged?.Invoke(this, EventArgs.Empty);
         IsRunning = true;
+        StartElapsed();
         Status = "Starting…";
         _turnLifetime = new CancellationTokenSource();
         _queue = new ClaudeCliInputQueue();
@@ -231,11 +260,38 @@ public sealed partial class ConversationViewModel : ObservableObject
         }
         finally
         {
+            StopElapsed();
             _turnLifetime.Dispose();
             _turnLifetime = null;
             _queue = null;
             TurnContentChanged?.Invoke(this, EventArgs.Empty);
         }
+    }
+
+    private void StartElapsed()
+    {
+        if (_elapsedTimer is null)
+        {
+            _elapsedTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _elapsedTimer.Tick += (_, _) => ElapsedText = FormatElapsed(_elapsed.Elapsed);
+        }
+        _elapsed.Restart();
+        ElapsedText = FormatElapsed(TimeSpan.Zero);
+        _elapsedTimer.Start();
+    }
+
+    // The final time stays shown until the next turn starts.
+    private void StopElapsed()
+    {
+        _elapsed.Stop();
+        _elapsedTimer?.Stop();
+        ElapsedText = FormatElapsed(_elapsed.Elapsed);
+    }
+
+    private static string FormatElapsed(TimeSpan elapsed)
+    {
+        var seconds = Math.Max(0L, (long)elapsed.TotalSeconds);
+        return string.Create(CultureInfo.InvariantCulture, $"{seconds / 60:00}:{seconds % 60:00}");
     }
 
     private async Task<string?> AskAsync(ClaudeCliQuestion question, CancellationToken token) =>

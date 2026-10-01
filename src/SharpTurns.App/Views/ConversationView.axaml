@@ -18,12 +18,16 @@
   <Grid RowDefinitions="Auto,*,Auto">
     <Border Background="{StaticResource PanelBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}"
             BorderThickness="0,0,0,1" Padding="16,10">
-      <StackPanel Spacing="2">
-        <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TextStrongBrush}" FontSize="16" FontWeight="SemiBold"
-                   TextTrimming="CharacterEllipsis" />
-        <TextBlock Text="{Binding Project.WorkingDirectory}" Foreground="{DynamicResource TextSubtleBrush}" FontSize="11"
-                   TextTrimming="PathSegmentEllipsis" />
-      </StackPanel>
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+        <StackPanel Spacing="2">
+          <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TextStrongBrush}" FontSize="16" FontWeight="SemiBold"
+                     TextTrimming="CharacterEllipsis" />
+          <TextBlock Text="{Binding Project.WorkingDirectory}" Foreground="{DynamicResource TextSubtleBrush}" FontSize="11"
+                     TextTrimming="PathSegmentEllipsis" />
+        </StackPanel>
+        <TextBlock Grid.Column="1" Text="{Binding Status}" MaxWidth="560" Foreground="{DynamicResource TextMutedBrush}" FontSize="12"
+                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Status}" />
+      </Grid>
     </Border>
 
     <ScrollViewer x:Name="TurnsScroller" Grid.Row="1">
@@ -190,9 +194,11 @@
       </ItemsControl>
     </ScrollViewer>
 
-    <Border Grid.Row="2" Background="{StaticResource PanelBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}"
-            BorderThickness="0,1,0,0" Padding="16,10">
-      <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="8">
+    <!-- The composer card, laid out like the Workbench's. Voice, the confidence box, Undo, and Images Available for
+         Replay are placeholders until dictation (phase 5) and replay image management (phase 3) arrive. -->
+    <Border Grid.Row="2" Margin="20,0,20,14" Background="#1B1F2A" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+            CornerRadius="12" Padding="14">
+      <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
         <ItemsControl ItemsSource="{Binding QueuedMessages}" IsVisible="{Binding HasQueuedMessages}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
@@ -212,40 +218,75 @@
           </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <ItemsControl Grid.Row="1" ItemsSource="{Binding Attachments}" IsVisible="{Binding HasAttachments}">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <WrapPanel ItemSpacing="8" LineSpacing="8" />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="vm:ImageAttachmentViewModel">
-              <Panel>
-                <ContentControl Content="{Binding}" ContentTemplate="{StaticResource SentImageTemplate}" />
-                <Button Classes="removeImage" Command="{ReflectionBinding $parent[UserControl].DataContext.RemoveAttachmentCommand}"
-                        CommandParameter="{Binding}" ToolTip.Tip="Remove image">
-                  <Path />
-                </Button>
-              </Panel>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
+        <Border Grid.Row="1" IsVisible="{Binding HasAttachments}" Background="#111722" BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="1" CornerRadius="8" Padding="8">
+          <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+            <!-- The scrollbar overlays the content, so leave room for it below the thumbnails. -->
+            <ItemsControl ItemsSource="{Binding Attachments}" Margin="0,0,0,14">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Orientation="Horizontal" Spacing="8" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:ImageAttachmentViewModel">
+                  <Panel>
+                    <ContentControl Content="{Binding}" ContentTemplate="{StaticResource SentImageTemplate}" />
+                    <Button Classes="removeImage" Command="{ReflectionBinding $parent[UserControl].DataContext.RemoveAttachmentCommand}"
+                            CommandParameter="{Binding}" ToolTip.Tip="Remove image">
+                      <Path />
+                    </Button>
+                  </Panel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </Border>
 
-        <TextBox x:Name="Composer" Grid.Row="2" Text="{Binding ComposerText}" AcceptsReturn="True" TextWrapping="Wrap"
-                 MinHeight="72" MaxHeight="260" PlaceholderText="Message (Ctrl+Enter or ⌘+Enter to send; paste images)" />
-        <Grid Grid.Row="3" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" ColumnSpacing="8">
-          <Button Classes="secondaryActionButton" Content="Image…" Click="AttachImage_Click"
-                  ToolTip.Tip="Attach PNG, JPEG, GIF, or WebP images to the next turn" />
-          <ComboBox Grid.Column="1" ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModel}" MinWidth="140"
-                    ToolTip.Tip="Model for this conversation" />
-          <ComboBox Grid.Column="2" ItemsSource="{Binding EffortOptions}" SelectedItem="{Binding SelectedEffort}" MinWidth="140"
-                    ToolTip.Tip="Effort for this conversation" />
-          <TextBlock Grid.Column="3" Text="{Binding Status}" Foreground="{DynamicResource TextMutedBrush}" FontSize="12"
-                     VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="6,0" ToolTip.Tip="{Binding Status}" />
-          <Button Grid.Column="4" Classes="dangerActionButton" Content="Stop" Command="{Binding StopCommand}"
-                  IsVisible="{Binding IsRunning}" />
-          <Button Grid.Column="5" Classes="primaryActionButton" Content="{Binding SendLabel}" Command="{Binding SendCommand}"
-                  MinWidth="80" ToolTip.Tip="While a turn runs, messages are queued and delivered to Claude during it" />
+        <Grid Grid.Row="2" RowDefinitions="Auto,Auto" ColumnDefinitions="*,80,80,80,Auto" ColumnSpacing="10" RowSpacing="4">
+          <Grid Grid.RowSpan="2" RowDefinitions="Auto,*" RowSpacing="4">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+              <ProgressBar Height="6" MinHeight="0" IsVisible="{Binding IsRunning}" IsIndeterminate="{Binding IsRunning}"
+                           Foreground="{DynamicResource TextCyanBrush}" VerticalAlignment="Center" />
+              <TextBlock Grid.Column="1" Text="{Binding ElapsedText}" MinWidth="42" FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}"
+                         FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextCyanBrush}" TextAlignment="Right"
+                         VerticalAlignment="Center" ToolTip.Tip="Elapsed time of the latest turn" />
+            </Grid>
+            <TextBox x:Name="Composer" Grid.Row="1" Text="{Binding ComposerText}" AcceptsReturn="True" TextWrapping="Wrap"
+                     MinHeight="80" MaxHeight="450" PlaceholderText="Message (Ctrl+Enter or ⌘+Enter to send; paste images)" />
+          </Grid>
+
+          <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+            <Button Classes="composerButton" Content="🎤 Voice" IsEnabled="False" ToolTip.Tip="Dictation isn't available yet" />
+            <Border Background="#151A22" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="5" MinHeight="38"
+                    Padding="8,4" ToolTip.Tip="Transcription confidence">
+              <TextBlock Text="—" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"
+                         HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+          </StackPanel>
+
+          <StackPanel Grid.Column="2" Spacing="4" VerticalAlignment="Center">
+            <Button Classes="composerButton undo" Content="↩ Undo" IsEnabled="False"
+                    ToolTip.Tip="Remove the last inserted dictation transcript (dictation isn't available yet)" />
+            <Button Classes="composerButton" Content="Clear" Command="{Binding ClearComposerCommand}"
+                    ToolTip.Tip="Clear the message input text" />
+          </StackPanel>
+
+          <StackPanel Grid.Column="3" Spacing="4" VerticalAlignment="Center">
+            <Button Classes="composerButton stop" Content="Stop" Command="{Binding StopCommand}" ToolTip.Tip="Stop the running turn" />
+            <Button Classes="composerButton image" Content="📷 Image" Click="AttachImage_Click"
+                    ToolTip.Tip="{Binding ImageButtonToolTip}" />
+          </StackPanel>
+
+          <Button Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Classes="secondaryActionButton" Content="Images Available for Replay"
+                  IsEnabled="False" HorizontalAlignment="Stretch" MinHeight="28" FontSize="12" FontWeight="Medium" Padding="8,4"
+                  ToolTip.ShowOnDisabled="True"
+                  ToolTip.Tip="Browse the conversation's images and choose which are replayed (not available yet)" />
+
+          <Button Grid.Column="4" Grid.RowSpan="2" Classes="primaryActionButton" Command="{Binding SendCommand}" MinWidth="80"
+                  VerticalAlignment="Stretch" ToolTip.Tip="While a turn runs, messages are queued and delivered to Claude during it">
+            <TextBlock Text="{Binding SendLabel}" TextAlignment="Center" TextWrapping="Wrap" />
+          </Button>
         </Grid>
       </Grid>
     </Border>

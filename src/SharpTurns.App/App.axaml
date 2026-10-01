@@ -165,6 +165,89 @@
       <Setter Property="BorderBrush" Value="#8F1111" />
     </Style>
 
+    <!-- Composer action buttons, in the Workbench's colors: neutral by default, plus undo (gold), stop (red), and image. -->
+    <Style Selector="Button.composerButton">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="MinHeight" Value="38" />
+      <Setter Property="Padding" Value="8,4" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Background" Value="#17212B" />
+      <Setter Property="BorderBrush" Value="#3A465C" />
+      <Setter Property="Foreground" Value="#D9E4F7" />
+      <Setter Property="ToolTip.ShowOnDisabled" Value="True" />
+    </Style>
+    <Style Selector="Button.composerButton /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="CornerRadius" Value="5" />
+    </Style>
+    <Style Selector="Button.composerButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#213247" />
+      <Setter Property="BorderBrush" Value="#5D6D89" />
+      <Setter Property="Foreground" Value="#F4F8FF" />
+    </Style>
+    <Style Selector="Button.composerButton:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#111924" />
+      <Setter Property="BorderBrush" Value="#2E394E" />
+    </Style>
+    <Style Selector="Button.composerButton:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#171B24" />
+      <Setter Property="BorderBrush" Value="#252D3C" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSubtleBrush}" />
+    </Style>
+
+    <Style Selector="Button.composerButton.undo">
+      <Setter Property="Background" Value="#2D2410" />
+      <Setter Property="BorderBrush" Value="#A77C1E" />
+      <Setter Property="Foreground" Value="#F8D37A" />
+    </Style>
+    <Style Selector="Button.composerButton.undo:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#443518" />
+      <Setter Property="BorderBrush" Value="#D7A52C" />
+      <Setter Property="Foreground" Value="#FFE8A3" />
+    </Style>
+    <Style Selector="Button.composerButton.undo:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="BorderBrush" Value="#3D3420" />
+    </Style>
+
+    <Style Selector="Button.composerButton.stop">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Background" Value="#F2385A" />
+      <Setter Property="BorderBrush" Value="#FF637B" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.composerButton.stop:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#FF4F6C" />
+      <Setter Property="BorderBrush" Value="#FF8A9D" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.composerButton.stop:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#C91F42" />
+      <Setter Property="BorderBrush" Value="#B91D3D" />
+    </Style>
+    <Style Selector="Button.composerButton.stop:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#2A1A22" />
+      <Setter Property="BorderBrush" Value="#4A2A35" />
+    </Style>
+
+    <Style Selector="Button.composerButton.image">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Background" Value="#171717" />
+      <Setter Property="BorderBrush" Value="#3A3F4B" />
+      <Setter Property="Foreground" Value="#D9D9DE" />
+    </Style>
+    <Style Selector="Button.composerButton.image:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#24262D" />
+      <Setter Property="BorderBrush" Value="#636C7F" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.composerButton.image:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#101014" />
+      <Setter Property="BorderBrush" Value="#2D3340" />
+    </Style>
+
     <!-- Collapsible card headers: the whole row toggles; no accent fill when expanded. -->
     <Style Selector="ToggleButton.cardHeader">
       <Setter Property="Background" Value="Transparent" />
