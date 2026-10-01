@@ -81,5 +81,17 @@ internal static class Migrations
         """
         ALTER TABLE conversations ADD COLUMN auto_summarize INTEGER NOT NULL DEFAULT 0;
         """,
+        """
+        CREATE TABLE conversation_user_notes (
+            id INTEGER PRIMARY KEY,
+            conversation_id INTEGER NOT NULL REFERENCES conversations (id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE INDEX conversation_user_notes_conversation ON conversation_user_notes (conversation_id);
+        """,
     ];
 }

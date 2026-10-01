@@ -83,6 +83,11 @@ public sealed partial class ConversationViewModel : ObservableObject
     [ObservableProperty]
     private bool _autoSummarize;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NotesLabel))]
+    [NotifyPropertyChangedFor(nameof(NotesToolTip))]
+    private int _notesCount;
+
     /// <summary>conversationUpdated receives the conversation when a turn starts and moves its updated time.</summary>
     internal ConversationViewModel(Conversation conversation, Project project, ConversationStore store, ClaudeTurnRunner runner,
         TurnSummarizer summarizer, ConversationDisplayViewModel display, Action<ClaudeCliRateLimitSnapshot> rateLimitsChanged,
@@ -167,6 +172,13 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     public string SendLabel => IsRunning ? "Queue" : "Send";
 
+    // The header's Notes button, as in the Workbench.
+    public string NotesLabel => NotesCount > 0 ? string.Create(CultureInfo.CurrentCulture, $"📝 Notes ({NotesCount:N0})") : "📝 Notes";
+
+    public string NotesToolTip => NotesCount > 0
+        ? string.Create(CultureInfo.CurrentCulture, $"View this conversation's notes ({NotesCount:N0} note{(NotesCount == 1 ? "" : "s")})")
+        : "View this conversation's notes";
+
     // The composer's replay image button, as in the Workbench. A live turn's images count as replayed.
     private int ReplayedImageCount => Turns.Sum(t => t.Record is { } turn ? ClaudeCodeContext.ReplayedImageCount(turn) : t.Images.Count);
 
@@ -209,6 +221,9 @@ public sealed partial class ConversationViewModel : ObservableObject
     /// <summary>Shows the user message history modally.</summary>
     public Func<UserMessageHistoryDialogViewModel, Task>? ShowUserMessageHistoryAsync { get; set; }
 
+    /// <summary>Shows the notes non-modally, or brings this conversation's open Notes window forward.</summary>
+    public Action<NotesDialogViewModel>? ShowNotes { get; set; }
+
     /// <summary>Raised on the UI thread after each turn's content changes, for scrolling.</summary>
     public event EventHandler? TurnContentChanged;
 
@@ -220,6 +235,7 @@ public sealed partial class ConversationViewModel : ObservableObject
             Turns.Clear();
             foreach (var turn in turns) Turns.Add(new TurnViewModel(turn));
             TurnContentChanged?.Invoke(this, EventArgs.Empty);
+            NotesCount = await _store.CountNotesAsync(Conversation.Id);
         }
         catch (Exception e) { Status = "Couldn't load this conversation: " + e.Message; }
     }
@@ -552,6 +568,16 @@ public sealed partial class ConversationViewModel : ObservableObject
     {
         if (ShowUserMessageHistoryAsync is null) return;
         await ShowUserMessageHistoryAsync(new UserMessageHistoryDialogViewModel(Title, Turns));
+    }
+
+    // Notes are never sent to Claude, so they stay available while a turn or compression runs.
+    [RelayCommand]
+    private async Task OpenNotesAsync()
+    {
+        if (ShowNotes is null) return;
+        var notes = new NotesDialogViewModel(_store, Conversation.Id, Title, count => NotesCount = count);
+        await notes.LoadAsync();
+        ShowNotes(notes);
     }
 
     // After the turns or their context state change: the header buttons, the metrics row, and the Show picker's turns.

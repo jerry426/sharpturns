@@ -24,7 +24,7 @@ public sealed class ConversationStoreTests : IDisposable
         await _store.InitializeAsync();
         await _store.InitializeAsync();
 
-        Assert.Equal(7L, Scalar("PRAGMA user_version"));
+        Assert.Equal(8L, Scalar("PRAGMA user_version"));
         Assert.Equal("wal", Scalar("PRAGMA journal_mode"));
     }
 
@@ -128,6 +128,35 @@ public sealed class ConversationStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task NotesBelongToTheirConversationAndGoWithIt()
+    {
+        await _store.InitializeAsync();
+        var project = await _store.CreateProjectAsync("Project", "/work");
+        var conversation = await _store.CreateConversationAsync(project.Id, "Conversation");
+        var other = await _store.CreateConversationAsync(project.Id, "Other");
+        var first = await _store.CreateNoteAsync(conversation.Id, "First", "# Plan\n- step");
+        var second = await _store.CreateNoteAsync(conversation.Id, "Second", "text");
+        await _store.CreateNoteAsync(other.Id, "Elsewhere", "text");
+
+        var updated = await _store.UpdateNoteAsync(first.Id, "First, edited", "# Plan\n- done");
+
+        Assert.Equal((first.CreatedAt, "First, edited", "# Plan\n- done"), (updated.CreatedAt, updated.Title, updated.Content));
+        Assert.True(updated.UpdatedAt >= first.UpdatedAt);
+        // Listed in the order they were created, as in the Workbench, not by the latest edit.
+        Assert.Equal([updated, second], await _store.ListNotesAsync(conversation.Id));
+        Assert.Equal(2, await _store.CountNotesAsync(conversation.Id));
+        await Assert.ThrowsAsync<ArgumentException>(() => _store.CreateNoteAsync(conversation.Id, "Empty", " "));
+
+        await _store.DeleteNoteAsync(second.Id);
+        Assert.Equal(1, await _store.CountNotesAsync(conversation.Id));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _store.UpdateNoteAsync(second.Id, "Gone", "text"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _store.DeleteNoteAsync(second.Id));
+
+        await _store.DeleteConversationAsync(conversation.Id);
+        Assert.Equal(1L, Scalar("SELECT COUNT(*) FROM conversation_user_notes"));
+    }
+
+    [Fact]
     public async Task DeletingATurnRemovesItsPartsAndKeepsLaterNumbers()
     {
         await _store.InitializeAsync();
@@ -159,13 +188,14 @@ public sealed class ConversationStoreTests : IDisposable
         Scalar("ALTER TABLE projects DROP COLUMN color");
         Scalar("ALTER TABLE conversations DROP COLUMN output_style");
         Scalar("ALTER TABLE conversations DROP COLUMN auto_summarize");
+        Scalar("DROP TABLE conversation_user_notes");
         Scalar("PRAGMA user_version = 1");
         // Pooled connections cache the schema this test just changed behind the store's back.
         SqliteConnection.ClearAllPools();
 
         await _store.InitializeAsync();
 
-        Assert.Equal(7L, Scalar("PRAGMA user_version"));
+        Assert.Equal(8L, Scalar("PRAGMA user_version"));
         Assert.Equal(ProjectColor.Default, Assert.Single(await _store.ListProjectsAsync()).Color);
         var upgraded = Assert.Single(await _store.ListConversationsAsync(project.Id));
         Assert.Equal((null, false), (upgraded.OutputStyle, upgraded.AutoSummarize));

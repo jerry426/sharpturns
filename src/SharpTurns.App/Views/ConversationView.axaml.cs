@@ -47,6 +47,7 @@ public sealed partial class ConversationView : UserControl
         _viewModel.CopyTextAsync = CopyTextAsync;
         _viewModel.ShowReplayImagesAsync = ShowReplayImagesAsync;
         _viewModel.ShowUserMessageHistoryAsync = ShowUserMessageHistoryAsync;
+        _viewModel.ShowNotes = ShowNotes;
         // Show the newest turn.
         Dispatcher.UIThread.Post(TurnsScroller.ScrollToEnd, DispatcherPriority.Background);
     }
@@ -176,6 +177,19 @@ public sealed partial class ConversationView : UserControl
         if (TopLevel.GetTopLevel(this) is not Window owner) return;
         var turn = await new UserMessageHistoryDialog { DataContext = history }.ShowDialog<TurnViewModel?>(owner);
         if (turn is not null) ScrollToTurn(turn);
+    }
+
+    // One Notes window per conversation; each stays with the conversation it was opened for.
+    private void ShowNotes(NotesDialogViewModel notes)
+    {
+        if (TopLevel.GetTopLevel(this) is not Window owner) return;
+        if (owner.OwnedWindows.OfType<NotesDialog>()
+                .FirstOrDefault(w => (w.DataContext as NotesDialogViewModel)?.ConversationId == notes.ConversationId) is { } open)
+        {
+            open.Activate();
+            return;
+        }
+        new NotesDialog { DataContext = notes }.Show(owner);
     }
 
     /// <summary>Scrolls the turn's card to the top, first showing all turns when the Show picker leaves it out.</summary>

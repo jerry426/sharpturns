@@ -27,6 +27,10 @@ public static class ProjectColor
 public sealed record Conversation(long Id, long ProjectId, string Title, string? Model, string? Effort, DateTimeOffset UpdatedAt,
     string? OutputStyle = null, bool AutoSummarize = false);
 
+/// <summary>A user's note on a conversation, as in the Workbench; Content is Markdown source. Never sent to Claude.</summary>
+public sealed record ConversationNote(long Id, long ConversationId, string Title, string Content, DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
+
 public enum TurnStatus { Running, Completed, Stopped, Failed }
 
 /// <summary>

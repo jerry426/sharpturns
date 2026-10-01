@@ -45,6 +45,8 @@
       <WrapPanel Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Right">
         <Button Classes="headerButton history" Content="💬 User Message History" Command="{Binding OpenUserMessageHistoryCommand}"
                 ToolTip.Tip="Browse the user messages in Claude's context" />
+        <Button Classes="headerButton notes" Content="{Binding NotesLabel}" Command="{Binding OpenNotesCommand}"
+                ToolTip.Tip="{Binding NotesToolTip}" />
       </WrapPanel>
     </Grid>
 

@@ -1,0 +1,132 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SharpTurns.App.ViewModels"
+        x:Class="SharpTurns.App.Views.NotesDialog"
+        x:DataType="vm:NotesDialogViewModel"
+        Title="Notes"
+        Width="980"
+        Height="660"
+        MinWidth="820"
+        MinHeight="520"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource CardBackgroundBrush}">
+  <Window.Styles>
+    <!-- Laid out like the Workbench's Notes window: the note cards on the left, the selected note's editor on the right. -->
+    <Style Selector="ListBox.notesList">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+    </Style>
+    <Style Selector="ListBox.notesList ListBoxItem">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Margin" Value="0,0,0,12" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="ListBox.notesList ListBoxItem /template/ ContentPresenter#PART_ContentPresenter, ListBox.notesList ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter, ListBox.notesList ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+    <Style Selector="Border.noteCard">
+      <Setter Property="Background" Value="#0B252D" />
+      <Setter Property="BorderBrush" Value="#008AD8" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="12" />
+      <Setter Property="Padding" Value="12" />
+    </Style>
+    <Style Selector="ListBox.notesList ListBoxItem:selected Border.noteCard">
+      <Setter Property="BorderBrush" Value="#20E6FF" />
+      <Setter Property="BorderThickness" Value="3" />
+    </Style>
+    <Style Selector="TextBlock.fieldLabel">
+      <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Margin" Value="0,0,0,3" />
+    </Style>
+  </Window.Styles>
+
+  <Grid RowDefinitions="Auto,Auto,*" RowSpacing="14" Margin="18">
+    <StackPanel Spacing="4">
+      <TextBlock Text="📝 Notes" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="20" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding ConversationTitle}" Foreground="{DynamicResource TextYellowBrush}" FontSize="13"
+                 TextTrimming="CharacterEllipsis" />
+    </StackPanel>
+
+    <Border Grid.Row="1" Background="#111A2E" BorderBrush="#324A86" BorderThickness="1" CornerRadius="8" Padding="10,7">
+      <TextBlock Text="Notes belong to this conversation and are never sent to Claude. Write them in Markdown or plain text."
+                 Foreground="#AFC3FF" FontSize="13" TextWrapping="Wrap" />
+    </Border>
+
+    <Grid Grid.Row="2" ColumnDefinitions="325,*" ColumnSpacing="16">
+      <Border Background="#111722" BorderBrush="#283246" BorderThickness="1" CornerRadius="10" Padding="12">
+        <Grid RowDefinitions="Auto,*" RowSpacing="10">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBlock Text="Notes" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="15" FontWeight="SemiBold"
+                       VerticalAlignment="Center" />
+            <Button Grid.Column="1" Classes="secondaryActionButton" Content="New" Command="{Binding NewCommand}" MinWidth="70"
+                    ToolTip.Tip="Start a new note" />
+          </Grid>
+
+          <TextBlock Grid.Row="1" IsVisible="{Binding !HasNotes}" Text="No notes yet. Click New to create one."
+                     Foreground="{DynamicResource TextMutedBrush}" FontSize="12" TextWrapping="Wrap" />
+          <ListBox Grid.Row="1" Classes="notesList" IsVisible="{Binding HasNotes}" ItemsSource="{Binding Notes}"
+                   SelectedItem="{Binding SelectedNote, Mode=TwoWay}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:NoteCardViewModel">
+                <Border Classes="noteCard">
+                  <StackPanel Spacing="7">
+                    <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="16"
+                               FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding Preview}" Foreground="{DynamicResource TextMutedBrush}" FontSize="14"
+                               TextWrapping="Wrap" MaxHeight="64" />
+                    <TextBlock Text="{Binding TimestampLabel}" Foreground="{DynamicResource TextSubtleBrush}" FontSize="12" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+
+      <Border Grid.Column="1" Background="#111722" BorderBrush="#283246" BorderThickness="1" CornerRadius="10" Padding="14">
+        <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="10">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <StackPanel>
+              <TextBlock Text="Note details" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="15" FontWeight="SemiBold" />
+              <TextBlock Text="Select a note or click New to edit." Foreground="{DynamicResource TextMutedBrush}" FontSize="12"
+                         Margin="0,4,0,0" />
+            </StackPanel>
+            <Button Grid.Column="1" Classes="dangerActionButton" Content="Delete" Command="{Binding DeleteCommand}" MinWidth="86"
+                    VerticalAlignment="Top" ToolTip.Tip="Delete this note" />
+          </Grid>
+
+          <StackPanel Grid.Row="1" IsEnabled="{Binding IsEditorEnabled}">
+            <TextBlock Classes="fieldLabel" Text="Title" />
+            <TextBox Text="{Binding TitleText, Mode=TwoWay}" PlaceholderText="Untitled Note" MinHeight="34" FontSize="14" />
+          </StackPanel>
+
+          <Grid Grid.Row="2" RowDefinitions="Auto,*" IsEnabled="{Binding IsEditorEnabled}">
+            <TextBlock Classes="fieldLabel" Text="Content" />
+            <TextBox Grid.Row="1" Text="{Binding ContentText, Mode=TwoWay}" AcceptsReturn="True" TextWrapping="Wrap"
+                     VerticalAlignment="Stretch" VerticalContentAlignment="Top" MinHeight="0" FontSize="13"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+          </Grid>
+
+          <Border Grid.Row="3" IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                  Background="#101825" BorderBrush="#263650" BorderThickness="1" CornerRadius="8" Padding="9,6">
+            <TextBlock Text="{Binding Status}" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" TextWrapping="Wrap" />
+          </Border>
+
+          <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
+            <TextBlock Text="Unsaved changes" IsVisible="{Binding HasDirtyChanges}" Foreground="#FFCC66" FontSize="12"
+                       VerticalAlignment="Center" />
+            <Button Grid.Column="1" Classes="secondaryActionButton" Content="Close" Click="Close_Click" MinWidth="90" />
+            <Button Grid.Column="2" Classes="secondaryActionButton" Content="Cancel" Command="{Binding CancelCommand}" MinWidth="90"
+                    ToolTip.Tip="Discard the edits to this note" />
+            <Button Grid.Column="3" Classes="primaryActionButton" Content="Save" Command="{Binding SaveCommand}" MinWidth="100"
+                    ToolTip.Tip="Save this note; a note needs a title and content" />
+          </Grid>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</Window>

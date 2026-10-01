@@ -157,6 +157,63 @@ public sealed class ConversationStore
             cancellationToken, ("$id", conversationId)).ConfigureAwait(false);
     }
 
+    /// <summary>The conversation's notes in the order they were created, as in the Workbench.</summary>
+    public async Task<IReadOnlyList<ConversationNote>> ListNotesAsync(long conversationId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = Command(connection, null, $"""
+            SELECT {NoteColumns} FROM conversation_user_notes WHERE conversation_id = $conversation ORDER BY id
+            """, ("$conversation", conversationId));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        var notes = new List<ConversationNote>();
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            notes.Add(ReadNote(reader));
+        return notes;
+    }
+
+    public async Task<int> CountNotesAsync(long conversationId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        return Convert.ToInt32(await ScalarAsync(connection, null,
+            "SELECT COUNT(*) FROM conversation_user_notes WHERE conversation_id = $conversation",
+            cancellationToken, ("$conversation", conversationId)).ConfigureAwait(false), CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>As in the Workbench, a note needs a title and content.</summary>
+    public async Task<ConversationNote> CreateNoteAsync(long conversationId, string title, string content,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(title);
+        ArgumentException.ThrowIfNullOrWhiteSpace(content);
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        return await ReadSingleNoteAsync(connection, $"""
+            INSERT INTO conversation_user_notes (conversation_id, title, content, created_at, updated_at)
+            VALUES ($conversation, $title, $content, $now, $now)
+            RETURNING {NoteColumns}
+            """, cancellationToken, ("$conversation", conversationId), ("$title", title), ("$content", content),
+            ("$now", Now())).ConfigureAwait(false);
+    }
+
+    public async Task<ConversationNote> UpdateNoteAsync(long noteId, string title, string content,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(title);
+        ArgumentException.ThrowIfNullOrWhiteSpace(content);
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        return await ReadSingleNoteAsync(connection, $"""
+            UPDATE conversation_user_notes SET title = $title, content = $content, updated_at = $now WHERE id = $id
+            RETURNING {NoteColumns}
+            """, cancellationToken, ("$id", noteId), ("$title", title), ("$content", content), ("$now", Now()))
+            .ConfigureAwait(false);
+    }
+
+    public async Task DeleteNoteAsync(long noteId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await ExecuteSingleAsync(connection, null, "DELETE FROM conversation_user_notes WHERE id = $id", "Note",
+            cancellationToken, ("$id", noteId)).ConfigureAwait(false);
+    }
+
     public async Task<IReadOnlyList<ConversationTurn>> LoadTurnsAsync(long conversationId, CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -392,6 +449,22 @@ public sealed class ConversationStore
         new(reader.GetInt64(0), reader.GetInt64(1), reader.GetString(2),
             reader.IsDBNull(3) ? null : reader.GetString(3), reader.IsDBNull(4) ? null : reader.GetString(4),
             ParseTime(reader.GetString(5)), reader.IsDBNull(6) ? null : reader.GetString(6), reader.GetBoolean(7));
+
+    private const string NoteColumns = "id, conversation_id, title, content, created_at, updated_at";
+
+    private static ConversationNote ReadNote(SqliteDataReader reader) =>
+        new(reader.GetInt64(0), reader.GetInt64(1), reader.GetString(2), reader.GetString(3),
+            ParseTime(reader.GetString(4)), ParseTime(reader.GetString(5)));
+
+    private static async Task<ConversationNote> ReadSingleNoteAsync(SqliteConnection connection, string sql,
+        CancellationToken cancellationToken, params (string Name, object? Value)[] parameters)
+    {
+        await using var command = Command(connection, null, sql, parameters);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        return await reader.ReadAsync(cancellationToken).ConfigureAwait(false)
+            ? ReadNote(reader)
+            : throw new InvalidOperationException("Note no longer exists.");
+    }
 
     private static string Now() => DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
 
