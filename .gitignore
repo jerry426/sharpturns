@@ -1,0 +1,24 @@
+# .NET build output
+bin/
+obj/
+TestResults/
+artifacts/
+
+# IDE and OS files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+.DS_Store
+
+# Local environment, instructions, and data
+.env
+.env.local
+CLAUDE.local.md
+*.db
+*.db-shm
+*.db-wal
+
+# Local scratch files
+tmp/
