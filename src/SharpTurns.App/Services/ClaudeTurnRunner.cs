@@ -7,8 +7,25 @@ using SharpTurns.Core.Persistence;
 
 namespace SharpTurns.App.Services;
 
-/// <summary>Turn progress for display. Both callbacks run off the UI thread.</summary>
-internal sealed record TurnCallbacks(Action<string> TextDelta, Action<string> StatusChanged);
+/// <summary>
+/// Turn progress for display. The notifications run off the UI thread in the order the runner saw the events, and
+/// add display items by the same rule the runner uses for saved parts: text continues the last text item, and every
+/// tool call, question, or delivered message starts a new item. AskAsync and ApproveAsync must show their dialogs on
+/// the UI thread and close them when the token is canceled.
+/// </summary>
+internal sealed record TurnCallbacks(
+    Action<string> TextDelta,
+    Action<string> StatusChanged,
+    Action<ToolCallRecord> ToolChanged,
+    Action<string, QuestionRecord, bool> QuestionChanged,
+    Action<ClaudeCliUserMessage> UserMessageDelivered,
+    Action<TurnUsage> UsageChanged,
+    Action<ClaudeCliRateLimitSnapshot> RateLimitsChanged,
+    Func<ClaudeCliQuestion, CancellationToken, Task<string?>> AskAsync,
+    Func<string, string, CancellationToken, Task<bool>> ApproveAsync);
+
+/// <summary>The saved turn, and any messages queued during it that never reached the CLI.</summary>
+internal sealed record TurnRunResult(ConversationTurn Turn, IReadOnlyList<string> UndeliveredMessages);
 
 /// <summary>
 /// Runs one turn through the CLI: saves the prompt, resumes the conversation's CLI session or seeds a fresh one
@@ -17,49 +34,166 @@ internal sealed record TurnCallbacks(Action<string> TextDelta, Action<string> St
 internal sealed class ClaudeTurnRunner(ConversationStore store, string? executable = null)
 {
     /// <summary>Returns the saved turn, including after Stop or failure. Throws only if the database fails.</summary>
-    public async Task<ConversationTurn> RunAsync(Project project, Conversation conversation, string prompt,
-        string systemPrompt, TurnCallbacks callbacks, CancellationToken token)
+    public async Task<TurnRunResult> RunAsync(Project project, Conversation conversation, string prompt,
+        IReadOnlyList<ImageAttachment> images, string systemPrompt, ClaudeCliInputQueue queue, TurnCallbacks callbacks,
+        CancellationToken token)
     {
-        var turn = await store.StartTurnAsync(conversation.Id, prompt, token).ConfigureAwait(false);
-        var content = new StringBuilder();
+        var turn = await store.StartTurnAsync(conversation.Id, prompt, images, token).ConfigureAwait(false);
+        // Every field below is guarded by gate: CLI events and permission requests arrive on different threads.
+        var gate = new object();
+        var items = new List<Item>();
+        var tools = new Dictionary<string, Item>(StringComparer.Ordinal);
+        var questions = new Dictionary<string, Item>(StringComparer.Ordinal);
         var thinking = new StringBuilder();
+        var activity = new ClaudeCliActivity();
+        var usage = new ClaudeCliUsageTracker();
+        var submitted = new Dictionary<string, string>(StringComparer.Ordinal);
+        var delivered = new HashSet<string>(StringComparer.Ordinal);
+        // The CLI can send requests concurrently; show one dialog at a time.
+        using var interaction = new SemaphoreSlim(1, 1);
+        var finished = false;
+        var textBlockStarted = false;
+        var thinkingBlockStarted = false;
+        var receivedText = false;
         ClaudeCodeSessionState? state = null;
         TurnStatus status;
         string? error = null;
-        try
-        {
-            var directory = Path.GetFullPath(project.WorkingDirectory);
-            if (!Directory.Exists(directory))
-                throw new DirectoryNotFoundException($"The project's working directory doesn't exist: {directory}");
-            var history = (await store.LoadTurnsAsync(conversation.Id, token).ConfigureAwait(false))
-                .Where(t => t.Id != turn.Id).ToArray();
-            var previous = await store.LoadClaudeCodeSessionAsync(conversation.Id, token).ConfigureAwait(false);
-            var fingerprint = ClaudeCodeContext.Fingerprint(history);
-            var policyVersion = ClaudeCliCodingPolicy.VersionFor(systemPrompt);
-            var resume = ClaudeCodeContext.CanResume(previous, directory, fingerprint, policyVersion) ? previous!.SessionId : null;
-            var retainedHistory = resume is null
-                ? ClaudeCodeContext.SeedHistoryBlocks(history).Select(text => new ClaudeCliHistoryBlock(text)).ToArray()
-                : null;
-            state = new(resume, directory, fingerprint, InFlight: true, policyVersion);
-            // Persist the uncertainty before launch. A crash cannot silently resume stale native context.
-            await store.SaveClaudeCodeSessionAsync(conversation.Id, state, token).ConfigureAwait(false);
-            callbacks.StatusChanged(resume is not null ? "Resuming the CLI session…"
-                : history.Length == 0 ? "Starting a new CLI session…"
-                : "Starting a new CLI session from the conversation history…");
 
-            var textBlockStarted = false;
-            var thinkingBlockStarted = false;
-            var receivedText = false;
-            void AppendText(string text)
+        void AppendText(string text)
+        {
+            if (finished) return;
+            // Text blocks within one item keep a blank line between them.
+            string delta;
+            if (items.LastOrDefault() is { Role: "assistant", Type: TurnParts.Text } last)
             {
-                // The response keeps block separators between the assistant's text blocks.
-                var separator = textBlockStarted && content.Length > 0 ? "\n\n" : "";
-                textBlockStarted = false;
-                content.Append(separator).Append(text);
-                callbacks.TextDelta(separator + text);
+                delta = (textBlockStarted && last.Text.Length > 0 ? "\n\n" : "") + text;
+                last.Text.Append(delta);
             }
-            var result = await new ClaudeCliClient(executable).RunTurnAsync(directory, prompt, resume, e =>
+            else
             {
+                delta = text;
+                items.Add(Item.WithText("assistant", text));
+            }
+            textBlockStarted = false;
+            callbacks.TextDelta(delta);
+        }
+
+        void PublishTools()
+        {
+            foreach (var change in activity.TakeChanges())
+            {
+                var tool = new ToolCallRecord(change.ToolUseId, change.Name, change.Input, change.Result, change.Status, change.IsError);
+                if (!tools.TryGetValue(tool.Id, out var item))
+                {
+                    tools[tool.Id] = item = new("assistant", TurnParts.Tool);
+                    items.Add(item);
+                }
+                item.Value = tool;
+                callbacks.ToolChanged(tool);
+            }
+        }
+
+        void SetQuestion(string key, QuestionRecord question, bool waiting)
+        {
+            lock (gate)
+            {
+                if (finished) return;
+                if (!questions.TryGetValue(key, out var item))
+                {
+                    questions[key] = item = new("assistant", TurnParts.Question);
+                    items.Add(item);
+                }
+                item.Value = question;
+                callbacks.QuestionChanged(key, question, waiting);
+            }
+        }
+
+        async Task<T> InteractAsync<T>(Func<Task<T>> show, string waitingStatus, CancellationToken ct)
+        {
+            await interaction.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                callbacks.StatusChanged(waitingStatus);
+                return await show().ConfigureAwait(false);
+            }
+            finally
+            {
+                interaction.Release();
+                callbacks.StatusChanged("Working…");
+            }
+        }
+
+        async Task<ClaudeCliPermissionDecision> AnswerAsync(ClaudeCliPermissionRequest request, CancellationToken ct)
+        {
+            if (request.ToolName == "AskUserQuestion") return await AskQuestionsAsync(request, ct).ConfigureAwait(false);
+            if (!ClaudeCliCodingPolicy.AllowsAutomatically(request.ToolName))
+                return new(false, Message: "Tool is outside the enabled coding scope.");
+            // The CLI runs preapproved tools on its own. It asks the host only for its safety checks, such as
+            // edits to its own settings files, and the user decides those.
+            lock (gate)
+            {
+                activity.Permission(request, "Waiting for your approval");
+                PublishTools();
+            }
+            var allowed = false;
+            try
+            {
+                allowed = await InteractAsync(() => callbacks.ApproveAsync(request.ToolName, request.Input.GetRawText(), ct),
+                    "Waiting for your approval…", ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                lock (gate)
+                {
+                    activity.Permission(request, ct.IsCancellationRequested ? "Request canceled" : allowed ? "Approved" : "Denied by you",
+                        final: !allowed);
+                    PublishTools();
+                }
+            }
+            return allowed ? new(true) : new(false, Message: "The user denied this tool request.");
+        }
+
+        async Task<ClaudeCliPermissionDecision> AskQuestionsAsync(ClaudeCliPermissionRequest request, CancellationToken ct)
+        {
+            var answers = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var question in ClaudeCliQuestions.Parse(request.Input))
+            {
+                var key = Guid.NewGuid().ToString("N");
+                var shown = QuestionMarkdown(question);
+                SetQuestion(key, new(shown, null), waiting: true);
+                string? answer = null;
+                try
+                {
+                    answer = await InteractAsync(() => callbacks.AskAsync(question, ct), "Waiting for your answer…", ct)
+                        .ConfigureAwait(false);
+                }
+                finally { SetQuestion(key, new(shown, string.IsNullOrWhiteSpace(answer) ? null : answer.Trim()), waiting: false); }
+                if (string.IsNullOrWhiteSpace(answer)) return new(false, Message: "The user declined to answer.");
+                answers[question.Text] = answer.Trim();
+            }
+            return new(true, ClaudeCliQuestions.Answer(request.Input, answers));
+        }
+
+        IReadOnlyList<ClaudeCliUserMessage> TakeQueued()
+        {
+            var messages = queue.Take();
+            lock (gate)
+                foreach (var message in messages) submitted[message.Uuid] = message.Text;
+            return messages;
+        }
+
+        void OnEvent(ClaudeCliEvent e)
+        {
+            lock (gate)
+            {
+                if (finished) return;
+                if (e.Type == "user" && e.Data.TryGetProperty("isReplay", out var replay) && replay.ValueKind == JsonValueKind.True
+                    && ClaudeCliProtocol.String(e.Data, "uuid") is { } uuid
+                    && submitted.TryGetValue(uuid, out var message) && delivered.Add(uuid))
+                {
+                    items.Add(Item.WithText("user", message));
+                    callbacks.UserMessageDelivered(new(uuid, message));
+                }
                 if (e.Type == "result")
                 {
                     // A cycle that streamed no text still reports its final text here.
@@ -71,6 +205,10 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, string? executab
                     }
                     receivedText = false;
                 }
+                if (ClaudeCliRateLimitSnapshot.FromEvent(e) is { } limits) callbacks.RateLimitsChanged(limits);
+                if (usage.Observe(e)) callbacks.UsageChanged(ToTurnUsage(usage.Current));
+                activity.Observe(e);
+                PublishTools();
                 if (TopLevel(e.Data) && e.Type == "stream_event" && e.Data.TryGetProperty("event", out var stream)
                     && ClaudeCliProtocol.String(stream, "type") == "content_block_start"
                     && stream.TryGetProperty("content_block", out var block))
@@ -101,8 +239,33 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, string? executab
                     receivedText = true;
                     AppendText(text);
                 }
-            }, AnswerAsync, systemPrompt, token, conversation.Model, conversation.Effort,
-                sessionName: conversation.Title, retainedHistory: retainedHistory).ConfigureAwait(false);
+            }
+        }
+
+        try
+        {
+            var directory = Path.GetFullPath(project.WorkingDirectory);
+            if (!Directory.Exists(directory))
+                throw new DirectoryNotFoundException($"The project's working directory doesn't exist: {directory}");
+            var history = (await store.LoadTurnsAsync(conversation.Id, token).ConfigureAwait(false))
+                .Where(t => t.Id != turn.Id).ToArray();
+            var previous = await store.LoadClaudeCodeSessionAsync(conversation.Id, token).ConfigureAwait(false);
+            var fingerprint = ClaudeCodeContext.Fingerprint(history);
+            var policyVersion = ClaudeCliCodingPolicy.VersionFor(systemPrompt);
+            var resume = ClaudeCodeContext.CanResume(previous, directory, fingerprint, policyVersion) ? previous!.SessionId : null;
+            var retainedHistory = resume is null
+                ? ClaudeCodeContext.SeedHistoryBlocks(history).Select(block => new ClaudeCliHistoryBlock(block.Text, ToCli(block.Images))).ToArray()
+                : null;
+            state = new(resume, directory, fingerprint, InFlight: true, policyVersion);
+            // Persist the uncertainty before launch. A crash cannot silently resume stale native context.
+            await store.SaveClaudeCodeSessionAsync(conversation.Id, state, token).ConfigureAwait(false);
+            callbacks.StatusChanged(resume is not null ? "Resuming the CLI session…"
+                : history.Length == 0 ? "Starting a new CLI session…"
+                : "Starting a new CLI session from the conversation history…");
+
+            var result = await new ClaudeCliClient(executable).RunTurnAsync(directory, prompt, resume, OnEvent, AnswerAsync,
+                systemPrompt, token, conversation.Model, conversation.Effort, sessionName: conversation.Title,
+                retainedHistory: retainedHistory, images: ToCli(images), queuedInput: queue.ToTurnInput(TakeQueued)).ConfigureAwait(false);
             state = state with { SessionId = result.SessionId };
             status = result.IsError ? TurnStatus.Failed : TurnStatus.Completed;
             if (result.IsError)
@@ -121,11 +284,33 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, string? executab
             error = e.Message;
         }
 
+        queue.Close();
         var parts = new List<TurnPart>();
-        if (thinking.Length > 0) parts.Add(new(parts.Count + 2, "assistant", "thinking", thinking.ToString()));
-        if (content.Length > 0) parts.Add(new(parts.Count + 2, "assistant", "text", content.ToString()));
+        string[] undelivered;
+        lock (gate)
+        {
+            activity.Finish(status switch
+            {
+                TurnStatus.Stopped => "Stopped before a result",
+                TurnStatus.Failed => "Turn failed before a result",
+                _ => "Result not reported",
+            });
+            PublishTools();
+            finished = true;
+            var sequence = turn.Parts.Max(p => p.Sequence) + 1;
+            if (thinking.Length > 0) parts.Add(new(sequence++, "assistant", TurnParts.Thinking, thinking.ToString()));
+            foreach (var item in items)
+                parts.Add(item.Value switch
+                {
+                    ToolCallRecord tool => TurnParts.FromTool(sequence++, tool),
+                    QuestionRecord question => TurnParts.FromQuestion(sequence++, question),
+                    _ => new(sequence++, item.Role, TurnParts.Text, item.Text.ToString()),
+                });
+            undelivered = [.. submitted.Where(m => !delivered.Contains(m.Key)).Select(m => m.Value), .. queue.Take().Select(m => m.Text)];
+        }
+        var turnUsage = usage.Current is { InputTokens: > 0 } or { ContextTokens: not null } ? ToTurnUsage(usage.Current) : null;
         // Save Stopped turns too, so this must not use the turn's token.
-        await store.FinishTurnAsync(turn.Id, status, error, parts, CancellationToken.None).ConfigureAwait(false);
+        await store.FinishTurnAsync(turn.Id, status, error, parts, turnUsage, CancellationToken.None).ConfigureAwait(false);
         var turns = await store.LoadTurnsAsync(conversation.Id, CancellationToken.None).ConfigureAwait(false);
         // Reuse the session next turn only after a clean finish, and only if the history the CLI saw is unchanged.
         // Otherwise InFlight stays set and the next turn reseeds from the saved history.
@@ -134,17 +319,46 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, string? executab
             await store.SaveClaudeCodeSessionAsync(conversation.Id,
                 state with { ContextFingerprint = ClaudeCodeContext.Fingerprint(turns), InFlight = false },
                 CancellationToken.None).ConfigureAwait(false);
-        return turns.Single(t => t.Id == turn.Id);
+        return new(turns.Single(t => t.Id == turn.Id), undelivered);
     }
 
-    // AskUserQuestion needs the question dialog, which is not built yet.
-    private static Task<ClaudeCliPermissionDecision> AnswerAsync(ClaudeCliPermissionRequest request, CancellationToken token) =>
-        Task.FromResult(ClaudeCliCodingPolicy.AllowsAutomatically(request.ToolName)
-            ? new ClaudeCliPermissionDecision(true)
-            : request.ToolName == "AskUserQuestion"
-                ? new ClaudeCliPermissionDecision(false, Message: "This app can't show questions yet. Ask in your response text instead.")
-                : new ClaudeCliPermissionDecision(false, Message: "Tool is outside the enabled coding scope."));
+    /// <summary>The question as shown on its card and replayed in later context.</summary>
+    internal static string QuestionMarkdown(ClaudeCliQuestion question)
+    {
+        var text = new StringBuilder();
+        if (!string.IsNullOrWhiteSpace(question.Header)) text.Append("**").Append(question.Header.Trim()).Append("**\n\n");
+        text.Append(question.Text.Trim());
+        if (question.Options.Count > 0) text.Append("\n");
+        foreach (var option in question.Options)
+        {
+            text.Append("\n- **").Append(option.Label).Append("**");
+            if (!string.IsNullOrWhiteSpace(option.Description)) text.Append(": ").Append(option.Description.Trim());
+        }
+        return text.ToString();
+    }
+
+    private static ClaudeCliImage[] ToCli(IReadOnlyList<ImageAttachment> images) =>
+        images.Select(image => new ClaudeCliImage(image.MediaType, image.Data)).ToArray();
+
+    private static TurnUsage ToTurnUsage(ClaudeCliUsage usage) =>
+        new(usage.InputTokens, usage.CachedInputTokens, usage.OutputTokens, usage.ContextTokens);
 
     private static bool TopLevel(JsonElement data) =>
         !data.TryGetProperty("parent_tool_use_id", out var parent) || parent.ValueKind == JsonValueKind.Null;
+
+    /// <summary>One response part in display order. Text items grow; tool and question items are replaced in place.</summary>
+    private sealed class Item(string role, string type)
+    {
+        public string Role { get; } = role;
+        public string Type { get; } = type;
+        public StringBuilder Text { get; } = new();
+        public object? Value { get; set; }
+
+        public static Item WithText(string role, string text)
+        {
+            var item = new Item(role, TurnParts.Text);
+            item.Text.Append(text);
+            return item;
+        }
+    }
 }

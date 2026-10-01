@@ -1,0 +1,175 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:SharpTurns.Markdown.Rendering"
+        xmlns:md="clr-namespace:LiveMarkdown.Avalonia;assembly=LiveMarkdown.Avalonia"
+        xmlns:styling="using:SharpTurns.Markdown.Rendering.Styling">
+  <!-- LiveMarkdown's cursor rule targets MarkdownRenderer, not our derived control. -->
+  <Style Selector="controls|MarkdownContentBlock:not(:selecting) md|MarkdownTextBlock:pointerover-link">
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+
+  <Style Selector="controls|MarkdownContentBlock.conversationMarkdown">
+    <Style Selector="^ md|MarkdownTextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+      <Setter Property="FontFamily" Value="{x:Static styling:MarkdownFontFamilies.Sans}" />
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="LineHeight" Value="22" />
+    </Style>
+
+    <Style Selector="^ md|MarkdownTextBlock.ParagraphBlock">
+      <Setter Property="Margin" Value="0,0,0,10" />
+    </Style>
+
+    <Style Selector="^ Span.Emphasis.Bold">
+      <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+
+    <Style Selector="^ Span.Emphasis.Italic">
+      <Setter Property="FontStyle" Value="Italic" />
+    </Style>
+
+    <Style Selector="^ Span.Emphasis.Strikethrough">
+      <Setter Property="TextDecorations" Value="Strikethrough" />
+    </Style>
+
+    <Style Selector="^ Border.Heading1Block md|MarkdownTextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="FontSize" Value="21" />
+      <Setter Property="LineHeight" Value="28" />
+      <Setter Property="Margin" Value="0,0,0,12" />
+    </Style>
+
+    <Style Selector="^ Border.Heading2Block md|MarkdownTextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="FontSize" Value="18" />
+      <Setter Property="LineHeight" Value="25" />
+      <Setter Property="Margin" Value="0,2,0,10" />
+    </Style>
+
+    <Style Selector="^ Border.Heading3Block md|MarkdownTextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource TextStrongBrush}" />
+      <Setter Property="FontSize" Value="16" />
+      <Setter Property="LineHeight" Value="23" />
+      <Setter Property="Margin" Value="0,2,0,8" />
+    </Style>
+
+    <Style Selector="^ md|MarkdownListGrid.ListBlock">
+      <Setter Property="Margin" Value="18,4,0,10" />
+      <Setter Property="ColumnSpacing" Value="8" />
+      <Setter Property="RowSpacing" Value="0" />
+    </Style>
+
+    <Style Selector="^ md|MarkdownListGrid.ListBlock StackPanel.ListItemBlock">
+      <Setter Property="Spacing" Value="0" />
+    </Style>
+
+    <Style Selector="^ md|MarkdownListGrid.ListBlock md|MarkdownTextBlock.ParagraphBlock">
+      <Setter Property="Margin" Value="0" />
+      <Setter Property="LineHeight" Value="21" />
+    </Style>
+
+    <Style Selector="^ TextBlock.ListBlockBullet">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+      <Setter Property="FontFamily" Value="{x:Static styling:MarkdownFontFamilies.Sans}" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="LineHeight" Value="21" />
+      <Setter Property="Margin" Value="0,0,2,0" />
+      <Setter Property="MinWidth" Value="10" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+
+      <Style Selector="^.Level0">
+        <Setter Property="Text" Value="•" />
+      </Style>
+      <Style Selector="^.Level1">
+        <Setter Property="Text" Value="◦" />
+      </Style>
+      <Style Selector="^.Level2">
+        <Setter Property="Text" Value="▪" />
+      </Style>
+      <Style Selector="^.Level3">
+        <Setter Property="Text" Value="▫" />
+      </Style>
+    </Style>
+
+    <Style Selector="^ TextBlock.ListBlockNumber">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+      <Setter Property="FontFamily" Value="{x:Static styling:MarkdownFontFamilies.Sans}" />
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="LineHeight" Value="21" />
+      <Setter Property="Margin" Value="0,0,2,0" />
+      <Setter Property="MinWidth" Value="18" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+    </Style>
+
+    <Style Selector="^ md|CodeBlock.CodeBlock">
+      <Setter Property="Margin" Value="0,8,0,12" />
+      <Setter Property="FontFamily" Value="{x:Static styling:MarkdownFontFamilies.Mono}" />
+    </Style>
+
+    <Style Selector="^ md|CodeBlock.CodeBlock /template/ md|MarkdownTextBlock#PART_CodeTextBlock">
+      <Setter Property="FontFamily" Value="{x:Static styling:MarkdownFontFamilies.Mono}" />
+    </Style>
+
+    <Style Selector="^ InlineUIContainer.Code">
+      <Setter Property="BaselineAlignment" Value="Baseline" />
+    </Style>
+
+    <Style Selector="^ InlineUIContainer.Code Border">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Margin" Value="1,0" />
+      <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style Selector="^ InlineUIContainer.Code md|MarkdownTextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource TextYellowBrush}" />
+      <Setter Property="FontFamily" Value="{x:Static styling:MarkdownFontFamilies.Mono}" />
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="LineHeight" Value="22" />
+      <Setter Property="Margin" Value="0" />
+    </Style>
+
+    <Style Selector="^ md|Link">
+      <Setter Property="Foreground" Value="{DynamicResource TextBlueSoftBrush}" />
+      <Setter Property="TextDecorations" Value="Underline" />
+    </Style>
+  </Style>
+
+  <Style Selector="controls|MarkdownContentBlock.markdownViewer">
+    <Style Selector="^ md|MarkdownTextBlock">
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="^ Border.Heading1Block md|MarkdownTextBlock">
+      <Setter Property="Foreground" Value="#FFE66D" />
+    </Style>
+    <Style Selector="^ Border.Heading2Block md|MarkdownTextBlock">
+      <Setter Property="Foreground" Value="#FFE66D" />
+    </Style>
+    <Style Selector="^ Border.Heading3Block md|MarkdownTextBlock">
+      <Setter Property="Foreground" Value="#FFE66D" />
+    </Style>
+    <Style Selector="^ Border.Heading4Block md|MarkdownTextBlock">
+      <Setter Property="Foreground" Value="#FFE66D" />
+    </Style>
+    <Style Selector="^ Border.Heading5Block md|MarkdownTextBlock">
+      <Setter Property="Foreground" Value="#FFE66D" />
+    </Style>
+    <Style Selector="^ Border.Heading6Block md|MarkdownTextBlock">
+      <Setter Property="Foreground" Value="#FFE66D" />
+    </Style>
+  </Style>
+
+  <Style Selector="controls|MarkdownContentBlock.rawMarkdown">
+    <Style Selector="^ md|CodeBlock.CodeBlock">
+      <Setter Property="Margin" Value="0" />
+    </Style>
+    <Style Selector="^ md|CodeBlock.CodeBlock /template/ md|MarkdownTextBlock#PART_CodeTextBlock">
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="^ ScrollViewer">
+      <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+  </Style>
+</Styles>

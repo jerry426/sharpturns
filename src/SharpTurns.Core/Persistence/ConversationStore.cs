@@ -155,7 +155,8 @@ public sealed class ConversationStore
             }
         }
         await using var turnCommand = Command(connection, null, """
-            SELECT id, conversation_id, turn_number, status, error_message, created_at, finished_at
+            SELECT id, conversation_id, turn_number, status, error_message, created_at, finished_at,
+                input_tokens, cached_input_tokens, output_tokens, context_tokens
             FROM conversation_turns WHERE conversation_id = $conversation ORDER BY turn_number
             """, ("$conversation", conversationId));
         await using var turnReader = await turnCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
@@ -168,13 +169,16 @@ public sealed class ConversationStore
                 turnReader.IsDBNull(4) ? null : turnReader.GetString(4),
                 ParseTime(turnReader.GetString(5)),
                 turnReader.IsDBNull(6) ? null : ParseTime(turnReader.GetString(6)),
-                parts.TryGetValue(id, out var list) ? list : []));
+                parts.TryGetValue(id, out var list) ? list : [],
+                turnReader.IsDBNull(7) ? null : new(turnReader.GetInt64(7), turnReader.GetInt64(8), turnReader.GetInt64(9),
+                    turnReader.IsDBNull(10) ? null : turnReader.GetInt64(10))));
         }
         return turns;
     }
 
-    /// <summary>Saves the prompt as a running turn before the CLI starts, so a failed launch never loses it.</summary>
-    public async Task<ConversationTurn> StartTurnAsync(long conversationId, string prompt, CancellationToken cancellationToken = default)
+    /// <summary>Saves the prompt and its images as a running turn before the CLI starts, so a failed launch never loses them.</summary>
+    public async Task<ConversationTurn> StartTurnAsync(long conversationId, string prompt,
+        IReadOnlyList<ImageAttachment>? images = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
         var now = Now();
@@ -197,25 +201,29 @@ public sealed class ConversationStore
             id = reader.GetInt64(0);
             number = reader.GetInt32(1);
         }
-        var part = new TurnPart(1, "user", "text", prompt);
-        await InsertPartAsync(connection, transaction, id, part, cancellationToken).ConfigureAwait(false);
+        TurnPart[] parts = [new(1, "user", TurnParts.Text, prompt), .. (images ?? []).Select((image, index) => TurnParts.FromImage(index + 2, image))];
+        foreach (var part in parts)
+            await InsertPartAsync(connection, transaction, id, part, cancellationToken).ConfigureAwait(false);
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-        return new(id, conversationId, number, TurnStatus.Running, null, ParseTime(now), null, [part]);
+        return new(id, conversationId, number, TurnStatus.Running, null, ParseTime(now), null, parts);
     }
 
     /// <summary>Adds the response parts and records how the turn ended.</summary>
     public async Task FinishTurnAsync(long turnId, TurnStatus status, string? errorMessage, IReadOnlyList<TurnPart> responseParts,
-        CancellationToken cancellationToken = default)
+        TurnUsage? usage = null, CancellationToken cancellationToken = default)
     {
         if (status == TurnStatus.Running) throw new ArgumentException("A finished turn needs a final status.", nameof(status));
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var transaction = connection.BeginTransaction();
         foreach (var part in responseParts)
             await InsertPartAsync(connection, transaction, turnId, part, cancellationToken).ConfigureAwait(false);
-        await ExecuteSingleAsync(connection, transaction,
-            "UPDATE conversation_turns SET status = $status, error_message = $error, finished_at = $now WHERE id = $id",
-            "Turn", cancellationToken, ("$id", turnId), ("$status", status.ToString().ToLowerInvariant()),
-            ("$error", errorMessage), ("$now", Now())).ConfigureAwait(false);
+        await ExecuteSingleAsync(connection, transaction, """
+            UPDATE conversation_turns SET status = $status, error_message = $error, finished_at = $now,
+                input_tokens = $input, cached_input_tokens = $cached, output_tokens = $output, context_tokens = $context
+            WHERE id = $id
+            """, "Turn", cancellationToken, ("$id", turnId), ("$status", status.ToString().ToLowerInvariant()),
+            ("$error", errorMessage), ("$now", Now()), ("$input", usage?.InputTokens), ("$cached", usage?.CachedInputTokens),
+            ("$output", usage?.OutputTokens), ("$context", usage?.ContextTokens)).ConfigureAwait(false);
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 

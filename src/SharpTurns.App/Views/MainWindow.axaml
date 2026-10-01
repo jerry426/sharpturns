@@ -20,7 +20,7 @@
 
   <Grid ColumnDefinitions="290,Auto,*">
     <Border Background="{StaticResource PanelBackgroundBrush}" Padding="10">
-      <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" RowSpacing="8">
+      <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto" RowSpacing="8">
         <Grid ColumnDefinitions="*,Auto">
           <TextBlock Classes="sectionHeader" Text="PROJECTS" />
           <Button Grid.Column="1" Classes="secondaryActionButton" Content="New" Command="{Binding NewProjectCommand}"
@@ -66,6 +66,16 @@
           <Button Classes="secondaryActionButton" Content="Rename" Command="{Binding RenameConversationCommand}" />
           <Button Classes="dangerActionButton" Content="Delete" Command="{Binding DeleteConversationCommand}" />
         </StackPanel>
+
+        <Border Grid.Row="6" IsVisible="{Binding HasPlanUsage}" ToolTip.Tip="{Binding PlanUsageToolTip}"
+                Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                CornerRadius="6" Padding="8,6" Margin="0,4,0,0">
+          <StackPanel Spacing="3">
+            <TextBlock Classes="sectionHeader" Text="PLAN USAGE" FontSize="11" />
+            <TextBlock Text="{Binding PlanUsageText}" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"
+                       TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
       </Grid>
     </Border>
 

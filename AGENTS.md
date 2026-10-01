@@ -130,6 +130,10 @@ command and error.
 - This repository is public. Do not commit secrets, API keys, `.env` files,
   databases, logs, build output, or personal paths, hostnames, or emails.
 - Use the ignored `tmp/` directory for scratch work and remove obsolete files.
+- Never use `pkill`, `killall`, or other pattern-based signals. Stop only
+  processes you started in this session, by the PID you recorded or verified
+  with `ps -p <pid> -o pid,command`. If a command hangs, let the tool time out
+  and report it; do not hunt for and kill processes.
 
 ## Git
 

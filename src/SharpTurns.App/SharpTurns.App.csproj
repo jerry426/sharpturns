@@ -4,15 +4,21 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="SharpTurns.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Desktop" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="SkiaSharp" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\SharpTurns.ClaudeCli\SharpTurns.ClaudeCli.csproj" />
     <ProjectReference Include="..\SharpTurns.Core\SharpTurns.Core.csproj" />
+    <ProjectReference Include="..\SharpTurns.Markdown.Rendering\SharpTurns.Markdown.Rendering.csproj" />
   </ItemGroup>
 </Project>

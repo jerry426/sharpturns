@@ -11,6 +11,7 @@ artifacts/
 *.user
 *.suo
 .DS_Store
+.vscode_gateway_port
 
 # Local environment, instructions, and data
 .env

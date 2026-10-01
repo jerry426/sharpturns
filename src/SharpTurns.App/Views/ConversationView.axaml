@@ -1,8 +1,20 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:cli="using:SharpTurns.ClaudeCli"
+             xmlns:fonts="using:SharpTurns.Markdown.Rendering.Styling"
+             xmlns:markdown="using:SharpTurns.Markdown.Rendering"
              xmlns:vm="using:SharpTurns.App.ViewModels"
              x:Class="SharpTurns.App.Views.ConversationView"
              x:DataType="vm:ConversationViewModel">
+  <UserControl.Resources>
+    <!-- Thumbnails open a preview; the composer's copies also have a remove button. -->
+    <DataTemplate x:Key="SentImageTemplate" x:DataType="vm:ImageAttachmentViewModel">
+      <Button Classes="thumbnail" Width="96" Height="72" Click="Image_Click" ToolTip.Tip="{Binding ToolTip}">
+        <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />
+      </Button>
+    </DataTemplate>
+  </UserControl.Resources>
+
   <Grid RowDefinitions="Auto,*,Auto">
     <Border Background="{StaticResource PanelBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}"
             BorderThickness="0,0,0,1" Padding="16,10">
@@ -18,19 +30,109 @@
       <ItemsControl ItemsSource="{Binding Turns}" Margin="20,16">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:TurnViewModel">
-            <StackPanel Spacing="10" Margin="0,0,0,24">
+            <StackPanel Spacing="10" Margin="0,0,0,28">
               <Border Background="{StaticResource UserCardBackgroundBrush}" BorderBrush="#2D3A52" BorderThickness="1"
                       CornerRadius="10" Padding="12,8" HorizontalAlignment="Right" MaxWidth="760">
-                <SelectableTextBlock Text="{Binding UserText}" Foreground="{DynamicResource TextPrimaryBrush}"
-                                     TextWrapping="Wrap" />
+                <StackPanel Spacing="8">
+                  <SelectableTextBlock Text="{Binding UserText}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                       TextWrapping="Wrap" />
+                  <ItemsControl ItemsSource="{Binding Images}" IsVisible="{Binding HasImages}"
+                                ItemTemplate="{StaticResource SentImageTemplate}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <WrapPanel ItemSpacing="8" LineSpacing="8" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                  </ItemsControl>
+                </StackPanel>
               </Border>
-              <SelectableTextBlock Text="{Binding AssistantText}" Foreground="{DynamicResource TextSecondaryBrush}"
-                                   TextWrapping="Wrap" LineHeight="21"
-                                   IsVisible="{Binding AssistantText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+              <ItemsControl ItemsSource="{Binding Items}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="10" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.DataTemplates>
+                  <DataTemplate DataType="vm:TextItemViewModel" x:DataType="vm:TextItemViewModel">
+                    <Panel>
+                      <markdown:MarkdownDocumentBlock Classes="conversationMarkdown" Markdown="{Binding Text}"
+                                                      IsVisible="{Binding IsRendered}"
+                                                      ContentForeground="{DynamicResource TextSecondaryBrush}"
+                                                      ContentFontSize="14" ContentLineHeight="21" CodeFontSize="12"
+                                                      CodeBlockColorTheme="DarkPlus" />
+                      <!-- Streaming text stays plain so each delta doesn't rebuild the rendered document. -->
+                      <SelectableTextBlock Text="{Binding Text}" IsVisible="{Binding IsStreaming}"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" FontSize="14"
+                                           TextWrapping="Wrap" LineHeight="21" />
+                    </Panel>
+                  </DataTemplate>
+
+                  <DataTemplate DataType="vm:ToolItemViewModel" x:DataType="vm:ToolItemViewModel">
+                    <Border Background="#121722" BorderBrush="#2A3346" BorderThickness="1" CornerRadius="8">
+                      <StackPanel>
+                        <ToggleButton Classes="cardHeader" IsChecked="{Binding IsExpanded}">
+                          <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
+                            <TextBlock Classes="chevron" Classes.expanded="{Binding IsExpanded}" />
+                            <TextBlock Grid.Column="1" Text="{Binding Tool.Name}" Foreground="{DynamicResource TextBlueMutedBrush}"
+                                       FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="2" Text="{Binding Summary}" Foreground="{DynamicResource TextMutedBrush}"
+                                       FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12"
+                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="3" Classes="toolStatus" Text="{Binding Tool.Status}"
+                                       Classes.running="{Binding IsRunning}" Classes.waiting="{Binding IsWaiting}"
+                                       Classes.succeeded="{Binding IsSucceeded}" Classes.failed="{Binding Tool.IsError}" />
+                          </Grid>
+                        </ToggleButton>
+                        <StackPanel IsVisible="{Binding IsExpanded}" Margin="28,2,12,10" Spacing="6">
+                          <TextBlock Classes="detailLabel" Text="Input" />
+                          <SelectableTextBlock Text="{Binding InputText}" Foreground="{DynamicResource TextSecondaryBrush}"
+                                               FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12"
+                                               TextWrapping="Wrap" />
+                          <TextBlock Classes="detailLabel" Text="Result" IsVisible="{Binding HasResult}" Margin="0,4,0,0" />
+                          <SelectableTextBlock Text="{Binding ResultText}" IsVisible="{Binding HasResult}"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12"
+                                               TextWrapping="Wrap" />
+                        </StackPanel>
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+
+                  <DataTemplate DataType="vm:QuestionItemViewModel" x:DataType="vm:QuestionItemViewModel">
+                    <Border Background="#18142A" BorderBrush="#4A3E76" BorderThickness="1" CornerRadius="8" Padding="12,10">
+                      <StackPanel Spacing="8">
+                        <TextBlock Text="Question" Foreground="{DynamicResource TextPurpleBrush}" FontSize="12" FontWeight="SemiBold" />
+                        <markdown:MarkdownDocumentBlock Classes="conversationMarkdown" Markdown="{Binding Question.Question}"
+                                                        ContentForeground="{DynamicResource TextPrimaryBrush}"
+                                                        ContentFontSize="14" ContentLineHeight="21" CodeFontSize="12" />
+                        <Border Background="#231C3D" CornerRadius="6" Padding="10,6">
+                          <SelectableTextBlock Text="{Binding AnswerText}" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextStrongBrush}" />
+                        </Border>
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+
+                  <DataTemplate DataType="vm:UserMessageItemViewModel" x:DataType="vm:UserMessageItemViewModel">
+                    <Border Background="{StaticResource UserCardBackgroundBrush}" BorderBrush="#2D3A52" BorderThickness="1"
+                            CornerRadius="10" Padding="12,8" HorizontalAlignment="Right" MaxWidth="760">
+                      <StackPanel Spacing="4">
+                        <TextBlock Text="Sent during this turn" Foreground="{DynamicResource TextSubtleBrush}" FontSize="11" />
+                        <SelectableTextBlock Text="{Binding Text}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                             TextWrapping="Wrap" />
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.DataTemplates>
+              </ItemsControl>
+
               <TextBlock Text="Working…" IsVisible="{Binding IsRunning}" Foreground="{DynamicResource TextCyanBrush}"
                          FontSize="12" />
               <SelectableTextBlock Text="{Binding Outcome}" IsVisible="{Binding HasOutcome}"
                                    Foreground="{DynamicResource TextDangerBrush}" FontSize="12" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding UsageText}" IsVisible="{Binding HasUsage}" Foreground="{DynamicResource TextSubtleBrush}"
+                         FontSize="11" ToolTip.Tip="Input counts every model request in the turn, including cache reads. Context is the size of the last request." />
             </StackPanel>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
@@ -39,19 +141,61 @@
 
     <Border Grid.Row="2" Background="{StaticResource PanelBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}"
             BorderThickness="0,1,0,0" Padding="16,10">
-      <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
-        <TextBox x:Name="Composer" Text="{Binding ComposerText}" AcceptsReturn="True" TextWrapping="Wrap"
-                 MinHeight="72" MaxHeight="260" PlaceholderText="Message (Ctrl+Enter or ⌘+Enter to send)" />
-        <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="8">
-          <ComboBox ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModel}" MinWidth="140"
+      <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="8">
+        <ItemsControl ItemsSource="{Binding QueuedMessages}" IsVisible="{Binding HasQueuedMessages}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="4" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="cli:ClaudeCliUserMessage">
+              <Border Background="#182235" BorderBrush="#2D3A52" BorderThickness="1" CornerRadius="6" Padding="8,4">
+                <TextBlock Foreground="{DynamicResource TextMutedBrush}" FontSize="12" TextTrimming="CharacterEllipsis"
+                           ToolTip.Tip="Queued: sent to Claude when it can accept input during this turn.">
+                  <Run Text="Queued: " Foreground="{DynamicResource TextSubtleBrush}" />
+                  <Run Text="{Binding Text}" />
+                </TextBlock>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <ItemsControl Grid.Row="1" ItemsSource="{Binding Attachments}" IsVisible="{Binding HasAttachments}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel ItemSpacing="8" LineSpacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:ImageAttachmentViewModel">
+              <Panel>
+                <ContentControl Content="{Binding}" ContentTemplate="{StaticResource SentImageTemplate}" />
+                <Button Content="×" Command="{ReflectionBinding $parent[UserControl].DataContext.RemoveAttachmentCommand}"
+                        CommandParameter="{Binding}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,3,3,0"
+                        Width="20" Height="20" Padding="0" FontSize="13" CornerRadius="10" Background="#C0000000"
+                        Foreground="White" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        ToolTip.Tip="Remove image" />
+              </Panel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <TextBox x:Name="Composer" Grid.Row="2" Text="{Binding ComposerText}" AcceptsReturn="True" TextWrapping="Wrap"
+                 MinHeight="72" MaxHeight="260" PlaceholderText="Message (Ctrl+Enter or ⌘+Enter to send; paste images)" />
+        <Grid Grid.Row="3" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" ColumnSpacing="8">
+          <Button Classes="secondaryActionButton" Content="Image…" Click="AttachImage_Click"
+                  ToolTip.Tip="Attach PNG, JPEG, GIF, or WebP images to the next turn" />
+          <ComboBox Grid.Column="1" ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModel}" MinWidth="140"
                     ToolTip.Tip="Model for this conversation" />
-          <ComboBox Grid.Column="1" ItemsSource="{Binding EffortOptions}" SelectedItem="{Binding SelectedEffort}" MinWidth="140"
+          <ComboBox Grid.Column="2" ItemsSource="{Binding EffortOptions}" SelectedItem="{Binding SelectedEffort}" MinWidth="140"
                     ToolTip.Tip="Effort for this conversation" />
-          <TextBlock Grid.Column="2" Text="{Binding Status}" Foreground="{DynamicResource TextMutedBrush}" FontSize="12"
-                     VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="6,0" />
-          <Button Grid.Column="3" Classes="dangerActionButton" Content="Stop" Command="{Binding StopCommand}"
+          <TextBlock Grid.Column="3" Text="{Binding Status}" Foreground="{DynamicResource TextMutedBrush}" FontSize="12"
+                     VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="6,0" ToolTip.Tip="{Binding Status}" />
+          <Button Grid.Column="4" Classes="dangerActionButton" Content="Stop" Command="{Binding StopCommand}"
                   IsVisible="{Binding IsRunning}" />
-          <Button Grid.Column="4" Classes="primaryActionButton" Content="Send" Command="{Binding SendCommand}" MinWidth="80" />
+          <Button Grid.Column="5" Classes="primaryActionButton" Content="{Binding SendLabel}" Command="{Binding SendCommand}"
+                  MinWidth="80" ToolTip.Tip="While a turn runs, messages are queued and delivered to Claude during it" />
         </Grid>
       </Grid>
     </Border>

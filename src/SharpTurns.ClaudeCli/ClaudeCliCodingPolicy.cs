@@ -8,12 +8,13 @@ public static class ClaudeCliCodingPolicy
 {
     // Bump for tool-policy or session-compatibility changes: native snapshots survive resumes.
     // The system prompt is hashed separately by VersionFor.
-    private const string LaunchProfile = "sharpturns-1";
+    private const string LaunchProfile = "sharpturns-2";
     public const string Description = "Native coding tools run without per-action approval; Git approval is instruction-based.";
     private const string CommonTools = "Read,Glob,Grep,Edit,Write,NotebookEdit,Bash,WebFetch,WebSearch";
     public static string AutomaticTools => OperatingSystem.IsWindows() ? CommonTools + ",PowerShell" : CommonTools;
     public static string AvailableTools => AutomaticTools + ",AskUserQuestion";
-    public const string DeniedTools = "Agent,Task,Workflow,mcp__*";
+    // Pattern-based process killers can stop unrelated apps; block them even when the user's settings don't.
+    public const string DeniedTools = "Agent,Task,Workflow,Bash(pkill:*),Bash(killall:*),Bash(/usr/bin/pkill:*),Bash(/usr/bin/killall:*),mcp__*";
     // Overrides the user's settings files, which load so the CLI keeps discovering CLAUDE.md.
     // The app owns context management, so auto-compact stays off.
     public const string Settings = "{\"fallbackModel\":[],\"switchModelsOnFlag\":false,\"disableAllHooks\":true,\"disableClaudeAiConnectors\":true,\"autoCompactEnabled\":false}";
@@ -21,9 +22,8 @@ public static class ClaudeCliCodingPolicy
     public const string DefaultSystemPrompt = """
         You are running inside SharpTurns, a desktop conversation UI for the Claude Code CLI. Claude Code owns tool execution.
         The user interacts with you through SharpTurns' graphical conversation UI, not an interactive terminal.
-        Your response text is streamed and rendered as Markdown. Native tool activity and available reasoning summaries
-        appear in separate collapsible cards. AskUserQuestion opens a graphical dialog, and the user's answers are
-        returned to you within the same turn. Do not assume the user can see raw terminal output or use Claude Code
+        Your response text is streamed and rendered as Markdown. Native tool activity appears in separate collapsible
+        cards. AskUserQuestion opens a graphical dialog, and the user's answers are returned to you within the same turn. Do not assume the user can see raw terminal output or use Claude Code
         terminal shortcuts or slash commands.
         Use one brief progress note before a meaningful batch of edits, validation, git operations, long-running work,
         or a retry after failure. Do not narrate routine searches, reads, or every tool call.

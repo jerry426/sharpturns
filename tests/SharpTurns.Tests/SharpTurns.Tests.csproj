@@ -11,6 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\SharpTurns.App\SharpTurns.App.csproj" />
     <ProjectReference Include="..\..\src\SharpTurns.ClaudeCli\SharpTurns.ClaudeCli.csproj" />
     <ProjectReference Include="..\..\src\SharpTurns.Core\SharpTurns.Core.csproj" />
   </ItemGroup>

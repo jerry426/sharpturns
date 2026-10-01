@@ -1,0 +1,30 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:fonts="using:SharpTurns.Markdown.Rendering.Styling"
+        x:Class="SharpTurns.App.Views.PermissionDialog"
+        Title="Permission Request"
+        Width="640"
+        MinWidth="440"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource CardBackgroundBrush}">
+  <Grid RowDefinitions="Auto,Auto,Auto" Margin="18" RowSpacing="12">
+    <StackPanel Spacing="6">
+      <TextBlock x:Name="HeadingText" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="17" FontWeight="SemiBold"
+                 TextWrapping="Wrap" />
+      <TextBlock Foreground="{DynamicResource TextMutedBrush}" FontSize="12" TextWrapping="Wrap"
+                 Text="This tool normally runs without asking. The CLI asked anyway, usually because the action touches its own settings or another protected location." />
+    </StackPanel>
+    <Border Grid.Row="1" Background="#10131A" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="6"
+            MaxHeight="420">
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+        <SelectableTextBlock x:Name="InputText" Margin="10,8" Foreground="{DynamicResource TextSecondaryBrush}"
+                             FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12" TextWrapping="Wrap" />
+      </ScrollViewer>
+    </Border>
+    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+      <Button Classes="secondaryActionButton" Content="Deny" Click="Deny_Click" MinWidth="90" IsCancel="True" />
+      <Button Classes="primaryActionButton" Content="Allow" Click="Allow_Click" MinWidth="90" />
+    </StackPanel>
+  </Grid>
+</Window>

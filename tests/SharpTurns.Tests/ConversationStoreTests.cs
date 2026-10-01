@@ -24,7 +24,7 @@ public sealed class ConversationStoreTests : IDisposable
         await _store.InitializeAsync();
         await _store.InitializeAsync();
 
-        Assert.Equal(1L, Scalar("PRAGMA user_version"));
+        Assert.Equal(2L, Scalar("PRAGMA user_version"));
         Assert.Equal("wal", Scalar("PRAGMA journal_mode"));
     }
 
@@ -71,9 +71,11 @@ public sealed class ConversationStoreTests : IDisposable
         var project = await _store.CreateProjectAsync("Project", "/work");
         var conversation = await _store.CreateConversationAsync(project.Id, "Conversation");
 
-        var first = await _store.StartTurnAsync(conversation.Id, "first prompt");
+        var image = new ImageAttachment("shot.png", "image/png", "iVBORw0KGgo=");
+        var first = await _store.StartTurnAsync(conversation.Id, "first prompt", [image]);
         await _store.FinishTurnAsync(first.Id, TurnStatus.Completed, null,
-            [new(2, "assistant", "thinking", "reasoning"), new(3, "assistant", "text", "answer")]);
+            [new(3, "assistant", "thinking", "reasoning"), new(4, "assistant", "text", "answer")],
+            new TurnUsage(1200, 1000, 80, 1150));
         var second = await _store.StartTurnAsync(conversation.Id, "second prompt");
         await _store.FinishTurnAsync(second.Id, TurnStatus.Failed, "CLI error", []);
 
@@ -81,11 +83,37 @@ public sealed class ConversationStoreTests : IDisposable
         Assert.Equal([1, 2], turns.Select(t => t.TurnNumber));
         Assert.Equal(TurnStatus.Completed, turns[0].Status);
         Assert.NotNull(turns[0].FinishedAt);
-        Assert.Equal(["first prompt", "reasoning", "answer"], turns[0].Parts.Select(p => p.Content));
-        Assert.Equal(("assistant", "thinking"), (turns[0].Parts[1].Role, turns[0].Parts[1].PartType));
+        Assert.Equal(first.Parts, turns[0].Parts.Take(2));
+        Assert.Equal(image, TurnParts.ReadImage(turns[0].Parts[1]));
+        Assert.Equal(["reasoning", "answer"], turns[0].Parts.Skip(2).Select(p => p.Content));
+        Assert.Equal(("assistant", "thinking"), (turns[0].Parts[2].Role, turns[0].Parts[2].PartType));
+        Assert.Equal(new TurnUsage(1200, 1000, 80, 1150), turns[0].Usage);
         Assert.Equal((TurnStatus.Failed, "CLI error"), (turns[1].Status, turns[1].ErrorMessage));
         Assert.Equal(["second prompt"], turns[1].Parts.Select(p => p.Content));
+        Assert.Null(turns[1].Usage);
         await Assert.ThrowsAsync<ArgumentException>(() => _store.FinishTurnAsync(second.Id, TurnStatus.Running, null, []));
+    }
+
+    [Fact]
+    public async Task UpgradeFromTheFirstSchemaKeepsExistingTurns()
+    {
+        await _store.InitializeAsync();
+        var project = await _store.CreateProjectAsync("Project", "/work");
+        var conversation = await _store.CreateConversationAsync(project.Id, "Conversation");
+        var turn = await _store.StartTurnAsync(conversation.Id, "prompt");
+        await _store.FinishTurnAsync(turn.Id, TurnStatus.Completed, null, [new(2, "assistant", "text", "answer")]);
+        foreach (var column in new[] { "input_tokens", "cached_input_tokens", "output_tokens", "context_tokens" })
+            Scalar($"ALTER TABLE conversation_turns DROP COLUMN {column}");
+        Scalar("PRAGMA user_version = 1");
+        // Pooled connections cache the schema this test just changed behind the store's back.
+        SqliteConnection.ClearAllPools();
+
+        await _store.InitializeAsync();
+
+        Assert.Equal(2L, Scalar("PRAGMA user_version"));
+        var loaded = Assert.Single(await _store.LoadTurnsAsync(conversation.Id));
+        Assert.Equal(["prompt", "answer"], loaded.Parts.Select(p => p.Content));
+        Assert.Null(loaded.Usage);
     }
 
     [Fact]

@@ -3,6 +3,7 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SharpTurns.App.Services;
+using SharpTurns.ClaudeCli;
 using SharpTurns.Core;
 using SharpTurns.Core.Persistence;
 
@@ -39,6 +40,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(HasError))]
     private string? _errorMessage;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PlanUsageText))]
+    [NotifyPropertyChangedFor(nameof(PlanUsageToolTip))]
+    [NotifyPropertyChangedFor(nameof(HasPlanUsage))]
+    private ClaudeCliRateLimitSnapshot? _planUsage;
+
     internal MainWindowViewModel(ConversationStore store, ClaudeTurnRunner runner)
     {
         _store = store;
@@ -55,6 +62,16 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public bool HasNoConversation => CurrentConversation is null;
 
     public bool HasError => ErrorMessage is not null;
+
+    public bool HasPlanUsage => PlanUsage is not null;
+
+    public string PlanUsageText => PlanUsage is { } usage
+        ? $"5-hour: {FormatWindow(usage.FiveHour)}\n7-day: {FormatWindow(usage.SevenDay)}" : "";
+
+    public string PlanUsageToolTip => PlanUsage is { } usage
+        ? "Your subscription's shared usage limits, as last reported by the CLI during a turn. Not this conversation's tokens.\n"
+          + $"Reported at {usage.CapturedAt.ToLocalTime():t}."
+        : "";
 
     public Func<ProjectDialogViewModel, Task<bool>>? ShowProjectDialogAsync { get; set; }
 
@@ -96,7 +113,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         }
         if (!_openConversations.TryGetValue(value.Id, out var conversation))
         {
-            conversation = new ConversationViewModel(value, SelectedProject, _store, _runner);
+            conversation = new ConversationViewModel(value, SelectedProject, _store, _runner, limits => PlanUsage = limits);
             _openConversations[value.Id] = conversation;
             _ = conversation.LoadAsync();
         }
@@ -259,6 +276,13 @@ public sealed partial class MainWindowViewModel : ObservableObject
         while (index < Projects.Count && string.Compare(Projects[index].Name, project.Name, StringComparison.OrdinalIgnoreCase) <= 0)
             index++;
         return index;
+    }
+
+    // Absolute reset times stay true when the window sits idle past a reset.
+    private static string FormatWindow(ClaudeCliRateLimitWindow? window)
+    {
+        var used = window?.Utilization is { } fraction ? $"{Math.Round(Math.Clamp(fraction, 0, 1) * 100)}% used" : "not reported";
+        return window?.ResetsAt is { } reset ? $"{used}, resets {reset.ToLocalTime():g}" : used;
     }
 
     private static long? ParseId(string? value) =>

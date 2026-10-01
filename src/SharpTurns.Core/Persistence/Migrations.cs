@@ -55,5 +55,11 @@ internal static class Migrations
             value TEXT NOT NULL
         );
         """,
+        """
+        ALTER TABLE conversation_turns ADD COLUMN input_tokens INTEGER;
+        ALTER TABLE conversation_turns ADD COLUMN cached_input_tokens INTEGER;
+        ALTER TABLE conversation_turns ADD COLUMN output_tokens INTEGER;
+        ALTER TABLE conversation_turns ADD COLUMN context_tokens INTEGER;
+        """,
     ];
 }

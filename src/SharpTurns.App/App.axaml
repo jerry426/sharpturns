@@ -3,27 +3,45 @@
              x:Class="SharpTurns.App.App"
              RequestedThemeVariant="Dark">
   <Application.Resources>
-    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#111318" />
-    <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#151820" />
-    <SolidColorBrush x:Key="CardBackgroundBrush" Color="#171A22" />
-    <SolidColorBrush x:Key="UserCardBackgroundBrush" Color="#182235" />
-    <SolidColorBrush x:Key="BorderBrush" Color="#2D3548" />
-    <SolidColorBrush x:Key="DestructiveBackgroundBrush" Color="#270000" />
-    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F4F7FB" />
-    <SolidColorBrush x:Key="TextStrongBrush" Color="#EEF2FA" />
-    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#CFD7E6" />
-    <SolidColorBrush x:Key="TextMutedBrush" Color="#AAB3C5" />
-    <SolidColorBrush x:Key="TextSubtleBrush" Color="#8792A8" />
-    <SolidColorBrush x:Key="TextCyanBrush" Color="#12D6E7" />
-    <SolidColorBrush x:Key="TextBlueMutedBrush" Color="#C7D7FF" />
-    <SolidColorBrush x:Key="TextYellowBrush" Color="#E5C07B" />
-    <SolidColorBrush x:Key="TextDangerBrush" Color="#FFB8C0" />
-    <SolidColorBrush x:Key="TextDangerStrongBrush" Color="#FFD7DC" />
-    <SolidColorBrush x:Key="TextDangerDisabledBrush" Color="#816E75" />
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://LiveMarkdown.Avalonia/Defaults.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+
+      <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#111318" />
+      <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#151820" />
+      <SolidColorBrush x:Key="CardBackgroundBrush" Color="#171A22" />
+      <SolidColorBrush x:Key="UserCardBackgroundBrush" Color="#182235" />
+      <SolidColorBrush x:Key="BorderBrush" Color="#2D3548" />
+      <SolidColorBrush x:Key="DestructiveBackgroundBrush" Color="#270000" />
+      <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F4F7FB" />
+      <SolidColorBrush x:Key="TextStrongBrush" Color="#EEF2FA" />
+      <SolidColorBrush x:Key="TextSecondaryBrush" Color="#CFD7E6" />
+      <SolidColorBrush x:Key="TextMutedBrush" Color="#AAB3C5" />
+      <SolidColorBrush x:Key="TextSubtleBrush" Color="#8792A8" />
+      <SolidColorBrush x:Key="TextCyanBrush" Color="#12D6E7" />
+      <SolidColorBrush x:Key="TextBlueMutedBrush" Color="#C7D7FF" />
+      <SolidColorBrush x:Key="TextBlueSoftBrush" Color="#66B3FF" />
+      <SolidColorBrush x:Key="TextGreenBrush" Color="#8FD19E" />
+      <SolidColorBrush x:Key="TextPurpleBrush" Color="#C9B8FF" />
+      <SolidColorBrush x:Key="TextYellowBrush" Color="#E5C07B" />
+      <SolidColorBrush x:Key="TextDangerBrush" Color="#FFB8C0" />
+      <SolidColorBrush x:Key="TextDangerStrongBrush" Color="#FFD7DC" />
+      <SolidColorBrush x:Key="TextDangerDisabledBrush" Color="#816E75" />
+      <!-- Colors LiveMarkdown's code blocks, quotes, and inline code use. -->
+      <Color x:Key="BorderColor">#2D3548</Color>
+      <Color x:Key="ForegroundColor">#EEF2FA</Color>
+      <Color x:Key="CardBackgroundColor">#151923</Color>
+      <Color x:Key="SecondaryCardBackgroundColor">#030406</Color>
+      <Color x:Key="CodeInlineColor">#E5C07B</Color>
+      <Color x:Key="QuoteBorderColor">#61AFEF</Color>
+    </ResourceDictionary>
   </Application.Resources>
 
   <Application.Styles>
     <FluentTheme />
+    <StyleInclude Source="avares://LiveMarkdown.Avalonia/Styles.axaml" />
+    <StyleInclude Source="avares://SharpTurns.Markdown.Rendering/Styles/MarkdownStyles.axaml" />
 
     <Style Selector="ScrollViewer">
       <Setter Property="AllowAutoHide" Value="False" />
@@ -87,6 +105,71 @@
       <Setter Property="Background" Value="#20191D" />
       <Setter Property="BorderBrush" Value="#443039" />
       <Setter Property="Foreground" Value="{DynamicResource TextDangerDisabledBrush}" />
+    </Style>
+
+    <!-- Collapsible card headers: the whole row toggles; no accent fill when expanded. -->
+    <Style Selector="ToggleButton.cardHeader">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="10,6" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="ToggleButton.cardHeader /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="ToggleButton.cardHeader:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#1A2130" />
+    </Style>
+    <Style Selector="ToggleButton.cardHeader:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#151B27" />
+    </Style>
+
+    <Style Selector="TextBlock.chevron">
+      <Setter Property="Text" Value="›" />
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="Width" Value="10" />
+      <Setter Property="TextAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSubtleBrush}" />
+      <Setter Property="RenderTransform" Value="rotate(0deg)" />
+    </Style>
+    <Style Selector="TextBlock.chevron.expanded">
+      <Setter Property="RenderTransform" Value="rotate(90deg)" />
+    </Style>
+
+    <Style Selector="TextBlock.toolStatus">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSubtleBrush}" />
+    </Style>
+    <Style Selector="TextBlock.toolStatus.running">
+      <Setter Property="Foreground" Value="{DynamicResource TextCyanBrush}" />
+    </Style>
+    <Style Selector="TextBlock.toolStatus.waiting">
+      <Setter Property="Foreground" Value="{DynamicResource TextYellowBrush}" />
+    </Style>
+    <Style Selector="TextBlock.toolStatus.succeeded">
+      <Setter Property="Foreground" Value="{DynamicResource TextGreenBrush}" />
+    </Style>
+    <Style Selector="TextBlock.toolStatus.failed">
+      <Setter Property="Foreground" Value="{DynamicResource TextDangerBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.detailLabel">
+      <Setter Property="Foreground" Value="{DynamicResource TextSubtleBrush}" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="Button.thumbnail">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="#0F141C" />
+      <Setter Property="BorderBrush" Value="#2D3548" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="ClipToBounds" Value="True" />
     </Style>
 
     <Style Selector="TextBlock.sectionHeader">

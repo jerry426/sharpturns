@@ -1,0 +1,74 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:fonts="using:SharpTurns.Markdown.Rendering.Styling"
+        xmlns:markdown="using:SharpTurns.Markdown.Rendering"
+        xmlns:vm="using:SharpTurns.App.ViewModels"
+        x:Class="SharpTurns.App.Views.QuestionDialog"
+        x:DataType="vm:QuestionDialogViewModel"
+        Title="{Binding Header}"
+        Width="720"
+        MinWidth="480"
+        MaxHeight="820"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource CardBackgroundBrush}">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="18" RowSpacing="14">
+    <StackPanel Spacing="3">
+      <TextBlock Text="Claude has a question" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="18" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding ProjectName}" Foreground="{DynamicResource TextCyanBrush}" FontSize="12" />
+      <TextBlock Text="{Binding ConversationTitle}" Foreground="{DynamicResource TextYellowBrush}" FontSize="13" />
+    </StackPanel>
+
+    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="12" Margin="0,0,10,0">
+        <markdown:MarkdownDocumentBlock x:Name="QuestionDocument" Classes="conversationMarkdown" Markdown="{Binding Question}"
+                                        ContentForeground="{DynamicResource TextPrimaryBrush}"
+                                        ContentFontSize="15" ContentLineHeight="22" CodeFontSize="12" />
+        <TextBlock Text="{Binding Instructions}" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
+        <ItemsControl ItemsSource="{Binding Options}" IsVisible="{Binding HasOptions}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:QuestionOptionViewModel">
+              <StackPanel>
+                <StackPanel.Resources>
+                  <DataTemplate x:Key="OptionContent" x:DataType="vm:QuestionOptionViewModel">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextStrongBrush}" FontWeight="SemiBold"
+                                 TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding Description}" IsVisible="{Binding HasDescription}"
+                                 Foreground="{DynamicResource TextMutedBrush}" FontSize="12" TextWrapping="Wrap" />
+                      <Border IsVisible="{Binding HasPreview}" Background="#10131A" BorderBrush="#2D3548" BorderThickness="1"
+                              CornerRadius="6" Padding="8" Margin="0,4,0,0">
+                        <TextBlock Text="{Binding Preview}" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12" TextWrapping="Wrap" />
+                      </Border>
+                    </StackPanel>
+                  </DataTemplate>
+                </StackPanel.Resources>
+                <CheckBox IsVisible="{Binding MultiSelect}" IsChecked="{Binding IsSelected}"
+                          Content="{Binding}" ContentTemplate="{StaticResource OptionContent}" />
+                <RadioButton IsVisible="{Binding SingleSelect}" IsChecked="{Binding IsSelected}"
+                             Content="{Binding}" ContentTemplate="{StaticResource OptionContent}" />
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <CheckBox Content="Other: write your own answer" IsChecked="{Binding UseCustomAnswer}" IsVisible="{Binding HasOptions}" />
+        <TextBox x:Name="AnswerBox" Text="{Binding CustomAnswer}" IsVisible="{Binding UseCustomAnswer}" AcceptsReturn="True"
+                 TextWrapping="Wrap" MinHeight="90" MaxHeight="300" MaxLength="20000" PlaceholderText="Your answer" />
+      </StackPanel>
+    </ScrollViewer>
+
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+      <TextBlock Text="Declining tells Claude you chose not to answer." Foreground="{DynamicResource TextSubtleBrush}"
+                 FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center" />
+      <Button Grid.Column="1" Classes="secondaryActionButton" Content="Decline" Click="Decline_Click" MinWidth="90" />
+      <Button Grid.Column="2" Classes="primaryActionButton" Content="Answer" Click="Answer_Click" MinWidth="90"
+              IsEnabled="{Binding CanSubmit}" />
+    </Grid>
+  </Grid>
+</Window>

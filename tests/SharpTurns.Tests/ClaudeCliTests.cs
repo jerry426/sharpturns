@@ -202,6 +202,8 @@ public sealed class ClaudeCliTests : IDisposable
         Assert.Equal(ClaudeCliCodingPolicy.AutomaticTools, Value("--allowed-tools"));
         Assert.DoesNotContain("AskUserQuestion", Value("--allowed-tools"));
         Assert.Equal(ClaudeCliCodingPolicy.DeniedTools, Value("--disallowed-tools"));
+        Assert.Contains("Bash(pkill:*)", Value("--disallowed-tools").Split(','));
+        Assert.Contains("Bash(killall:*)", Value("--disallowed-tools").Split(','));
         Assert.Equal("manual", Value("--permission-mode"));
         Assert.Equal("host", Value("--permission-prompts"));
         Assert.Equal("summarized", Value("--thinking-display"));
