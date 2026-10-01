@@ -373,6 +373,39 @@
       <Setter Property="BorderBrush" Value="#1B6FC7" />
     </Style>
 
+    <!-- The conversation header's action buttons, each in its Workbench colors. -->
+    <Style Selector="Button.headerButton">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Padding" Value="10,3" />
+      <Setter Property="MinHeight" Value="26" />
+      <Setter Property="Margin" Value="10,0,0,0" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+      <Setter Property="ToolTip.ShowOnDisabled" Value="True" />
+    </Style>
+    <Style Selector="Button.headerButton /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="Button.headerButton:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#171B18" />
+      <Setter Property="BorderBrush" Value="#293246" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSubtleBrush}" />
+    </Style>
+    <Style Selector="Button.headerButton.history">
+      <Setter Property="Background" Value="#14243A" />
+      <Setter Property="BorderBrush" Value="#66A3FF" />
+    </Style>
+    <Style Selector="Button.headerButton.history:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#1B3352" />
+      <Setter Property="BorderBrush" Value="#9BC4FF" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+    </Style>
+    <Style Selector="Button.headerButton.history:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#0E1A2B" />
+      <Setter Property="BorderBrush" Value="#417FD6" />
+    </Style>
+
     <Style Selector="TextBlock.metricLabel">
       <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
       <Setter Property="FontSize" Value="14" />

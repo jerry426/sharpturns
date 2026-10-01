@@ -49,6 +49,7 @@ public sealed partial class ConversationViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(ToggleCompressionCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenReplayImagesCommand))]
     [NotifyCanExecuteChangedFor(nameof(ToggleImageReplayCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenUserMessageHistoryCommand))]
     [NotifyPropertyChangedFor(nameof(SendLabel))]
     private bool _isRunning;
 
@@ -204,6 +205,9 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     /// <summary>Shows the conversation's images modally.</summary>
     public Func<ImagesBeingReplayedDialogViewModel, Task>? ShowReplayImagesAsync { get; set; }
+
+    /// <summary>Shows the user message history modally.</summary>
+    public Func<UserMessageHistoryDialogViewModel, Task>? ShowUserMessageHistoryAsync { get; set; }
 
     /// <summary>Raised on the UI thread after each turn's content changes, for scrolling.</summary>
     public event EventHandler? TurnContentChanged;
@@ -540,13 +544,24 @@ public sealed partial class ConversationViewModel : ObservableObject
         finally { image.Refresh(); } // Also puts the check box back when the save failed.
     }
 
-    // After the turns or their context state change: the replay image button, the metrics row, and the Show picker's turns.
+    // As in the Workbench, the history waits for a running turn, whose messages aren't saved until it ends.
+    private bool CanOpenUserMessageHistory() => !IsRunning && Turns.Any(t => t.IsHydrated);
+
+    [RelayCommand(CanExecute = nameof(CanOpenUserMessageHistory))]
+    private async Task OpenUserMessageHistoryAsync()
+    {
+        if (ShowUserMessageHistoryAsync is null) return;
+        await ShowUserMessageHistoryAsync(new UserMessageHistoryDialogViewModel(Title, Turns));
+    }
+
+    // After the turns or their context state change: the header buttons, the metrics row, and the Show picker's turns.
     private void NotifyContextChanged()
     {
         OnPropertyChanged(nameof(HasConversationImages));
         OnPropertyChanged(nameof(HasImagesBeingReplayed));
         OnPropertyChanged(nameof(ReplayImagesLabel));
         OpenReplayImagesCommand.NotifyCanExecuteChanged();
+        OpenUserMessageHistoryCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(LastReportedInputLabel));
         OnPropertyChanged(nameof(TurnsTotalLabel));
         OnPropertyChanged(nameof(TurnsVisibleLabel));

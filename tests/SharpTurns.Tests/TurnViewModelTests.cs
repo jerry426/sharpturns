@@ -166,4 +166,28 @@ public sealed class TurnViewModelTests
         Assert.Equal("**Color**\n\nWhich color?\n\n- **Blue**: Calm\n- **Red**",
             ClaudeTurnRunner.QuestionMarkdown(new("Which color?", "Color",
                 [new ClaudeCliQuestionOption("Blue", "Calm", null), new("Red", null, null)], MultiSelect: false)));
+
+    [Fact]
+    public void MessageHistoryListsTheUserMessagesInClaudesContext()
+    {
+        static TurnViewModel Saved(long id, int number, bool hydrated, params TurnPart[] parts) =>
+            new(new ConversationTurn(id, 1, number, TurnStatus.Completed, null, DateTimeOffset.UnixEpoch, null, parts,
+                IsHydrated: hydrated));
+        var history = new UserMessageHistoryDialogViewModel("Chat",
+        [
+            Saved(20, 1, true,
+                new(1, "user", TurnParts.Text, "  first prompt "),
+                new(2, "assistant", TurnParts.Text, "Answer."),
+                new(3, "user", TurnParts.Text, "sent during the turn")),
+            Saved(21, 2, false, new TurnPart(1, "user", TurnParts.Text, "hidden prompt")),
+            Saved(22, 3, true, new TurnPart(1, "user", TurnParts.Text, "third prompt")),
+            new TurnViewModel("live prompt", []),
+        ]);
+
+        Assert.Equal(["first prompt", "sent during the turn", "third prompt"], history.Messages.Select(m => m.Message));
+        Assert.Equal([20L, 20L, 22L], history.Messages.Select(m => m.Turn.Record!.Id));
+        Assert.StartsWith("Turn #3  ·  ID 22  ·  ", history.Messages[2].Label, StringComparison.Ordinal);
+        Assert.Equal([true, true, false], history.Messages.Select(m => m.ShowSeparator));
+        Assert.Equal("3 user messages in Claude's context", history.CountLabel);
+    }
 }

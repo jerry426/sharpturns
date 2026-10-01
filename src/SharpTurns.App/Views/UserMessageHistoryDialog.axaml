@@ -1,0 +1,73 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SharpTurns.App.ViewModels"
+        x:Class="SharpTurns.App.Views.UserMessageHistoryDialog"
+        x:DataType="vm:UserMessageHistoryDialogViewModel"
+        Title="User Message History"
+        Width="1000"
+        Height="900"
+        MinWidth="720"
+        MinHeight="600"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource CardBackgroundBrush}">
+  <Window.Styles>
+    <!-- Laid out like the Workbench's dialog: each message is a card that goes to its turn. -->
+    <Style Selector="Button.messageCard">
+      <Setter Property="Background" Value="#111722" />
+      <Setter Property="BorderBrush" Value="#34445F" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="14,12" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="Button.messageCard:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#162238" />
+      <Setter Property="BorderBrush" Value="#66A3FF" />
+    </Style>
+    <Style Selector="Button.messageCard:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#0D1728" />
+      <Setter Property="BorderBrush" Value="#8AB4FF" />
+    </Style>
+  </Window.Styles>
+
+  <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="12" Margin="18">
+    <StackPanel Spacing="4">
+      <TextBlock Text="User Message History" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="20" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding ConversationTitle}" Foreground="{DynamicResource TextYellowBrush}" FontSize="13"
+                 TextTrimming="CharacterEllipsis" />
+    </StackPanel>
+    <Border Grid.Row="1" Background="#101824" BorderBrush="#315B7A" BorderThickness="1" CornerRadius="8" Padding="10,8">
+      <TextBlock Text="{Binding CountLabel}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" />
+    </Border>
+
+    <TextBlock Grid.Row="2" IsVisible="{Binding !HasMessages}" Text="No user messages are in Claude's context."
+               Foreground="{DynamicResource TextMutedBrush}" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+    <ScrollViewer Grid.Row="2" IsVisible="{Binding HasMessages}" HorizontalScrollBarVisibility="Disabled">
+      <ItemsControl ItemsSource="{Binding Messages}" Margin="0,0,14,0">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="8" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:UserMessageHistoryCardViewModel">
+            <StackPanel>
+              <Button Classes="messageCard" Click="Message_Click" ToolTip.Tip="Close this dialog and scroll to this turn">
+                <StackPanel Spacing="7">
+                  <TextBlock Text="{Binding Label}" Foreground="#8AB4FF" FontSize="12" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding Message}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="14" LineHeight="20"
+                             TextWrapping="Wrap" MaxLines="6" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+              </Button>
+              <Border IsVisible="{Binding ShowSeparator}" Height="4" Background="{DynamicResource TextYellowBrush}" Margin="0,5,0,0" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <Button Grid.Row="3" Classes="secondaryActionButton" Content="Close" Click="Close_Click" MinWidth="90" IsCancel="True"
+            HorizontalAlignment="Right" />
+  </Grid>
+</Window>

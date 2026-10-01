@@ -46,6 +46,7 @@ public sealed partial class ConversationView : UserControl
         _viewModel.ConfirmAsync = ConfirmAsync;
         _viewModel.CopyTextAsync = CopyTextAsync;
         _viewModel.ShowReplayImagesAsync = ShowReplayImagesAsync;
+        _viewModel.ShowUserMessageHistoryAsync = ShowUserMessageHistoryAsync;
         // Show the newest turn.
         Dispatcher.UIThread.Post(TurnsScroller.ScrollToEnd, DispatcherPriority.Background);
     }
@@ -167,6 +168,13 @@ public sealed partial class ConversationView : UserControl
     {
         if (TopLevel.GetTopLevel(this) is not Window owner) return;
         var turn = await new ImagesBeingReplayedDialog { DataContext = images }.ShowDialog<TurnViewModel?>(owner);
+        if (turn is not null) ScrollToTurn(turn);
+    }
+
+    private async Task ShowUserMessageHistoryAsync(UserMessageHistoryDialogViewModel history)
+    {
+        if (TopLevel.GetTopLevel(this) is not Window owner) return;
+        var turn = await new UserMessageHistoryDialog { DataContext = history }.ShowDialog<TurnViewModel?>(owner);
         if (turn is not null) ScrollToTurn(turn);
     }
 
