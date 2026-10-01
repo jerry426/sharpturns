@@ -28,10 +28,8 @@ internal static class RenderedMarkdownClipboard
 
     private static MarkdownPipeline CreateHtmlPipeline()
     {
-        var builder = new MarkdownPipelineBuilder()
-            .UseAdvancedExtensions()
-            .DisableHtml();
-        MarkdownContentBlock.RemoveGenericAttributes(builder);
+        var builder = new MarkdownPipelineBuilder().UseAdvancedExtensions();
+        MarkdownContentBlock.RemoveUnsupportedSyntax(builder);
         return builder.Build();
     }
 

@@ -11,7 +11,15 @@ using Avalonia.VisualTree;
 using SharpTurns.Markdown.Rendering.Styling;
 using LiveMarkdown.Avalonia;
 using Markdig;
+using Markdig.Extensions.Abbreviations;
+using Markdig.Extensions.Citations;
+using Markdig.Extensions.EmphasisExtras;
+using Markdig.Extensions.Figures;
+using Markdig.Extensions.Footers;
 using Markdig.Extensions.GenericAttributes;
+using Markdig.Extensions.ListExtras;
+using Markdig.Extensions.Mathematics;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 
 namespace SharpTurns.Markdown.Rendering;
@@ -121,20 +129,41 @@ public sealed class MarkdownContentBlock : MarkdownRenderer
     private bool _searchActive;
     private InlineUIContainer? _activeMatchContainer;
 
-    static MarkdownContentBlock()
-    {
-        // Must subscribe before LiveMarkdown builds its shared pipeline, which
-        // happens when the first renderer instance parses.
-        ConfigurePipeline += RemoveGenericAttributes;
-    }
-
-    // Markdig's generic attributes syntax ({#id .class}) silently drops plain
-    // braces such as {} or {name}, which are common in assistant replies.
-    internal static void RemoveGenericAttributes(MarkdownPipelineBuilder builder) =>
-        builder.Extensions.TryRemove<GenericAttributesExtension>();
+    // Must subscribe before LiveMarkdown builds its shared pipeline, which happens
+    // on first parse by either a renderer or MarkdownSearchTextProjector.
+#pragma warning disable CA2255
+    [ModuleInitializer]
+    internal static void ConfigureSharedPipeline() =>
+        ConfigurePipeline += RemoveUnsupportedSyntax;
+#pragma warning restore CA2255
 
     public MarkdownContentBlock() : this(null)
     {
+    }
+
+    // UseAdvancedExtensions enables syntax that LiveMarkdown either cannot render
+    // or that silently rewrites ordinary assistant text, so keep it literal.
+    internal static void RemoveUnsupportedSyntax(MarkdownPipelineBuilder builder)
+    {
+        // Raw HTML has no renderer and drops text such as List<T> or <summary>.
+        builder.DisableHtml();
+
+        var extensions = builder.Extensions;
+        // {#id .class} attributes drop plain braces such as {} or {name}.
+        extensions.TryRemove<GenericAttributesExtension>();
+        // $...$ math is parsed but never rendered.
+        extensions.TryRemove<MathExtension>();
+        // ^sup^, ~sub~, ++ins++ and ==mark== strip markers from text like 2^10;
+        // keep only ~~strikethrough~~.
+        extensions.TryRemove<EmphasisExtraExtension>();
+        builder.UseEmphasisExtras(EmphasisExtraOptions.Strikethrough);
+        // ""quoted"", I./a. list renumbering, ^^ footers, ^^^ figures and *[ABBR]:
+        // definitions alter or hide plain text.
+        extensions.TryRemove<CitationExtension>();
+        extensions.TryRemove<ListExtraExtension>();
+        extensions.TryRemove<FooterExtension>();
+        extensions.TryRemove<FigureExtension>();
+        extensions.TryRemove<AbbreviationExtension>();
     }
 
     internal MarkdownContentBlock(Func<Uri, Task<bool>>? launchLinkUriAsync)
