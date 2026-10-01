@@ -1,0 +1,17 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="SharpTurns.App.Views.PromptDialog"
+        Width="480"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{StaticResource CardBackgroundBrush}">
+  <StackPanel Margin="18" Spacing="14">
+    <TextBlock x:Name="MessageText" Foreground="{DynamicResource TextStrongBrush}" FontSize="13" TextWrapping="Wrap" />
+    <TextBox x:Name="InputBox" />
+    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+      <Button Classes="secondaryActionButton" Content="Cancel" Click="Cancel_Click" MinWidth="90" IsCancel="True" />
+      <Button x:Name="ConfirmButton" Content="OK" Click="Confirm_Click" MinWidth="90" IsDefault="True" />
+    </StackPanel>
+  </StackPanel>
+</Window>

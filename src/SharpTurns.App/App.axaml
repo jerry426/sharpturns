@@ -1,0 +1,99 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="SharpTurns.App.App"
+             RequestedThemeVariant="Dark">
+  <Application.Resources>
+    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#111318" />
+    <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#151820" />
+    <SolidColorBrush x:Key="CardBackgroundBrush" Color="#171A22" />
+    <SolidColorBrush x:Key="UserCardBackgroundBrush" Color="#182235" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#2D3548" />
+    <SolidColorBrush x:Key="DestructiveBackgroundBrush" Color="#270000" />
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F4F7FB" />
+    <SolidColorBrush x:Key="TextStrongBrush" Color="#EEF2FA" />
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#CFD7E6" />
+    <SolidColorBrush x:Key="TextMutedBrush" Color="#AAB3C5" />
+    <SolidColorBrush x:Key="TextSubtleBrush" Color="#8792A8" />
+    <SolidColorBrush x:Key="TextCyanBrush" Color="#12D6E7" />
+    <SolidColorBrush x:Key="TextBlueMutedBrush" Color="#C7D7FF" />
+    <SolidColorBrush x:Key="TextYellowBrush" Color="#E5C07B" />
+    <SolidColorBrush x:Key="TextDangerBrush" Color="#FFB8C0" />
+    <SolidColorBrush x:Key="TextDangerStrongBrush" Color="#FFD7DC" />
+    <SolidColorBrush x:Key="TextDangerDisabledBrush" Color="#816E75" />
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme />
+
+    <Style Selector="ScrollViewer">
+      <Setter Property="AllowAutoHide" Value="False" />
+    </Style>
+
+    <Style Selector="Button.primaryActionButton, Button.secondaryActionButton, Button.dangerActionButton">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Padding" Value="12,6" />
+      <Setter Property="MinHeight" Value="32" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style Selector="Button.primaryActionButton /template/ ContentPresenter#PART_ContentPresenter, Button.secondaryActionButton /template/ ContentPresenter#PART_ContentPresenter, Button.dangerActionButton /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="CornerRadius" Value="8" />
+    </Style>
+
+    <Style Selector="Button.primaryActionButton">
+      <Setter Property="Background" Value="#0969DA" />
+      <Setter Property="BorderBrush" Value="#2B8CFF" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="Button.primaryActionButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#1177D8" />
+      <Setter Property="BorderBrush" Value="#4AA3FF" />
+    </Style>
+    <Style Selector="Button.primaryActionButton:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#253044" />
+      <Setter Property="BorderBrush" Value="#344158" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSubtleBrush}" />
+    </Style>
+
+    <Style Selector="Button.secondaryActionButton">
+      <Setter Property="Background" Value="#182235" />
+      <Setter Property="BorderBrush" Value="#2D3A52" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="Button.secondaryActionButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#21304A" />
+      <Setter Property="BorderBrush" Value="#3D5274" />
+    </Style>
+    <Style Selector="Button.secondaryActionButton:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#171B24" />
+      <Setter Property="BorderBrush" Value="#252D3C" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSubtleBrush}" />
+    </Style>
+
+    <Style Selector="Button.dangerActionButton">
+      <Setter Property="Background" Value="{StaticResource DestructiveBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="#7A2E38" />
+      <Setter Property="Foreground" Value="{DynamicResource TextDangerBrush}" />
+    </Style>
+    <Style Selector="Button.dangerActionButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#3A1B20" />
+      <Setter Property="BorderBrush" Value="#A6424F" />
+      <Setter Property="Foreground" Value="{DynamicResource TextDangerStrongBrush}" />
+    </Style>
+    <Style Selector="Button.dangerActionButton:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#20191D" />
+      <Setter Property="BorderBrush" Value="#443039" />
+      <Setter Property="Foreground" Value="{DynamicResource TextDangerDisabledBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.sectionHeader">
+      <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+  </Application.Styles>
+</Application>

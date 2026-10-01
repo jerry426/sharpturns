@@ -85,7 +85,7 @@ persistence.
   or branding. Refer to the CLI only descriptively, as in requirements.
 - Rely on the CLI's own project-instruction discovery (`CLAUDE.md`, plus
   `AGENTS.md` where the CLI supports it). Do not inject instruction files or add
-  launch options such as `--safe-mode` that disable discovery.
+  launch options such as `--safe-mode` or `--restricted` that disable discovery.
 - The CLI reuses a session's saved system prompt on resume. Any change to the
   app's system prompt must start a fresh CLI session.
 - CLI flags, environment switches, and stream-json events change between

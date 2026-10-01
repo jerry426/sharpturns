@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SharpTurns.App/SharpTurns.App.csproj" />
+    <Project Path="src/SharpTurns.ClaudeCli/SharpTurns.ClaudeCli.csproj" />
+    <Project Path="src/SharpTurns.Core/SharpTurns.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SharpTurns.Tests/SharpTurns.Tests.csproj" />
+  </Folder>
+</Solution>
