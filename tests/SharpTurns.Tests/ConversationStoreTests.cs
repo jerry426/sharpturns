@@ -106,6 +106,28 @@ public sealed class ConversationStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task ImageReplayChoicesAreSavedOnTheImagePart()
+    {
+        await _store.InitializeAsync();
+        var project = await _store.CreateProjectAsync("Project", "/work");
+        var conversation = await _store.CreateConversationAsync(project.Id, "Conversation");
+        var image = new ImageAttachment("shot.png", "image/png", "iVBORw0KGgo=");
+        var turn = await _store.StartTurnAsync(conversation.Id, "look", [image, image with { FileName = "other.png" }]);
+
+        // Saved before the choice existed, images read as not chosen.
+        Assert.DoesNotContain("IncludeInFutureReplay", turn.Parts[1].Content);
+        await _store.SetImageReplayAsync(turn.Id, 3, true);
+
+        var parts = Assert.Single(await _store.LoadTurnsAsync(conversation.Id)).Parts;
+        Assert.Equal(image, TurnParts.ReadImage(parts[1]));
+        Assert.Equal(image with { FileName = "other.png", IncludeInFutureReplay = true }, TurnParts.ReadImage(parts[2]));
+        Assert.Equal(TurnParts.WithImageReplay(turn.Parts[2], true), parts[2]);
+        await _store.SetImageReplayAsync(turn.Id, 3, false);
+        Assert.Equal(turn.Parts[2], (await _store.LoadTurnsAsync(conversation.Id))[0].Parts[2]);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _store.SetImageReplayAsync(turn.Id, 1, true));
+    }
+
+    [Fact]
     public async Task DeletingATurnRemovesItsPartsAndKeepsLaterNumbers()
     {
         await _store.InitializeAsync();

@@ -27,7 +27,8 @@ public static class ClaudeCodeContext
         turns.Where(t => t.IsHydrated).OrderBy(t => t.TurnNumber).Select(TurnBlock).ToArray();
 
     // Tool activity is display-only and stays out of the replay; questions and answers are dialogue. A compressed turn
-    // keeps its user inputs, its summary replaces its assistant text, and its images are replayed as descriptors only.
+    // keeps its user inputs, its summary replaces its assistant text, and its images are replayed as descriptors, plus
+    // the contents of those chosen to stay in the replay.
     private static HistoryBlock TurnBlock(ConversationTurn t)
     {
         var messages = new List<ReplayMessage>();
@@ -51,8 +52,8 @@ public static class ClaudeCodeContext
                     if (owner is null) messages.Add(owner = new("user", ""));
                     if (t.IsCompressed)
                     {
-                        (owner.OmittedImages ??= []).Add(image);
-                        break;
+                        (owner.DescribedImages ??= []).Add(image);
+                        if (!image.IncludeInFutureReplay) break;
                     }
                     (owner.Images ??= []).Add(new(images.Count + 1, image.FileName, image.MediaType,
                         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(image.Data)))));
@@ -61,8 +62,8 @@ public static class ClaudeCodeContext
             }
         }
         for (var i = 0; i < messages.Count; i++)
-            if (messages[i].OmittedImages is { } omitted)
-                messages[i] = messages[i] with { Content = WithImageDescriptors(messages[i].Content, omitted), OmittedImages = null };
+            if (messages[i].DescribedImages is { } described)
+                messages[i] = messages[i] with { Content = WithImageDescriptors(messages[i].Content, described), DescribedImages = null };
         return new HistoryBlock(
             JsonSerializer.Serialize(new { turn_id = t.Id, turn_number = t.TurnNumber, summary = t.Summary, messages },
                 ReplayJsonOptions), images);
@@ -75,18 +76,36 @@ public static class ClaudeCodeContext
         return Encoding.UTF8.GetByteCount(block.Text) + block.Images.Sum(image => (long)image.Data.Length);
     }
 
-    /// <summary>The content followed by the images' descriptors, as the Workbench replays images it leaves out.</summary>
-    internal static string WithImageDescriptors(string content, IReadOnlyList<ImageAttachment> images)
+    /// <summary>
+    /// The content followed by the images' descriptors, as the Workbench replays a compressed turn's images. When
+    /// includeSelected is set, images chosen to stay in the replay are marked as included.
+    /// </summary>
+    internal static string WithImageDescriptors(string content, IReadOnlyList<ImageAttachment> images, bool includeSelected = true)
     {
+        var hasSelected = includeSelected && images.Any(image => image.IncludeInFutureReplay);
         var text = new StringBuilder()
             .Append("[HISTORICAL ATTACHMENT DESCRIPTORS]\n")
-            .Append("Image contents are omitted from this summarized replay of a prior turn; only their attachment descriptors are included.\n");
+            .Append(hasSelected
+                ? "Selected image contents are included in this replay of a prior turn; other images are represented only by their attachment descriptors.\n"
+                : "Image contents are omitted from this summarized replay of a prior turn; only their attachment descriptors are included.\n");
         for (var i = 0; i < images.Count; i++)
+        {
             text.Append(CultureInfo.InvariantCulture,
-                $"- Image {i + 1}: file_name={JsonSerializer.Serialize(images[i].FileName)}, media_type={JsonSerializer.Serialize(images[i].MediaType)}, size_bytes={DecodedLength(images[i].Data)}\n");
+                $"- Image {i + 1}: file_name={JsonSerializer.Serialize(images[i].FileName)}, media_type={JsonSerializer.Serialize(images[i].MediaType)}, size_bytes={DecodedLength(images[i].Data)}");
+            if (hasSelected) text.Append(images[i].IncludeInFutureReplay ? ", contents=included" : ", contents=omitted");
+            text.Append('\n');
+        }
         text.Append("[/HISTORICAL ATTACHMENT DESCRIPTORS]");
         return content.Length == 0 ? text.ToString() : content + "\n\n" + text;
     }
+
+    /// <summary>Whether the replay sends the image: never for a hidden turn, always in full, and when chosen once compressed.</summary>
+    public static bool IsImageReplayed(ConversationTurn turn, ImageAttachment image) =>
+        turn.IsHydrated && (!turn.IsCompressed || image.IncludeInFutureReplay);
+
+    /// <summary>How many of the turn's images the replay sends (see IsImageReplayed).</summary>
+    public static int ReplayedImageCount(ConversationTurn turn) => turn.Parts.Count(p =>
+        p.PartType == TurnParts.Image && turn.IsHydrated && (!turn.IsCompressed || TurnParts.ReadImage(p).IncludeInFutureReplay));
 
     private static long DecodedLength(string base64) =>
         base64.Length / 4 * 3L - (base64.EndsWith("==", StringComparison.Ordinal) ? 2 : base64.EndsWith('=') ? 1 : 0);
@@ -122,9 +141,9 @@ public static class ClaudeCodeContext
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public List<ImageDescriptor>? Images { get; set; }
 
-        /// <summary>A compressed turn's images, replaced by descriptors in Content before serializing.</summary>
+        /// <summary>A compressed turn's images, described in Content before serializing.</summary>
         [JsonIgnore]
-        public List<ImageAttachment>? OmittedImages { get; set; }
+        public List<ImageAttachment>? DescribedImages { get; set; }
     }
 
     private sealed record ImageDescriptor(

@@ -318,6 +318,22 @@
       <Setter Property="BorderBrush" Value="#2D3340" />
     </Style>
 
+    <!-- Images Available for Replay, as in the Workbench: a dark red border, or a thick green one while images are
+         being replayed, that stays on hover. -->
+    <Style Selector="Button.replayImages">
+      <Setter Property="BorderBrush" Value="#633C40" />
+    </Style>
+    <Style Selector="Button.replayImages:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="BorderBrush" Value="#633C40" />
+    </Style>
+    <Style Selector="Button.replayImages.replaying">
+      <Setter Property="BorderBrush" Value="#00FF00" />
+      <Setter Property="BorderThickness" Value="2" />
+    </Style>
+    <Style Selector="Button.replayImages.replaying:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="BorderBrush" Value="#00FF00" />
+    </Style>
+
     <!-- Collapsible card headers: the whole row toggles; no accent fill when expanded. -->
     <Style Selector="ToggleButton.cardHeader">
       <Setter Property="Background" Value="Transparent" />

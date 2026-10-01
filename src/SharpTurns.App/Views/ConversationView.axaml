@@ -7,8 +7,8 @@
              x:Class="SharpTurns.App.Views.ConversationView"
              x:DataType="vm:ConversationViewModel">
   <UserControl.Resources>
-    <!-- Thumbnails open a preview (an editable gallery for the composer's images); the composer's copies also have a remove button. -->
-    <DataTemplate x:Key="SentImageTemplate" x:DataType="vm:ImageAttachmentViewModel">
+    <!-- A composer thumbnail opens an editable gallery of the composer's images; each also has a remove button. -->
+    <DataTemplate x:Key="ComposerImageTemplate" x:DataType="vm:ImageAttachmentViewModel">
       <Button Classes="thumbnail" Width="96" Height="72" Click="Image_Click" ToolTip.Tip="{Binding ToolTip}">
         <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />
       </Button>
@@ -31,7 +31,7 @@
     </Border>
 
     <ScrollViewer x:Name="TurnsScroller" Grid.Row="1">
-      <ItemsControl ItemsSource="{Binding Turns}" Margin="20,16">
+      <ItemsControl x:Name="TurnsList" ItemsSource="{Binding Turns}" Margin="20,16">
         <ItemsControl.ItemTemplate>
           <!-- Each turn is a card, laid out like the Workbench's: a rail with the turn's details and actions, then
                the prompt and response. A compressed turn has a darker blue card; a hidden turn has a thick orange border. -->
@@ -122,16 +122,39 @@
                     </Grid>
                   </Border>
                   <TextBlock Text="USER:" Foreground="{DynamicResource TextYellowBrush}" FontSize="12" FontWeight="SemiBold" />
-                  <SelectableTextBlock Text="{Binding UserText}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="14"
-                                       LineHeight="21" TextWrapping="Wrap" />
-                  <ItemsControl ItemsSource="{Binding Images}" IsVisible="{Binding HasImages}"
-                                ItemTemplate="{StaticResource SentImageTemplate}">
+                  <!-- As in the Workbench, each image is a card above the prompt with its thumbnail, details, and replay choice. -->
+                  <ItemsControl ItemsSource="{Binding Images}" IsVisible="{Binding HasImages}">
                     <ItemsControl.ItemsPanel>
                       <ItemsPanelTemplate>
-                        <WrapPanel ItemSpacing="8" LineSpacing="8" />
+                        <StackPanel Spacing="10" />
                       </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:TurnImageViewModel">
+                        <Border Background="#1D2433" BorderBrush="#52607A" BorderThickness="1" CornerRadius="10" Padding="10"
+                                ToolTip.Tip="{Binding Preview.ToolTip}">
+                          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                            <Button Classes="thumbnail" Width="160" Height="120" Click="Image_Click" ToolTip.Tip="Preview sent image">
+                              <Image Source="{Binding Preview.Thumbnail}" Stretch="UniformToFill" />
+                            </Button>
+                            <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                              <TextBlock Text="{Binding Preview.ToolTip}" Foreground="{DynamicResource TextYellowBrush}" FontSize="13"
+                                         FontWeight="SemiBold" TextWrapping="Wrap" />
+                              <TextBlock Text="{Binding MediaType}" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"
+                                         TextWrapping="Wrap" />
+                              <TextBlock Text="Click thumbnail to preview" Foreground="{DynamicResource TextSubtleBrush}" FontSize="11"
+                                         TextWrapping="Wrap" />
+                              <CheckBox Content="{Binding ReplayChoiceLabel}" IsChecked="{Binding IncludeInFutureReplay, Mode=OneWay}"
+                                        Command="{ReflectionBinding $parent[UserControl].DataContext.ToggleImageReplayCommand}"
+                                        CommandParameter="{Binding}" ToolTip.Tip="{Binding ReplayChoiceToolTip}" />
+                            </StackPanel>
+                          </Grid>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
                   </ItemsControl>
+                  <SelectableTextBlock Text="{Binding UserText}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="14"
+                                       LineHeight="21" TextWrapping="Wrap" />
                   <Border Height="4" Background="{DynamicResource TextYellowBrush}" Margin="0,10,0,8" />
                   <TextBlock Text="ASSISTANT:" Foreground="#61AFEF" FontSize="12" FontWeight="SemiBold" />
 
@@ -229,8 +252,8 @@
       </ItemsControl>
     </ScrollViewer>
 
-    <!-- The composer card, laid out like the Workbench's. Voice, the confidence box, Undo, and Images Available for
-         Replay are placeholders until dictation (phase 5) and replay image management (phase 3) arrive. -->
+    <!-- The composer card, laid out like the Workbench's. Voice, the confidence box, and Undo are placeholders until
+         dictation (phase 5) arrives. -->
     <Border Grid.Row="2" Margin="20,0,20,14" Background="#1B1F2A" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
             CornerRadius="12" Padding="14">
       <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
@@ -266,7 +289,7 @@
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="vm:ImageAttachmentViewModel">
                   <Panel>
-                    <ContentControl Content="{Binding}" ContentTemplate="{StaticResource SentImageTemplate}" />
+                    <ContentControl Content="{Binding}" ContentTemplate="{StaticResource ComposerImageTemplate}" />
                     <Button Classes="removeImage" Command="{ReflectionBinding $parent[UserControl].DataContext.RemoveAttachmentCommand}"
                             CommandParameter="{Binding}" ToolTip.Tip="Remove image">
                       <Path />
@@ -313,10 +336,11 @@
                     ToolTip.Tip="{Binding ImageButtonToolTip}" />
           </StackPanel>
 
-          <Button Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Classes="secondaryActionButton" Content="Images Available for Replay"
-                  IsEnabled="False" HorizontalAlignment="Stretch" MinHeight="28" FontSize="12" FontWeight="Medium" Padding="8,4"
-                  ToolTip.ShowOnDisabled="True"
-                  ToolTip.Tip="Browse the conversation's images and choose which are replayed (not available yet)" />
+          <Button Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Classes="secondaryActionButton replayImages"
+                  Classes.replaying="{Binding HasImagesBeingReplayed}" Content="{Binding ReplayImagesLabel}"
+                  Command="{Binding OpenReplayImagesCommand}" HorizontalAlignment="Stretch" MinHeight="28" FontSize="12"
+                  FontWeight="Medium" Padding="8,4" ToolTip.ShowOnDisabled="True"
+                  ToolTip.Tip="Browse the conversation's images, choose which stay in the replay when their turn is compressed, and jump to their turns" />
 
           <Button Grid.Column="4" Grid.RowSpan="2" Classes="primaryActionButton" Command="{Binding SendCommand}" MinWidth="80"
                   VerticalAlignment="Stretch" ToolTip.Tip="While a turn runs, messages are queued and delivered to Claude during it">

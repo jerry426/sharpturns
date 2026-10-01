@@ -48,7 +48,7 @@ public sealed partial class TurnViewModel : ObservableObject
     public TurnViewModel(string userText, IReadOnlyList<ImageAttachment> images)
     {
         UserText = userText;
-        Images = images.Select(image => new ImageAttachmentViewModel(image)).ToArray();
+        Images = images.Select((image, index) => new TurnImageViewModel(this, index, new ImageAttachmentViewModel(image))).ToArray();
         IsRunning = true;
     }
 
@@ -57,14 +57,14 @@ public sealed partial class TurnViewModel : ObservableObject
         var parts = turn.Parts.OrderBy(p => p.Sequence).ToArray();
         UserText = Prompt(parts)?.Content ?? "";
         Images = parts.Where(p => p.PartType == TurnParts.Image)
-            .Select(p => new ImageAttachmentViewModel(TurnParts.ReadImage(p))).ToArray();
+            .Select((p, index) => new TurnImageViewModel(this, index, new ImageAttachmentViewModel(TurnParts.ReadImage(p)))).ToArray();
         Finish(turn);
         RebuildItems();
     }
 
     public string UserText { get; }
 
-    public IReadOnlyList<ImageAttachmentViewModel> Images { get; }
+    public IReadOnlyList<TurnImageViewModel> Images { get; }
 
     public bool HasImages => Images.Count > 0;
 
@@ -175,6 +175,12 @@ public sealed partial class TurnViewModel : ObservableObject
 
     public void Started(ConversationTurn turn) => Record = turn;
 
+    // The images' replay choices and labels come from the saved record.
+    partial void OnRecordChanged(ConversationTurn? value)
+    {
+        foreach (var image in Images) image.Refresh();
+    }
+
     public void AppendText(string delta)
     {
         if (Items.LastOrDefault() is TextItemViewModel { IsStreaming: true } last) last.Text += delta;
@@ -234,9 +240,9 @@ public sealed partial class TurnViewModel : ObservableObject
     {
         var compressionChanged = turn.Summary != Record?.Summary;
         Record = turn;
-        if (!compressionChanged) return;
-        IsViewingFullContent = false;
-        RebuildItems();
+        if (compressionChanged) IsViewingFullContent = false;
+        // The summary heading shows the replay reduction, which counts the images kept in the replay.
+        if (compressionChanged || turn.IsCompressed) RebuildItems();
     }
 
     [RelayCommand]
@@ -328,7 +334,7 @@ public sealed partial class TurnViewModel : ObservableObject
             text.Append(CultureInfo.InvariantCulture,
                 $"Turn ID: {turn.Id}\nTurn #{turn.TurnNumber}\nTimestamp: {turn.CreatedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss zzz}\n");
         text.Append("\n## User\n\n").Append(UserText);
-        foreach (var image in Images) text.Append("\n\n[Image: ").Append(image.Attachment.FileName).Append(']');
+        foreach (var image in Images) text.Append("\n\n[Image: ").Append(image.Preview.FileName).Append(']');
         var inAssistant = false;
         foreach (var item in Items)
         {
@@ -407,5 +413,42 @@ public sealed partial class TurnViewModel : ObservableObject
             index = next;
         }
         return fence is null ? stable : 0;
+    }
+}
+
+/// <summary>An image on a turn card, laid out like the Workbench's: thumbnail, details, and its replay choice.</summary>
+public sealed class TurnImageViewModel(TurnViewModel owner, int index, ImageAttachmentViewModel preview) : ObservableObject
+{
+    public TurnViewModel Owner { get; } = owner;
+
+    public ImageAttachmentViewModel Preview { get; } = preview;
+
+    public string MediaType => Preview.Attachment.MediaType;
+
+    /// <summary>The image's saved part; null until the turn is saved. Images are saved in the order they were attached.</summary>
+    public TurnPart? Part => Owner.Record?.Parts.Where(p => p.PartType == TurnParts.Image).OrderBy(p => p.Sequence)
+        .ElementAtOrDefault(index);
+
+    public bool IncludeInFutureReplay => Part is { } part && TurnParts.ReadImage(part).IncludeInFutureReplay;
+
+    public string ReplayChoiceLabel => ChoiceLabel(Owner.IsCompressed);
+
+    public string ReplayChoiceToolTip => ChoiceToolTip(Owner.IsCompressed);
+
+    // A turn replayed in full sends all its images, so before compression the choice only takes effect later.
+    public static string ChoiceLabel(bool compressed) => compressed ? "Include image in future turns" : "Keep when compressed";
+
+    public static string ChoiceToolTip(bool compressed) => compressed
+        ? "Send this image with future turns while its turn stays compressed; unchecked, it's described by name, type, and size. "
+          + "It adds to the context, so uncheck it when it's no longer needed. A hidden turn stays hidden."
+        : "This turn is replayed in full, so the image is sent either way for now. Checked, it stays in the replay after the turn "
+          + "is compressed; unchecked, it's then described by name, type, and size.";
+
+    // Always notifies, so a check box the user toggled shows the saved choice again.
+    internal void Refresh()
+    {
+        OnPropertyChanged(nameof(IncludeInFutureReplay));
+        OnPropertyChanged(nameof(ReplayChoiceLabel));
+        OnPropertyChanged(nameof(ReplayChoiceToolTip));
     }
 }

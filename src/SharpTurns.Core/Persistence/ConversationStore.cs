@@ -223,6 +223,22 @@ public sealed class ConversationStore
             .ConfigureAwait(false);
     }
 
+    /// <summary>Chooses whether an image part stays in the replay once its turn is compressed.</summary>
+    public async Task SetImageReplayAsync(long turnId, int sequence, bool include, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = connection.BeginTransaction();
+        var content = await ScalarAsync(connection, transaction,
+                "SELECT content FROM conversation_turn_parts WHERE turn_id = $turn AND sequence = $sequence AND part_type = $type",
+                cancellationToken, ("$turn", turnId), ("$sequence", sequence), ("$type", TurnParts.Image)).ConfigureAwait(false) as string
+            ?? throw new InvalidOperationException("Image no longer exists.");
+        var part = TurnParts.WithImageReplay(new(sequence, "user", TurnParts.Image, content), include);
+        await ExecuteSingleAsync(connection, transaction,
+            "UPDATE conversation_turn_parts SET content = $content WHERE turn_id = $turn AND sequence = $sequence", "Image",
+            cancellationToken, ("$turn", turnId), ("$sequence", sequence), ("$content", part.Content)).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     /// <summary>Saves the prompt and its images as a running turn before the CLI starts, so a failed launch never loses them.</summary>
     public async Task<ConversationTurn> StartTurnAsync(long conversationId, string prompt,
         IReadOnlyList<ImageAttachment>? images = null, CancellationToken cancellationToken = default)

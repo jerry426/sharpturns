@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
@@ -38,6 +39,7 @@ public sealed partial class ConversationView : UserControl
         _viewModel.ShowPermissionAsync = ShowPermissionAsync;
         _viewModel.ConfirmAsync = ConfirmAsync;
         _viewModel.CopyTextAsync = CopyTextAsync;
+        _viewModel.ShowReplayImagesAsync = ShowReplayImagesAsync;
         // Show the newest turn.
         Dispatcher.UIThread.Post(TurnsScroller.ScrollToEnd, DispatcherPriority.Background);
     }
@@ -118,7 +120,13 @@ public sealed partial class ConversationView : UserControl
 
     private async void Image_Click(object? sender, RoutedEventArgs e)
     {
-        if ((sender as Control)?.DataContext is not ImageAttachmentViewModel image) return;
+        var image = (sender as Control)?.DataContext switch
+        {
+            ImageAttachmentViewModel attachment => attachment,
+            TurnImageViewModel sent => sent.Preview,
+            _ => null,
+        };
+        if (image is null) return;
         try
         {
             var owner = TopLevel.GetTopLevel(this) as Window;
@@ -148,6 +156,15 @@ public sealed partial class ConversationView : UserControl
     private async Task<bool> ConfirmAsync(string title, string message) =>
         TopLevel.GetTopLevel(this) is Window owner
         && await new PromptDialog(title, message, null, "Delete", destructive: true).ShowDialog<string?>(owner) is not null;
+
+    private async Task ShowReplayImagesAsync(ImagesBeingReplayedDialogViewModel images)
+    {
+        if (TopLevel.GetTopLevel(this) is not Window owner) return;
+        var turn = await new ImagesBeingReplayedDialog { DataContext = images }.ShowDialog<TurnViewModel?>(owner);
+        // Scroll the chosen turn's card to the top.
+        if (turn is not null && TurnsList.ContainerFromItem(turn)?.TranslatePoint(default, TurnsList) is { } top)
+            TurnsScroller.Offset = TurnsScroller.Offset.WithY(top.Y + TurnsList.Margin.Top);
+    }
 
     private async Task CopyTextAsync(string text)
     {

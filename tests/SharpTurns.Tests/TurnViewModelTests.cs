@@ -93,13 +93,37 @@ public sealed class TurnViewModelTests
         ]));
 
         Assert.Equal("prompt", turn.UserText);
-        Assert.Equal([image], turn.Images.Select(i => i.Attachment));
+        Assert.Equal([image], turn.Images.Select(i => i.Preview.Attachment));
         Assert.Equal([typeof(TextItemViewModel), typeof(ToolItemViewModel), typeof(QuestionItemViewModel),
             typeof(UserMessageItemViewModel), typeof(TextItemViewModel)], turn.Items.Select(i => i.GetType()));
         Assert.Equal("/a/b.txt", ((ToolItemViewModel)turn.Items[1]).Summary);
         Assert.Equal("No answer; the question was declined.", ((QuestionItemViewModel)turn.Items[2]).AnswerText);
         Assert.False(turn.IsRunning);
         Assert.False(turn.HasTokenUsage);
+    }
+
+    [Fact]
+    public void ImageCardsFollowTheSavedReplayChoiceAndCompression()
+    {
+        var turn = new TurnViewModel(new ConversationTurn(1, 1, 1, TurnStatus.Completed, null, DateTimeOffset.UnixEpoch, null,
+        [
+            new(1, "user", TurnParts.Text, "prompt"),
+            TurnParts.FromImage(2, new ImageAttachment("a.png", "image/png", "iVBORw0KGgo=")),
+            TurnParts.FromImage(3, new ImageAttachment("b.png", "image/png", "iVBORw0KGgo=")),
+            new(4, "assistant", TurnParts.Text, "Done."),
+        ]));
+        var second = turn.Images[1];
+        Assert.Equal((3, false, "Keep when compressed"), (second.Part!.Sequence, second.IncludeInFutureReplay, second.ReplayChoiceLabel));
+
+        var record = turn.Record!;
+        turn.ApplyRecord(record with
+        {
+            Summary = "## Work Summary\n- a",
+            Parts = record.Parts.Select(p => p.Sequence == 3 ? TurnParts.WithImageReplay(p, true) : p).ToArray(),
+        });
+
+        Assert.Equal((true, "Include image in future turns"), (second.IncludeInFutureReplay, second.ReplayChoiceLabel));
+        Assert.False(turn.Images[0].IncludeInFutureReplay);
     }
 
     [Fact]

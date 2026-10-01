@@ -136,6 +136,42 @@ public sealed class ClaudeCodeContextTests
     }
 
     [Fact]
+    public void CompressedTurnsReplayTheImagesChosenToStay()
+    {
+        var kept = new ImageAttachment("kept.png", "image/png", "iVBORw0KGgo=", IncludeInFutureReplay: true);
+        var dropped = new ImageAttachment("dropped.png", "image/png", "R0lGODlh");
+        var turn = Turn(1, 10, "look", "seen") with
+        {
+            Parts = [new(1, "user", "text", "look"), TurnParts.FromImage(2, dropped), TurnParts.FromImage(3, kept), new(4, "assistant", "text", "seen")],
+            Summary = "## Work Summary\n\n- Looked.\n\n## Final Assistant Response — Verbatim\n\nseen",
+        };
+
+        var block = ClaudeCodeContext.SeedHistoryBlocks([turn])[1];
+
+        Assert.Equal([kept], block.Images);
+        using var json = JsonDocument.Parse(block.Text);
+        var message = json.RootElement.GetProperty("messages")[0];
+        Assert.Equal("look\n\n[HISTORICAL ATTACHMENT DESCRIPTORS]\n"
+            + "Selected image contents are included in this replay of a prior turn; other images are represented only by their attachment descriptors.\n"
+            + "- Image 1: file_name=\"dropped.png\", media_type=\"image/png\", size_bytes=6, contents=omitted\n"
+            + "- Image 2: file_name=\"kept.png\", media_type=\"image/png\", size_bytes=8, contents=included\n"
+            + "[/HISTORICAL ATTACHMENT DESCRIPTORS]", message.GetProperty("content").GetString());
+        var descriptor = Assert.Single(message.GetProperty("images").EnumerateArray());
+        Assert.Equal((1, "kept.png"), (descriptor.GetProperty("image_block").GetInt32(), descriptor.GetProperty("file_name").GetString()));
+        Assert.Equal(1, ClaudeCodeContext.ReplayedImageCount(turn));
+        Assert.Equal(0, ClaudeCodeContext.ReplayedImageCount(turn with { IsHydrated = false }));
+
+        // In full, every image is replayed and the choice doesn't change the replay; the summarizer never sees contents.
+        var full = turn with { Summary = null };
+        Assert.Equal(2, ClaudeCodeContext.ReplayedImageCount(full));
+        Assert.Equal(ClaudeCodeContext.Fingerprint([full]), ClaudeCodeContext.Fingerprint([full with
+        {
+            Parts = [.. full.Parts.Select(p => p.PartType == TurnParts.Image ? TurnParts.WithImageReplay(p, false) : p)],
+        }]));
+        Assert.DoesNotContain("contents=", TurnCompression.Analyze(full, out _)!.SummarizerSource);
+    }
+
+    [Fact]
     public void FingerprintFollowsVisibleTextOnly()
     {
         var turn = Turn(1, 10, "prompt", "answer");

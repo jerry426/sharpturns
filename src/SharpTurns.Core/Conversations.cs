@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace SharpTurns.Core;
 
@@ -70,8 +71,12 @@ public sealed record ToolCallRecord(string Id, string Name, string? Input, strin
 /// <summary>An AskUserQuestion question as shown (Markdown) and the user's answer; null when declined.</summary>
 public sealed record QuestionRecord(string Question, string? Answer);
 
-/// <summary>An attached image; Data is base64.</summary>
-public sealed record ImageAttachment(string FileName, string MediaType, string Data);
+/// <summary>
+/// An attached image; Data is base64. IncludeInFutureReplay keeps the image's contents in the replay once its turn is
+/// compressed, as in the Workbench; a turn replayed in full sends all its images.
+/// </summary>
+public sealed record ImageAttachment(string FileName, string MediaType, string Data,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool IncludeInFutureReplay = false);
 
 public static class TurnParts
 {
@@ -95,6 +100,9 @@ public static class TurnParts
     public static QuestionRecord ReadQuestion(TurnPart part) => Read<QuestionRecord>(part, Question);
 
     public static ImageAttachment ReadImage(TurnPart part) => Read<ImageAttachment>(part, Image);
+
+    public static TurnPart WithImageReplay(TurnPart part, bool include) =>
+        FromImage(part.Sequence, ReadImage(part) with { IncludeInFutureReplay = include });
 
     private static T Read<T>(TurnPart part, string type) => part.PartType == type
         ? JsonSerializer.Deserialize<T>(part.Content) ?? throw new InvalidDataException($"Turn part {part.Sequence} is empty.")

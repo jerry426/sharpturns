@@ -1,0 +1,92 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SharpTurns.App.ViewModels"
+        x:Class="SharpTurns.App.Views.ImagesBeingReplayedDialog"
+        x:DataType="vm:ImagesBeingReplayedDialogViewModel"
+        Title="Conversation Images"
+        Width="1000"
+        Height="900"
+        MinWidth="720"
+        MinHeight="600"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource CardBackgroundBrush}">
+  <Window.Styles>
+    <!-- Laid out like the Workbench's dialog: the turn's header and each thumbnail are borderless buttons. -->
+    <Style Selector="Button.imageTurn">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="Button.imageTurn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="#66A3FF" />
+    </Style>
+  </Window.Styles>
+
+  <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="12" Margin="18">
+    <StackPanel Spacing="4">
+      <TextBlock Text="Conversation Images" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="20" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding ConversationTitle}" Foreground="{DynamicResource TextYellowBrush}" FontSize="13"
+                 TextTrimming="CharacterEllipsis" />
+    </StackPanel>
+    <TextBlock Grid.Row="1" Text="{Binding CountLabel}" Foreground="{DynamicResource TextSecondaryBrush}" />
+    <TextBlock Grid.Row="2" Text="{Binding Status}" IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+               Foreground="{DynamicResource TextDangerBrush}" TextWrapping="Wrap" />
+
+    <ScrollViewer Grid.Row="3" HorizontalScrollBarVisibility="Disabled">
+      <ItemsControl ItemsSource="{Binding Turns}" Margin="0,0,14,0">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="10" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:ReplayImageTurnViewModel">
+            <Border Background="{Binding Background}" CornerRadius="10" Padding="14,12">
+              <StackPanel Spacing="8">
+                <Button Classes="imageTurn" Click="Turn_Click" ToolTip.Tip="Close this dialog and scroll to this turn">
+                  <StackPanel Spacing="6" Margin="4,2">
+                    <TextBlock Text="{Binding Label}" Foreground="#8AB4FF" FontSize="12" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Message}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="14" LineHeight="20"
+                               TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+                </Button>
+                <TextBlock Text="{Binding Note}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" TextWrapping="Wrap" />
+                <ItemsControl ItemsSource="{Binding Images}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <WrapPanel />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ReplayImageViewModel">
+                      <StackPanel Width="150" Margin="0,0,10,6" Spacing="4">
+                        <Button Classes="imageTurn" Click="Image_Click" ToolTip.Tip="Preview image">
+                          <Border Height="110" Background="#101824" CornerRadius="5" ClipToBounds="True">
+                            <Image Source="{Binding Preview.Thumbnail}" Stretch="Uniform" />
+                          </Border>
+                        </Button>
+                        <CheckBox Content="{Binding ChoiceLabel}" FontSize="12" IsChecked="{Binding IncludeInFutureReplay, Mode=OneWay}"
+                                  Command="{ReflectionBinding $parent[Window].DataContext.ToggleCommand}" CommandParameter="{Binding}"
+                                  ToolTip.Tip="{Binding ChoiceToolTip}" />
+                        <TextBlock Text="{Binding Preview.ToolTip}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"
+                                   TextWrapping="Wrap" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <Button Grid.Row="4" Classes="secondaryActionButton" Content="Close" Click="Close_Click" MinWidth="90" IsCancel="True"
+            HorizontalAlignment="Right" />
+  </Grid>
+</Window>

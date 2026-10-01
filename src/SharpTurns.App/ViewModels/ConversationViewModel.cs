@@ -47,6 +47,8 @@ public sealed partial class ConversationViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(DeleteTurnCommand))]
     [NotifyCanExecuteChangedFor(nameof(ToggleHydrationCommand))]
     [NotifyCanExecuteChangedFor(nameof(ToggleCompressionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenReplayImagesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleImageReplayCommand))]
     [NotifyPropertyChangedFor(nameof(SendLabel))]
     private bool _isRunning;
 
@@ -56,6 +58,8 @@ public sealed partial class ConversationViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(DeleteTurnCommand))]
     [NotifyCanExecuteChangedFor(nameof(ToggleHydrationCommand))]
     [NotifyCanExecuteChangedFor(nameof(ToggleCompressionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenReplayImagesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleImageReplayCommand))]
     private bool _isCompressing;
 
     [ObservableProperty]
@@ -98,6 +102,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         {
             OnPropertyChanged(nameof(TurnCount));
             OnPropertyChanged(nameof(LastTurn));
+            NotifyReplayImagesChanged();
         };
         Attachments.CollectionChanged += (_, _) =>
         {
@@ -138,6 +143,17 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     public string SendLabel => IsRunning ? "Queue" : "Send";
 
+    // The composer's replay image button, as in the Workbench. A live turn's images count as replayed.
+    private int ReplayedImageCount => Turns.Sum(t => t.Record is { } turn ? ClaudeCodeContext.ReplayedImageCount(turn) : t.Images.Count);
+
+    public bool HasConversationImages => Turns.Any(t => t.HasImages);
+
+    public bool HasImagesBeingReplayed => ReplayedImageCount > 0;
+
+    public string ReplayImagesLabel => ReplayedImageCount is > 0 and var count
+        ? string.Create(CultureInfo.CurrentCulture, $"Images Being Replayed ({count:N0})")
+        : "Images Available for Replay";
+
     // Shared by every conversation so the sidebar's pickers keep the same ItemsSource when the conversation changes;
     // a new ItemsSource clears the selection, which would write back to the conversation.
     private static readonly IReadOnlyList<string> SharedModelOptions = [DefaultModel, "opus", "sonnet", "haiku"];
@@ -162,6 +178,9 @@ public sealed partial class ConversationViewModel : ObservableObject
     public Func<string, string, Task<bool>>? ConfirmAsync { get; set; }
 
     public Func<string, Task>? CopyTextAsync { get; set; }
+
+    /// <summary>Shows the conversation's images modally.</summary>
+    public Func<ImagesBeingReplayedDialogViewModel, Task>? ShowReplayImagesAsync { get; set; }
 
     /// <summary>Raised on the UI thread after each turn's content changes, for scrolling.</summary>
     public event EventHandler? TurnContentChanged;
@@ -392,6 +411,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         {
             await _store.SetTurnHydratedAsync(record.Id, !record.IsHydrated);
             turn.ApplyRecord(record with { IsHydrated = !record.IsHydrated });
+            NotifyReplayImagesChanged();
             Status = (record.IsHydrated ? $"Hid turn {record.TurnNumber} from Claude's context."
                 : $"Turn {record.TurnNumber} is back in Claude's context.") + " The next turn starts a new CLI session.";
         }
@@ -408,6 +428,7 @@ public sealed partial class ConversationViewModel : ObservableObject
             {
                 await _store.SetTurnSummaryAsync(record.Id, null, null);
                 turn.ApplyRecord(record with { Summary = null, SummaryModel = null });
+                NotifyReplayImagesChanged();
                 Status = $"Expanded turn {record.TurnNumber}. The next turn starts a new CLI session.";
             }
             catch (Exception e) { Status = $"Couldn't expand turn {record.TurnNumber}: {e.Message}"; }
@@ -427,6 +448,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         {
             var compressed = await _summarizer.CompressAsync(record);
             turn.ApplyRecord(compressed);
+            NotifyReplayImagesChanged();
             Status = (automatic ? "Auto-summarized" : "Compressed") + $" turn {record.TurnNumber}"
                 + (TurnCompression.Reduction(compressed) is { } reduction
                     ? string.Create(CultureInfo.CurrentCulture, $" ({reduction:0.0}x replay reduction)") : "")
@@ -447,6 +469,55 @@ public sealed partial class ConversationViewModel : ObservableObject
             turn.IsCompressing = false;
             IsCompressing = false;
         }
+    }
+
+    // Like the turn card actions, image choices change the replay, so they wait for a running turn or compression.
+    private bool CanOpenReplayImages() => HasConversationImages && !IsRunning && !IsCompressing;
+
+    [RelayCommand(CanExecute = nameof(CanOpenReplayImages))]
+    private async Task OpenReplayImagesAsync()
+    {
+        if (ShowReplayImagesAsync is null) return;
+        await ShowReplayImagesAsync(new ImagesBeingReplayedDialogViewModel(Title,
+            Turns.Where(t => t.HasImages && t.Record is not null).ToArray(), SetImageReplayAsync));
+    }
+
+    /// <summary>
+    /// Chooses whether an image stays in the replay once its turn is compressed. Throws when it can't be saved. A change
+    /// to a shown, compressed turn changes the replay, so the next turn starts a new CLI session.
+    /// </summary>
+    private async Task SetImageReplayAsync(TurnViewModel turn, int sequence, bool include)
+    {
+        var record = turn.Record!;
+        await _store.SetImageReplayAsync(record.Id, sequence, include);
+        turn.ApplyRecord(record with
+        {
+            Parts = record.Parts.Select(p => p.Sequence == sequence ? TurnParts.WithImageReplay(p, include) : p).ToArray(),
+        });
+        NotifyReplayImagesChanged();
+        Status = record is { IsHydrated: true, IsCompressed: true }
+            ? $"Turn {record.TurnNumber}'s image is {(include ? "now" : "no longer")} replayed. The next turn starts a new CLI session."
+            : $"Turn {record.TurnNumber}'s image {(include ? "will stay" : "won't stay")} in the replay when the turn is compressed.";
+    }
+
+    private bool CanToggleImageReplay(TurnImageViewModel? image) => CanChangeContext(image?.Owner);
+
+    /// <summary>The turn card's check box under each image; the same choice as in the Conversation Images dialog.</summary>
+    [RelayCommand(CanExecute = nameof(CanToggleImageReplay))]
+    private async Task ToggleImageReplayAsync(TurnImageViewModel image)
+    {
+        var turn = image.Owner;
+        try { await SetImageReplayAsync(turn, image.Part!.Sequence, !image.IncludeInFutureReplay); }
+        catch (Exception e) { Status = $"Couldn't save turn {turn.Record!.TurnNumber}'s image choice: {e.Message}"; }
+        finally { image.Refresh(); } // Also puts the check box back when the save failed.
+    }
+
+    private void NotifyReplayImagesChanged()
+    {
+        OnPropertyChanged(nameof(HasConversationImages));
+        OnPropertyChanged(nameof(HasImagesBeingReplayed));
+        OnPropertyChanged(nameof(ReplayImagesLabel));
+        OpenReplayImagesCommand.NotifyCanExecuteChanged();
     }
 
     private bool CanStop() => IsRunning;

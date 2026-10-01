@@ -104,7 +104,7 @@ Output only the generated prefix with exactly one `## Work Summary` section. Do 
                     break;
                 case TurnParts.Image:
                     var image = TurnParts.ReadImage(part);
-                    source.Add(new { role = "user", content = ClaudeCodeContext.WithImageDescriptors("", [image]) });
+                    source.Add(new { role = "user", content = ClaudeCodeContext.WithImageDescriptors("", [image], includeSelected: false) });
                     break;
             }
         }
