@@ -24,7 +24,7 @@ public sealed class ConversationStoreTests : IDisposable
         await _store.InitializeAsync();
         await _store.InitializeAsync();
 
-        Assert.Equal(2L, Scalar("PRAGMA user_version"));
+        Assert.Equal(3L, Scalar("PRAGMA user_version"));
         Assert.Equal("wal", Scalar("PRAGMA journal_mode"));
     }
 
@@ -75,7 +75,7 @@ public sealed class ConversationStoreTests : IDisposable
         var first = await _store.StartTurnAsync(conversation.Id, "first prompt", [image]);
         await _store.FinishTurnAsync(first.Id, TurnStatus.Completed, null,
             [new(3, "assistant", "thinking", "reasoning"), new(4, "assistant", "text", "answer")],
-            new TurnUsage(1200, 1000, 80, 1150));
+            new TurnUsage(1200, 1000, 80, 1150, 2, 1100, 900), "claude-haiku-4-5-20251001");
         var second = await _store.StartTurnAsync(conversation.Id, "second prompt");
         await _store.FinishTurnAsync(second.Id, TurnStatus.Failed, "CLI error", []);
 
@@ -87,11 +87,30 @@ public sealed class ConversationStoreTests : IDisposable
         Assert.Equal(image, TurnParts.ReadImage(turns[0].Parts[1]));
         Assert.Equal(["reasoning", "answer"], turns[0].Parts.Skip(2).Select(p => p.Content));
         Assert.Equal(("assistant", "thinking"), (turns[0].Parts[2].Role, turns[0].Parts[2].PartType));
-        Assert.Equal(new TurnUsage(1200, 1000, 80, 1150), turns[0].Usage);
+        Assert.Equal(new TurnUsage(1200, 1000, 80, 1150, 2, 1100, 900), turns[0].Usage);
+        Assert.Equal("claude-haiku-4-5-20251001", turns[0].Model);
         Assert.Equal((TurnStatus.Failed, "CLI error"), (turns[1].Status, turns[1].ErrorMessage));
         Assert.Equal(["second prompt"], turns[1].Parts.Select(p => p.Content));
         Assert.Null(turns[1].Usage);
+        Assert.Null(turns[1].Model);
         await Assert.ThrowsAsync<ArgumentException>(() => _store.FinishTurnAsync(second.Id, TurnStatus.Running, null, []));
+    }
+
+    [Fact]
+    public async Task DeletingATurnRemovesItsPartsAndKeepsLaterNumbers()
+    {
+        await _store.InitializeAsync();
+        var project = await _store.CreateProjectAsync("Project", "/work");
+        var conversation = await _store.CreateConversationAsync(project.Id, "Conversation");
+        var first = await _store.StartTurnAsync(conversation.Id, "first", [new ImageAttachment("a.png", "image/png", "iVBORw0KGgo=")]);
+        await _store.StartTurnAsync(conversation.Id, "second");
+
+        await _store.DeleteTurnAsync(first.Id);
+
+        var remaining = Assert.Single(await _store.LoadTurnsAsync(conversation.Id));
+        Assert.Equal((2, "second"), (remaining.TurnNumber, remaining.Parts.Single().Content));
+        Assert.Equal(1L, Scalar("SELECT COUNT(*) FROM conversation_turn_parts"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _store.DeleteTurnAsync(first.Id));
     }
 
     [Fact]
@@ -102,7 +121,8 @@ public sealed class ConversationStoreTests : IDisposable
         var conversation = await _store.CreateConversationAsync(project.Id, "Conversation");
         var turn = await _store.StartTurnAsync(conversation.Id, "prompt");
         await _store.FinishTurnAsync(turn.Id, TurnStatus.Completed, null, [new(2, "assistant", "text", "answer")]);
-        foreach (var column in new[] { "input_tokens", "cached_input_tokens", "output_tokens", "context_tokens" })
+        foreach (var column in new[] { "input_tokens", "cached_input_tokens", "output_tokens", "context_tokens", "model",
+                     "request_count", "first_request_input_tokens", "first_request_cached_tokens" })
             Scalar($"ALTER TABLE conversation_turns DROP COLUMN {column}");
         Scalar("PRAGMA user_version = 1");
         // Pooled connections cache the schema this test just changed behind the store's back.
@@ -110,10 +130,11 @@ public sealed class ConversationStoreTests : IDisposable
 
         await _store.InitializeAsync();
 
-        Assert.Equal(2L, Scalar("PRAGMA user_version"));
+        Assert.Equal(3L, Scalar("PRAGMA user_version"));
         var loaded = Assert.Single(await _store.LoadTurnsAsync(conversation.Id));
         Assert.Equal(["prompt", "answer"], loaded.Parts.Select(p => p.Content));
         Assert.Null(loaded.Usage);
+        Assert.Null(loaded.Model);
     }
 
     [Fact]

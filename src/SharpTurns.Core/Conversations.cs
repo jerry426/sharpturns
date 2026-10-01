@@ -18,7 +18,8 @@ public sealed record ConversationTurn(
     DateTimeOffset CreatedAt,
     DateTimeOffset? FinishedAt,
     IReadOnlyList<TurnPart> Parts,
-    TurnUsage? Usage = null);
+    TurnUsage? Usage = null,
+    string? Model = null);
 
 /// <summary>
 /// Role is "user" or "assistant". The first user text part is the prompt; later ones are messages sent while the
@@ -26,8 +27,12 @@ public sealed record ConversationTurn(
 /// </summary>
 public sealed record TurnPart(int Sequence, string Role, string PartType, string Content);
 
-/// <summary>Input includes cache reads and writes, summed over the turn's model requests. Context is the last request's input.</summary>
-public sealed record TurnUsage(long InputTokens, long CachedInputTokens, long OutputTokens, long? ContextTokens);
+/// <summary>
+/// Input includes cache reads and writes, summed over the turn's model requests. Context is the last request's input.
+/// Requests and the first request's tokens are null for turns saved before they were recorded.
+/// </summary>
+public sealed record TurnUsage(long InputTokens, long CachedInputTokens, long OutputTokens, long? ContextTokens,
+    int? Requests = null, long? FirstRequestInputTokens = null, long? FirstRequestCachedTokens = null);
 
 /// <summary>A native tool call the CLI ran, saved for display only; never replayed.</summary>
 public sealed record ToolCallRecord(string Id, string Name, string? Input, string? Result, string Status, bool IsError);

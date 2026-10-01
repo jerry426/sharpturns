@@ -5,8 +5,11 @@ namespace SharpTurns.ClaudeCli;
 /// <summary>
 /// Token counts for one turn. Input includes cache reads and writes, summed over every model request in the turn.
 /// ContextTokens is the input size of the latest main-agent request: how much context the conversation now uses.
+/// Requests counts main-agent requests; the first one's input and cache reads show how much resumed or reseeded
+/// context the cache served before any tool calls.
 /// </summary>
-public sealed record ClaudeCliUsage(long InputTokens, long CachedInputTokens, long OutputTokens, long? ContextTokens);
+public sealed record ClaudeCliUsage(long InputTokens, long CachedInputTokens, long OutputTokens, long? ContextTokens,
+    int Requests = 0, long? FirstRequestInputTokens = null, long? FirstRequestCachedTokens = null);
 
 /// <summary>Accumulates usage from CLI events. Not thread-safe: callers serialize Observe.</summary>
 public sealed class ClaudeCliUsageTracker
@@ -15,8 +18,11 @@ public sealed class ClaudeCliUsageTracker
     private long _cached;
     private long _output;
     private long? _context;
+    private int _requests;
+    private long? _firstInput;
+    private long? _firstCached;
 
-    public ClaudeCliUsage Current => new(_input, _cached, _output, _context);
+    public ClaudeCliUsage Current => new(_input, _cached, _output, _context, _requests, _firstInput, _firstCached);
 
     /// <summary>Returns whether the usage changed.</summary>
     public bool Observe(ClaudeCliEvent e)
@@ -40,6 +46,11 @@ public sealed class ClaudeCliUsageTracker
             && InputTotal(usage) is { } context)
         {
             _context = context;
+            if (_requests++ == 0)
+            {
+                _firstInput = context;
+                _firstCached = Count(usage, "cache_read_input_tokens") ?? 0;
+            }
             return true;
         }
         return false;

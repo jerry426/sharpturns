@@ -11,9 +11,10 @@ namespace SharpTurns.App.Services;
 /// Turn progress for display. The notifications run off the UI thread in the order the runner saw the events, and
 /// add display items by the same rule the runner uses for saved parts: text continues the last text item, and every
 /// tool call, question, or delivered message starts a new item. AskAsync and ApproveAsync must show their dialogs on
-/// the UI thread and close them when the token is canceled.
+/// the UI thread and close them when the token is canceled. Started reports the running turn once it is saved.
 /// </summary>
 internal sealed record TurnCallbacks(
+    Action<ConversationTurn> Started,
     Action<string> TextDelta,
     Action<string> StatusChanged,
     Action<ToolCallRecord> ToolChanged,
@@ -39,6 +40,7 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, string? executab
         CancellationToken token)
     {
         var turn = await store.StartTurnAsync(conversation.Id, prompt, images, token).ConfigureAwait(false);
+        callbacks.Started(turn);
         // Every field below is guarded by gate: CLI events and permission requests arrive on different threads.
         var gate = new object();
         var items = new List<Item>();
@@ -55,6 +57,7 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, string? executab
         var textBlockStarted = false;
         var thinkingBlockStarted = false;
         var receivedText = false;
+        string? model = null;
         ClaudeCodeSessionState? state = null;
         TurnStatus status;
         string? error = null;
@@ -187,6 +190,9 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, string? executab
             lock (gate)
             {
                 if (finished) return;
+                // The init event names the resolved model, such as claude-haiku-4-5-20251001 for the haiku alias.
+                if (e.Type == "system" && ClaudeCliProtocol.String(e.Data, "subtype") == "init")
+                    model ??= ClaudeCliProtocol.String(e.Data, "model");
                 if (e.Type == "user" && e.Data.TryGetProperty("isReplay", out var replay) && replay.ValueKind == JsonValueKind.True
                     && ClaudeCliProtocol.String(e.Data, "uuid") is { } uuid
                     && submitted.TryGetValue(uuid, out var message) && delivered.Add(uuid))
@@ -310,7 +316,7 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, string? executab
         }
         var turnUsage = usage.Current is { InputTokens: > 0 } or { ContextTokens: not null } ? ToTurnUsage(usage.Current) : null;
         // Save Stopped turns too, so this must not use the turn's token.
-        await store.FinishTurnAsync(turn.Id, status, error, parts, turnUsage, CancellationToken.None).ConfigureAwait(false);
+        await store.FinishTurnAsync(turn.Id, status, error, parts, turnUsage, model, CancellationToken.None).ConfigureAwait(false);
         var turns = await store.LoadTurnsAsync(conversation.Id, CancellationToken.None).ConfigureAwait(false);
         // Reuse the session next turn only after a clean finish, and only if the history the CLI saw is unchanged.
         // Otherwise InFlight stays set and the next turn reseeds from the saved history.
@@ -341,7 +347,8 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, string? executab
         images.Select(image => new ClaudeCliImage(image.MediaType, image.Data)).ToArray();
 
     private static TurnUsage ToTurnUsage(ClaudeCliUsage usage) =>
-        new(usage.InputTokens, usage.CachedInputTokens, usage.OutputTokens, usage.ContextTokens);
+        new(usage.InputTokens, usage.CachedInputTokens, usage.OutputTokens, usage.ContextTokens,
+            usage.Requests > 0 ? usage.Requests : null, usage.FirstRequestInputTokens, usage.FirstRequestCachedTokens);
 
     private static bool TopLevel(JsonElement data) =>
         !data.TryGetProperty("parent_tool_use_id", out var parent) || parent.ValueKind == JsonValueKind.Null;

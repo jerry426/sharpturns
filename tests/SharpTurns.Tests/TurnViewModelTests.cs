@@ -1,3 +1,4 @@
+using System.Globalization;
 using SharpTurns.App.Services;
 using SharpTurns.App.ViewModels;
 using SharpTurns.ClaudeCli;
@@ -41,7 +42,38 @@ public sealed class TurnViewModelTests
 
         Assert.False(((TextItemViewModel)turn.Items[3]).IsStreaming);
         Assert.Equal("Stopped.", turn.Outcome);
-        Assert.Equal("12.3k input tokens (73% cached) · 678 output · context 45.6k", turn.UsageText);
+        // Turns saved before request counts were recorded show totals only.
+        Assert.Equal(($"Input Tokens: {12_345:N0}", "First-Request Cache Hits: not recorded", $"Context Size: {45_600:N0} tokens"),
+            (turn.InputTokensLabel, turn.FirstRequestCacheLabel, turn.ContextLabel));
+    }
+
+    [Fact]
+    public void TheRailAndCopiesDescribeTheSavedTurn()
+    {
+        var created = new DateTimeOffset(2026, 10, 1, 15, 19, 0, TimeSpan.Zero);
+        var turn = new TurnViewModel(new ConversationTurn(18620, 7, 30, TurnStatus.Completed, null, created, created.AddSeconds(6.3),
+        [
+            new(1, "user", TurnParts.Text, "prompt"),
+            TurnParts.FromImage(2, new ImageAttachment("shot.png", "image/png", "iVBORw0KGgo=")),
+            new(3, "assistant", TurnParts.Text, "First."),
+            TurnParts.FromTool(4, new("toolu_1", "Bash", """{"command":"ls"}""", "a.txt", "Completed", false)),
+            new(5, "assistant", TurnParts.Text, "Second."),
+            new(6, "user", TurnParts.Text, "also this"),
+            TurnParts.FromQuestion(7, new("Which?", "Blue")),
+        ], new TurnUsage(189_351, 106_003, 219, 95_000, 2, 94_000, 11_590), "claude-opus-5-5"));
+
+        Assert.Equal(("Turn - 30", "id: 18620", $"Duration: {6.3:0.#}s", "claude-opus-5-5"),
+            (turn.TurnLabel, turn.IdLabel, turn.DurationLabel, turn.ModelLabel));
+        Assert.Equal($"Input Tokens: {189_351:N0} · 2 requests", turn.InputTokensLabel);
+        Assert.Equal($"Input Cache Hits: {106_003:N0} ({56.0:0.0}%)", turn.CacheHitLabel);
+        Assert.Equal($"Input Cache Misses: {83_348:N0} ({44.0:0.0}%)", turn.CacheMissLabel);
+        Assert.Equal($"First-Request Cache Hits: {11_590:N0} ({12.3:0.0}%)", turn.FirstRequestCacheLabel);
+        Assert.Contains(turn.CacheMissLabel, turn.FormatMetrics());
+
+        var timestamp = created.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture);
+        Assert.Equal($"Conversation ID: 7\nTurn ID: 18620\nTurn #30\nTimestamp: {timestamp}\n\n## User\n\nprompt\n\n[Image: shot.png]"
+            + "\n\n## Assistant\n\nFirst.\n\nSecond.\n\n## User (sent during the turn)\n\nalso this\n\n## Assistant\n\nWhich?\n\n**Answer:** Blue",
+            turn.FormatForClipboard(7));
     }
 
     [Fact]
@@ -67,7 +99,7 @@ public sealed class TurnViewModelTests
         Assert.Equal("/a/b.txt", ((ToolItemViewModel)turn.Items[1]).Summary);
         Assert.Equal("No answer; the question was declined.", ((QuestionItemViewModel)turn.Items[2]).AnswerText);
         Assert.False(turn.IsRunning);
-        Assert.Null(turn.UsageText);
+        Assert.False(turn.HasTokenUsage);
     }
 
     [Fact]

@@ -29,13 +29,64 @@
     <ScrollViewer x:Name="TurnsScroller" Grid.Row="1">
       <ItemsControl ItemsSource="{Binding Turns}" Margin="20,16">
         <ItemsControl.ItemTemplate>
+          <!-- Each turn is a card, laid out like the Workbench's: a rail with the turn's details and actions, then
+               the prompt and response. -->
           <DataTemplate x:DataType="vm:TurnViewModel">
-            <StackPanel Spacing="10" Margin="0,0,0,28">
-              <Border Background="{StaticResource UserCardBackgroundBrush}" BorderBrush="#2D3A52" BorderThickness="1"
-                      CornerRadius="10" Padding="12,8" HorizontalAlignment="Right" MaxWidth="760">
-                <StackPanel Spacing="8">
-                  <SelectableTextBlock Text="{Binding UserText}" Foreground="{DynamicResource TextPrimaryBrush}"
-                                       TextWrapping="Wrap" />
+            <Border Margin="0,0,0,14" Background="#151923" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="14">
+              <Grid ColumnDefinitions="268,*">
+                <Border BorderBrush="#252D3C" BorderThickness="0,0,1,0" Padding="14">
+                  <StackPanel Spacing="9">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                      <Border Background="#1D2A44" CornerRadius="999" Padding="8,4" HorizontalAlignment="Left">
+                        <TextBlock Text="{Binding TurnLabel}" Foreground="{DynamicResource TextBlueMutedBrush}" FontSize="11"
+                                   FontWeight="SemiBold" />
+                      </Border>
+                      <TextBlock Grid.Column="1" Text="{Binding IdLabel}" Foreground="{DynamicResource TextMutedBrush}" FontSize="12"
+                                 VerticalAlignment="Center" />
+                    </Grid>
+                    <TextBlock Text="{Binding TimeLabel}" Foreground="{DynamicResource TextStrongBrush}" FontSize="13" />
+                    <TextBlock Text="{Binding DurationLabel}" IsVisible="{Binding HasDuration}"
+                               Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
+                    <StackPanel IsVisible="{Binding HasTokenUsage}" Spacing="3">
+                      <TextBlock Text="{Binding InputTokensLabel}" Foreground="{DynamicResource TextMutedBrush}" FontSize="12"
+                                 TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding OutputTokensLabel}" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
+                      <TextBlock Text="Cumulative across model requests" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"
+                                 ToolTip.Tip="Totals sum the usage the CLI reported across this turn's model requests. Input includes context processed again on each request, not just new tool results." />
+                    </StackPanel>
+                    <StackPanel IsVisible="{Binding HasTokenUsage}" Spacing="4">
+                      <TextBlock Text="{Binding CacheHitLabel}" Foreground="#3FA568" FontSize="12" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding CacheMissLabel}" Foreground="#A65D63" FontSize="12" TextWrapping="Wrap" />
+                      <ProgressBar Minimum="0" Maximum="100" Value="{Binding CacheHitPercentage}" Height="10" MinHeight="0"
+                                   CornerRadius="0" Foreground="#3FA568" Background="#A65D63" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding FirstRequestCacheLabel}" IsVisible="{Binding HasTokenUsage}" Foreground="#3FA568"
+                               FontSize="12" TextWrapping="Wrap"
+                               ToolTip.Tip="Cached input divided by total input on the turn's first model request, before any tool calls: how much of the resumed or reseeded context the cache served." />
+                    <TextBlock Text="{Binding ContextLabel}" IsVisible="{Binding HasContext}"
+                               Foreground="{DynamicResource TextMutedBrush}" FontSize="12"
+                               ToolTip.Tip="Input size of the turn's last model request: how much context the conversation now uses." />
+
+                    <Button Classes="railButton copy" Content="📋 Copy Metrics"
+                            Command="{ReflectionBinding $parent[UserControl].DataContext.CopyMetricsCommand}" CommandParameter="{Binding}"
+                            ToolTip.Tip="Copy the details shown here as text" />
+                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,5,0,0">
+                      <Button Classes="railButton delete" Content="Delete" Width="72"
+                              Command="{ReflectionBinding $parent[UserControl].DataContext.DeleteTurnCommand}"
+                              CommandParameter="{Binding}" ToolTip.Tip="Delete this turn and everything saved with it" />
+                    </StackPanel>
+                    <Button Classes="railButton copy" Content="📋 Copy Turn"
+                            Command="{ReflectionBinding $parent[UserControl].DataContext.CopyTurnCommand}" CommandParameter="{Binding}"
+                            ToolTip.Tip="Copy the prompt and response as Markdown, without tool activity" />
+                  </StackPanel>
+                </Border>
+
+                <StackPanel Grid.Column="1" Margin="16" Spacing="10">
+                  <TextBlock Text="{Binding ModelLabel}" IsVisible="{Binding HasModel}" Foreground="{DynamicResource TextMutedBrush}"
+                             FontSize="13" />
+                  <TextBlock Text="USER:" Foreground="{DynamicResource TextYellowBrush}" FontSize="12" FontWeight="SemiBold" />
+                  <SelectableTextBlock Text="{Binding UserText}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="14"
+                                       LineHeight="21" TextWrapping="Wrap" />
                   <ItemsControl ItemsSource="{Binding Images}" IsVisible="{Binding HasImages}"
                                 ItemTemplate="{StaticResource SentImageTemplate}">
                     <ItemsControl.ItemsPanel>
@@ -44,96 +95,96 @@
                       </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                   </ItemsControl>
-                </StackPanel>
-              </Border>
+                  <Border Height="4" Background="{DynamicResource TextYellowBrush}" Margin="0,10,0,8" />
+                  <TextBlock Text="ASSISTANT:" Foreground="#61AFEF" FontSize="12" FontWeight="SemiBold" />
 
-              <ItemsControl ItemsSource="{Binding Items}">
-                <ItemsControl.ItemsPanel>
-                  <ItemsPanelTemplate>
-                    <StackPanel Spacing="10" />
-                  </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.DataTemplates>
-                  <DataTemplate DataType="vm:TextItemViewModel" x:DataType="vm:TextItemViewModel">
-                    <Panel>
-                      <markdown:MarkdownDocumentBlock Classes="conversationMarkdown" Markdown="{Binding Text}"
-                                                      IsVisible="{Binding IsRendered}"
-                                                      ContentForeground="{DynamicResource TextSecondaryBrush}"
-                                                      ContentFontSize="14" ContentLineHeight="21" CodeFontSize="12"
-                                                      CodeBlockColorTheme="DarkPlus" />
-                      <!-- Streaming text stays plain so each delta doesn't rebuild the rendered document. -->
-                      <SelectableTextBlock Text="{Binding Text}" IsVisible="{Binding IsStreaming}"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" FontSize="14"
-                                           TextWrapping="Wrap" LineHeight="21" />
-                    </Panel>
-                  </DataTemplate>
+                  <ItemsControl ItemsSource="{Binding Items}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <StackPanel Spacing="10" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.DataTemplates>
+                      <DataTemplate DataType="vm:TextItemViewModel" x:DataType="vm:TextItemViewModel">
+                        <Panel>
+                          <markdown:MarkdownDocumentBlock Classes="conversationMarkdown" Markdown="{Binding Text}"
+                                                          IsVisible="{Binding IsRendered}"
+                                                          ContentForeground="{DynamicResource TextSecondaryBrush}"
+                                                          ContentFontSize="14" ContentLineHeight="21" CodeFontSize="12"
+                                                          CodeBlockColorTheme="DarkPlus" />
+                          <!-- Streaming text stays plain so each delta doesn't rebuild the rendered document. -->
+                          <SelectableTextBlock Text="{Binding Text}" IsVisible="{Binding IsStreaming}"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" FontSize="14"
+                                               TextWrapping="Wrap" LineHeight="21" />
+                        </Panel>
+                      </DataTemplate>
 
-                  <DataTemplate DataType="vm:ToolItemViewModel" x:DataType="vm:ToolItemViewModel">
-                    <Border Background="#121722" BorderBrush="#2A3346" BorderThickness="1" CornerRadius="8">
-                      <StackPanel>
-                        <ToggleButton Classes="cardHeader" IsChecked="{Binding IsExpanded}">
-                          <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
-                            <TextBlock Classes="chevron" Classes.expanded="{Binding IsExpanded}" />
-                            <TextBlock Grid.Column="1" Text="{Binding Tool.Name}" Foreground="{DynamicResource TextBlueMutedBrush}"
-                                       FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
-                            <TextBlock Grid.Column="2" Text="{Binding Summary}" Foreground="{DynamicResource TextMutedBrush}"
-                                       FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12"
-                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-                            <TextBlock Grid.Column="3" Classes="toolStatus" Text="{Binding Tool.Status}"
-                                       Classes.running="{Binding IsRunning}" Classes.waiting="{Binding IsWaiting}"
-                                       Classes.succeeded="{Binding IsSucceeded}" Classes.failed="{Binding Tool.IsError}" />
-                          </Grid>
-                        </ToggleButton>
-                        <StackPanel IsVisible="{Binding IsExpanded}" Margin="28,2,12,10" Spacing="6">
-                          <TextBlock Classes="detailLabel" Text="Input" />
-                          <SelectableTextBlock Text="{Binding InputText}" Foreground="{DynamicResource TextSecondaryBrush}"
-                                               FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12"
-                                               TextWrapping="Wrap" />
-                          <TextBlock Classes="detailLabel" Text="Result" IsVisible="{Binding HasResult}" Margin="0,4,0,0" />
-                          <SelectableTextBlock Text="{Binding ResultText}" IsVisible="{Binding HasResult}"
-                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                               FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12"
-                                               TextWrapping="Wrap" />
-                        </StackPanel>
-                      </StackPanel>
-                    </Border>
-                  </DataTemplate>
-
-                  <DataTemplate DataType="vm:QuestionItemViewModel" x:DataType="vm:QuestionItemViewModel">
-                    <Border Background="#18142A" BorderBrush="#4A3E76" BorderThickness="1" CornerRadius="8" Padding="12,10">
-                      <StackPanel Spacing="8">
-                        <TextBlock Text="Question" Foreground="{DynamicResource TextPurpleBrush}" FontSize="12" FontWeight="SemiBold" />
-                        <markdown:MarkdownDocumentBlock Classes="conversationMarkdown" Markdown="{Binding Question.Question}"
-                                                        ContentForeground="{DynamicResource TextPrimaryBrush}"
-                                                        ContentFontSize="14" ContentLineHeight="21" CodeFontSize="12" />
-                        <Border Background="#231C3D" CornerRadius="6" Padding="10,6">
-                          <SelectableTextBlock Text="{Binding AnswerText}" TextWrapping="Wrap"
-                                               Foreground="{DynamicResource TextStrongBrush}" />
+                      <DataTemplate DataType="vm:ToolItemViewModel" x:DataType="vm:ToolItemViewModel">
+                        <Border Background="#121722" BorderBrush="#2A3346" BorderThickness="1" CornerRadius="8">
+                          <StackPanel>
+                            <ToggleButton Classes="cardHeader" IsChecked="{Binding IsExpanded}">
+                              <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
+                                <TextBlock Classes="chevron" Classes.expanded="{Binding IsExpanded}" />
+                                <TextBlock Grid.Column="1" Text="{Binding Tool.Name}" Foreground="{DynamicResource TextBlueMutedBrush}"
+                                           FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Text="{Binding Summary}" Foreground="{DynamicResource TextMutedBrush}"
+                                           FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12"
+                                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="3" Classes="toolStatus" Text="{Binding Tool.Status}"
+                                           Classes.running="{Binding IsRunning}" Classes.waiting="{Binding IsWaiting}"
+                                           Classes.succeeded="{Binding IsSucceeded}" Classes.failed="{Binding Tool.IsError}" />
+                              </Grid>
+                            </ToggleButton>
+                            <StackPanel IsVisible="{Binding IsExpanded}" Margin="28,2,12,10" Spacing="6">
+                              <TextBlock Classes="detailLabel" Text="Input" />
+                              <SelectableTextBlock Text="{Binding InputText}" Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12"
+                                                   TextWrapping="Wrap" />
+                              <TextBlock Classes="detailLabel" Text="Result" IsVisible="{Binding HasResult}" Margin="0,4,0,0" />
+                              <SelectableTextBlock Text="{Binding ResultText}" IsVisible="{Binding HasResult}"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12"
+                                                   TextWrapping="Wrap" />
+                            </StackPanel>
+                          </StackPanel>
                         </Border>
-                      </StackPanel>
-                    </Border>
-                  </DataTemplate>
+                      </DataTemplate>
 
-                  <DataTemplate DataType="vm:UserMessageItemViewModel" x:DataType="vm:UserMessageItemViewModel">
-                    <Border Background="{StaticResource UserCardBackgroundBrush}" BorderBrush="#2D3A52" BorderThickness="1"
-                            CornerRadius="10" Padding="12,8" HorizontalAlignment="Right" MaxWidth="760">
-                      <StackPanel Spacing="4">
-                        <TextBlock Text="Sent during this turn" Foreground="{DynamicResource TextSubtleBrush}" FontSize="11" />
-                        <SelectableTextBlock Text="{Binding Text}" Foreground="{DynamicResource TextPrimaryBrush}"
-                                             TextWrapping="Wrap" />
-                      </StackPanel>
-                    </Border>
-                  </DataTemplate>
-                </ItemsControl.DataTemplates>
-              </ItemsControl>
+                      <DataTemplate DataType="vm:QuestionItemViewModel" x:DataType="vm:QuestionItemViewModel">
+                        <Border Background="#18142A" BorderBrush="#4A3E76" BorderThickness="1" CornerRadius="8" Padding="12,10">
+                          <StackPanel Spacing="8">
+                            <TextBlock Text="Question" Foreground="{DynamicResource TextPurpleBrush}" FontSize="12" FontWeight="SemiBold" />
+                            <markdown:MarkdownDocumentBlock Classes="conversationMarkdown" Markdown="{Binding Question.Question}"
+                                                            ContentForeground="{DynamicResource TextPrimaryBrush}"
+                                                            ContentFontSize="14" ContentLineHeight="21" CodeFontSize="12" />
+                            <Border Background="#231C3D" CornerRadius="6" Padding="10,6">
+                              <SelectableTextBlock Text="{Binding AnswerText}" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource TextStrongBrush}" />
+                            </Border>
+                          </StackPanel>
+                        </Border>
+                      </DataTemplate>
 
-              <TextBlock Text="Working…" IsVisible="{Binding IsRunning}" Foreground="{DynamicResource TextCyanBrush}"
-                         FontSize="12" />
-              <SelectableTextBlock Text="{Binding Outcome}" IsVisible="{Binding HasOutcome}"
-                                   Foreground="{DynamicResource TextDangerBrush}" FontSize="12" TextWrapping="Wrap" />
-              <TextBlock Text="{Binding UsageText}" IsVisible="{Binding HasUsage}" Foreground="{DynamicResource TextSubtleBrush}"
-                         FontSize="11" ToolTip.Tip="Input counts every model request in the turn, including cache reads. Context is the size of the last request." />
-            </StackPanel>
+                      <DataTemplate DataType="vm:UserMessageItemViewModel" x:DataType="vm:UserMessageItemViewModel">
+                        <Border BorderBrush="{DynamicResource TextYellowBrush}" BorderThickness="3,0,0,0" Padding="12,2,0,2">
+                          <StackPanel Spacing="6">
+                            <TextBlock Text="USER (sent during the turn):" Foreground="{DynamicResource TextYellowBrush}" FontSize="12"
+                                       FontWeight="SemiBold" />
+                            <SelectableTextBlock Text="{Binding Text}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="14"
+                                                 LineHeight="21" TextWrapping="Wrap" />
+                          </StackPanel>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.DataTemplates>
+                  </ItemsControl>
+
+                  <TextBlock Text="Working…" IsVisible="{Binding IsRunning}" Foreground="{DynamicResource TextCyanBrush}"
+                             FontSize="12" />
+                  <SelectableTextBlock Text="{Binding Outcome}" IsVisible="{Binding HasOutcome}"
+                                       Foreground="{DynamicResource TextDangerBrush}" FontSize="12" TextWrapping="Wrap" />
+                </StackPanel>
+              </Grid>
+            </Border>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>

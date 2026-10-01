@@ -1,10 +1,12 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using SharpTurns.Core;
 
 namespace SharpTurns.App.ViewModels;
 
+/// <summary>One turn card: a rail with the turn's details and actions beside its prompt and response items.</summary>
 public sealed partial class TurnViewModel : ObservableObject
 {
     private readonly Dictionary<string, QuestionItemViewModel> _questions = [];
@@ -16,9 +18,16 @@ public sealed partial class TurnViewModel : ObservableObject
     [ObservableProperty]
     private bool _isRunning;
 
+    /// <summary>The saved turn; null until a new turn is saved.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasUsage))]
-    private string? _usageText;
+    [NotifyPropertyChangedFor(nameof(TurnLabel), nameof(IdLabel), nameof(TimeLabel), nameof(DurationLabel), nameof(HasDuration),
+        nameof(ModelLabel), nameof(HasModel))]
+    private ConversationTurn? _record;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTokenUsage), nameof(InputTokensLabel), nameof(OutputTokensLabel), nameof(CacheHitLabel),
+        nameof(CacheMissLabel), nameof(CacheHitPercentage), nameof(FirstRequestCacheLabel), nameof(ContextLabel), nameof(HasContext))]
+    private TurnUsage? _usage;
 
     /// <summary>A turn that is starting; its response streams in through the update methods.</summary>
     public TurnViewModel(string userText, IReadOnlyList<ImageAttachment> images)
@@ -66,7 +75,60 @@ public sealed partial class TurnViewModel : ObservableObject
 
     public bool HasOutcome => Outcome is not null;
 
-    public bool HasUsage => UsageText is not null;
+    public string TurnLabel => Record is { } turn ? $"Turn - {turn.TurnNumber.ToString(CultureInfo.InvariantCulture)}" : "Turn";
+
+    public string IdLabel => Record is { } turn ? $"id: {turn.Id.ToString(CultureInfo.InvariantCulture)}" : "";
+
+    public string TimeLabel => Record?.CreatedAt.ToLocalTime().ToString("MMM d, h:mm tt", CultureInfo.CurrentCulture) ?? "Live";
+
+    public string DurationLabel
+    {
+        get
+        {
+            if (Record is not { FinishedAt: { } finished } turn) return "";
+            var duration = finished - turn.CreatedAt;
+            return duration.TotalSeconds < 60
+                ? string.Create(CultureInfo.CurrentCulture, $"Duration: {duration.TotalSeconds:0.#}s")
+                : string.Create(CultureInfo.CurrentCulture, $"Duration: {duration.TotalMinutes:0.#}m");
+        }
+    }
+
+    public bool HasDuration => DurationLabel.Length > 0;
+
+    /// <summary>The model the CLI reported, such as claude-haiku-4-5-20251001.</summary>
+    public string ModelLabel => Record?.Model ?? "";
+
+    public bool HasModel => ModelLabel.Length > 0;
+
+    // Totals arrive with each agent cycle's result, so a running turn shows them once its first cycle ends.
+    public bool HasTokenUsage => Usage is { InputTokens: > 0 };
+
+    public string InputTokensLabel => Usage is { } usage
+        ? $"Input Tokens: {Count(usage.InputTokens)}" + (usage.Requests is { } requests
+            ? $" · {Count(requests)} request{(requests == 1 ? "" : "s")}" : "")
+        : "";
+
+    public string OutputTokensLabel => Usage is { } usage ? $"Output Tokens: {Count(usage.OutputTokens)}" : "";
+
+    public string CacheHitLabel => Usage is { } usage
+        ? $"Input Cache Hits: {Count(usage.CachedInputTokens)}{Percent(usage.CachedInputTokens, usage.InputTokens)}" : "";
+
+    public string CacheMissLabel => Usage is { } usage
+        ? $"Input Cache Misses: {Count(usage.InputTokens - usage.CachedInputTokens)}"
+          + Percent(usage.InputTokens - usage.CachedInputTokens, usage.InputTokens)
+        : "";
+
+    public double CacheHitPercentage => Usage is { InputTokens: > 0 } usage ? 100d * usage.CachedInputTokens / usage.InputTokens : 0;
+
+    public string FirstRequestCacheLabel => Usage is { FirstRequestInputTokens: { } input, FirstRequestCachedTokens: { } cached }
+        ? $"First-Request Cache Hits: {Count(cached)}{Percent(cached, input)}"
+        : "First-Request Cache Hits: not recorded";
+
+    public string ContextLabel => Usage?.ContextTokens is { } context ? $"Context Size: {Count(context)} tokens" : "";
+
+    public bool HasContext => ContextLabel.Length > 0;
+
+    public void Started(ConversationTurn turn) => Record = turn;
 
     public void AppendText(string delta)
     {
@@ -98,7 +160,7 @@ public sealed partial class TurnViewModel : ObservableObject
 
     public void AddUserMessage(string text) => Add(new UserMessageItemViewModel(text));
 
-    public void UpdateUsage(TurnUsage usage) => UsageText = FormatUsage(usage);
+    public void UpdateUsage(TurnUsage usage) => Usage = usage;
 
     /// <summary>Shows the saved turn's outcome. The streamed items already match its parts.</summary>
     public void Finish(ConversationTurn turn)
@@ -111,7 +173,8 @@ public sealed partial class TurnViewModel : ObservableObject
             TurnStatus.Failed => "Failed: " + (turn.ErrorMessage ?? "unknown error."),
             _ => null,
         };
-        UsageText = turn.Usage is { } usage ? FormatUsage(usage) : null;
+        Record = turn;
+        Usage = turn.Usage;
     }
 
     public void Fail(string message)
@@ -121,18 +184,59 @@ public sealed partial class TurnViewModel : ObservableObject
         Outcome = "Failed: " + message;
     }
 
-    internal static string FormatUsage(TurnUsage usage)
+    /// <summary>The rail's details as plain text, one per line.</summary>
+    public string FormatMetrics()
     {
-        var text = $"{Tokens(usage.InputTokens)} input tokens";
-        if (usage.InputTokens > 0)
-            text += $" ({Math.Round(100d * usage.CachedInputTokens / usage.InputTokens).ToString(CultureInfo.CurrentCulture)}% cached)";
-        text += $" · {Tokens(usage.OutputTokens)} output";
-        return usage.ContextTokens is { } context ? text + $" · context {Tokens(context)}" : text;
+        var lines = new List<string> { Record is null ? TurnLabel : $"{TurnLabel} · {IdLabel}", TimeLabel };
+        if (HasDuration) lines.Add(DurationLabel);
+        lines.Add("Model: " + (HasModel ? ModelLabel : "not recorded"));
+        if (HasTokenUsage)
+            lines.AddRange([InputTokensLabel, OutputTokensLabel, "Cumulative across model requests", CacheHitLabel, CacheMissLabel,
+                FirstRequestCacheLabel]);
+        if (HasContext) lines.Add(ContextLabel);
+        return string.Join(Environment.NewLine, lines);
     }
 
-    private static string Tokens(long count) => count >= 1000
-        ? (count / 1000d).ToString(count >= 100_000 ? "0" : "0.#", CultureInfo.CurrentCulture) + "k"
-        : count.ToString(CultureInfo.CurrentCulture);
+    /// <summary>
+    /// The turn's dialogue as Markdown, under the same header lines the Workbench's turn copy uses. Tool activity is
+    /// left out; images are named.
+    /// </summary>
+    public string FormatForClipboard(long conversationId)
+    {
+        var text = new StringBuilder();
+        text.Append(CultureInfo.InvariantCulture, $"Conversation ID: {conversationId}\n");
+        if (Record is { } turn)
+            text.Append(CultureInfo.InvariantCulture,
+                $"Turn ID: {turn.Id}\nTurn #{turn.TurnNumber}\nTimestamp: {turn.CreatedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss zzz}\n");
+        text.Append("\n## User\n\n").Append(UserText);
+        foreach (var image in Images) text.Append("\n\n[Image: ").Append(image.Attachment.FileName).Append(']');
+        var inAssistant = false;
+        foreach (var item in Items)
+        {
+            if (item is UserMessageItemViewModel message)
+            {
+                text.Append("\n\n## User (sent during the turn)\n\n").Append(message.Text);
+                inAssistant = false;
+                continue;
+            }
+            var content = item switch
+            {
+                TextItemViewModel response => response.Text,
+                QuestionItemViewModel question => question.Question.Question + "\n\n**Answer:** " + question.AnswerText,
+                _ => null,
+            };
+            if (content is null) continue;
+            text.Append(inAssistant ? "\n\n" : "\n\n## Assistant\n\n").Append(content);
+            inAssistant = true;
+        }
+        return text.ToString();
+    }
+
+    private static string Count(long count) => count.ToString("N0", CultureInfo.CurrentCulture);
+
+    private static string Percent(long part, long total) => total > 0
+        ? string.Create(CultureInfo.CurrentCulture, $" ({100d * part / total:0.0}%)")
+        : " (n/a)";
 
     // A new tool card, question, or message ends the text before it.
     private void Add(TurnItemViewModel item)

@@ -11,7 +11,6 @@
       <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#111318" />
       <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#151820" />
       <SolidColorBrush x:Key="CardBackgroundBrush" Color="#171A22" />
-      <SolidColorBrush x:Key="UserCardBackgroundBrush" Color="#182235" />
       <SolidColorBrush x:Key="BorderBrush" Color="#2D3548" />
       <SolidColorBrush x:Key="DestructiveBackgroundBrush" Color="#270000" />
       <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F4F7FB" />
@@ -105,6 +104,59 @@
       <Setter Property="Background" Value="#20191D" />
       <Setter Property="BorderBrush" Value="#443039" />
       <Setter Property="Foreground" Value="{DynamicResource TextDangerDisabledBrush}" />
+    </Style>
+
+    <!-- Turn card rail actions, in the Workbench's colors. -->
+    <Style Selector="Button.railButton">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="MinHeight" Value="26" />
+      <Setter Property="Padding" Value="8,3" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Foreground" Value="#D9E4F7" />
+    </Style>
+    <Style Selector="Button.railButton /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="CornerRadius" Value="5" />
+    </Style>
+    <Style Selector="Button.railButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Foreground" Value="#F4F8FF" />
+    </Style>
+    <Style Selector="Button.railButton:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#171B24" />
+      <Setter Property="BorderBrush" Value="#252D3C" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSubtleBrush}" />
+    </Style>
+
+    <Style Selector="Button.railButton.copy">
+      <Setter Property="Background" Value="#123F1A" />
+      <Setter Property="BorderBrush" Value="#2B8C3A" />
+    </Style>
+    <Style Selector="Button.railButton.copy:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#1B5E27" />
+      <Setter Property="BorderBrush" Value="#3FBC52" />
+    </Style>
+    <Style Selector="Button.railButton.copy:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#0C2D12" />
+      <Setter Property="BorderBrush" Value="#1F6F2B" />
+    </Style>
+
+    <Style Selector="Button.railButton.delete">
+      <Setter Property="FontSize" Value="10" />
+      <Setter Property="MinHeight" Value="24" />
+      <Setter Property="Padding" Value="6,2" />
+      <Setter Property="Background" Value="#561010" />
+      <Setter Property="BorderBrush" Value="#B31616" />
+    </Style>
+    <Style Selector="Button.railButton.delete:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#741717" />
+      <Setter Property="BorderBrush" Value="#FF4D4D" />
+    </Style>
+    <Style Selector="Button.railButton.delete:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#3F0B0B" />
+      <Setter Property="BorderBrush" Value="#8F1111" />
     </Style>
 
     <!-- Collapsible card headers: the whole row toggles; no accent fill when expanded. -->

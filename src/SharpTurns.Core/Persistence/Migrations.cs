@@ -61,5 +61,11 @@ internal static class Migrations
         ALTER TABLE conversation_turns ADD COLUMN output_tokens INTEGER;
         ALTER TABLE conversation_turns ADD COLUMN context_tokens INTEGER;
         """,
+        """
+        ALTER TABLE conversation_turns ADD COLUMN model TEXT;
+        ALTER TABLE conversation_turns ADD COLUMN request_count INTEGER;
+        ALTER TABLE conversation_turns ADD COLUMN first_request_input_tokens INTEGER;
+        ALTER TABLE conversation_turns ADD COLUMN first_request_cached_tokens INTEGER;
+        """,
     ];
 }

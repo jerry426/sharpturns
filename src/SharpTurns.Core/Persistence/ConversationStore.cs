@@ -156,7 +156,8 @@ public sealed class ConversationStore
         }
         await using var turnCommand = Command(connection, null, """
             SELECT id, conversation_id, turn_number, status, error_message, created_at, finished_at,
-                input_tokens, cached_input_tokens, output_tokens, context_tokens
+                input_tokens, cached_input_tokens, output_tokens, context_tokens,
+                request_count, first_request_input_tokens, first_request_cached_tokens, model
             FROM conversation_turns WHERE conversation_id = $conversation ORDER BY turn_number
             """, ("$conversation", conversationId));
         await using var turnReader = await turnCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
@@ -164,6 +165,7 @@ public sealed class ConversationStore
         while (await turnReader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             var id = turnReader.GetInt64(0);
+            long? Optional(int ordinal) => turnReader.IsDBNull(ordinal) ? null : turnReader.GetInt64(ordinal);
             turns.Add(new(id, turnReader.GetInt64(1), turnReader.GetInt32(2),
                 Enum.Parse<TurnStatus>(turnReader.GetString(3), ignoreCase: true),
                 turnReader.IsDBNull(4) ? null : turnReader.GetString(4),
@@ -171,7 +173,8 @@ public sealed class ConversationStore
                 turnReader.IsDBNull(6) ? null : ParseTime(turnReader.GetString(6)),
                 parts.TryGetValue(id, out var list) ? list : [],
                 turnReader.IsDBNull(7) ? null : new(turnReader.GetInt64(7), turnReader.GetInt64(8), turnReader.GetInt64(9),
-                    turnReader.IsDBNull(10) ? null : turnReader.GetInt64(10))));
+                    Optional(10), (int?)Optional(11), Optional(12), Optional(13)),
+                turnReader.IsDBNull(14) ? null : turnReader.GetString(14)));
         }
         return turns;
     }
@@ -208,9 +211,9 @@ public sealed class ConversationStore
         return new(id, conversationId, number, TurnStatus.Running, null, ParseTime(now), null, parts);
     }
 
-    /// <summary>Adds the response parts and records how the turn ended.</summary>
+    /// <summary>Adds the response parts and records how the turn ended. Model is the model the CLI reported.</summary>
     public async Task FinishTurnAsync(long turnId, TurnStatus status, string? errorMessage, IReadOnlyList<TurnPart> responseParts,
-        TurnUsage? usage = null, CancellationToken cancellationToken = default)
+        TurnUsage? usage = null, string? model = null, CancellationToken cancellationToken = default)
     {
         if (status == TurnStatus.Running) throw new ArgumentException("A finished turn needs a final status.", nameof(status));
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -219,12 +222,24 @@ public sealed class ConversationStore
             await InsertPartAsync(connection, transaction, turnId, part, cancellationToken).ConfigureAwait(false);
         await ExecuteSingleAsync(connection, transaction, """
             UPDATE conversation_turns SET status = $status, error_message = $error, finished_at = $now,
-                input_tokens = $input, cached_input_tokens = $cached, output_tokens = $output, context_tokens = $context
+                input_tokens = $input, cached_input_tokens = $cached, output_tokens = $output, context_tokens = $context,
+                request_count = $requests, first_request_input_tokens = $firstInput,
+                first_request_cached_tokens = $firstCached, model = $model
             WHERE id = $id
             """, "Turn", cancellationToken, ("$id", turnId), ("$status", status.ToString().ToLowerInvariant()),
             ("$error", errorMessage), ("$now", Now()), ("$input", usage?.InputTokens), ("$cached", usage?.CachedInputTokens),
-            ("$output", usage?.OutputTokens), ("$context", usage?.ContextTokens)).ConfigureAwait(false);
+            ("$output", usage?.OutputTokens), ("$context", usage?.ContextTokens), ("$requests", usage?.Requests),
+            ("$firstInput", usage?.FirstRequestInputTokens), ("$firstCached", usage?.FirstRequestCachedTokens),
+            ("$model", model)).ConfigureAwait(false);
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Deletes the turn and its parts. Later turns keep their numbers.</summary>
+    public async Task DeleteTurnAsync(long turnId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await ExecuteSingleAsync(connection, null, "DELETE FROM conversation_turns WHERE id = $id", "Turn",
+            cancellationToken, ("$id", turnId)).ConfigureAwait(false);
     }
 
     public async Task<ClaudeCodeSessionState?> LoadClaudeCodeSessionAsync(long conversationId, CancellationToken cancellationToken = default)

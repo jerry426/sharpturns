@@ -25,6 +25,7 @@ public sealed class ClaudeTurnRunnerTests : IDisposable
     {
         if (OperatingSystem.IsWindows()) return; // The fake CLI is a POSIX shell script.
         var runner = new ClaudeTurnRunner(_store, CreateFakeCli(Handshake + Lines(
+            """{"type":"system","subtype":"init","session_id":"S","model":"claude-haiku-4-5-20251001"}""",
             """{"type":"stream_event","session_id":"S","event":{"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}}""",
             """{"type":"stream_event","session_id":"S","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Checking."}}}""",
             """{"type":"assistant","session_id":"S","message":{"content":[{"type":"tool_use","id":"toolu_1","name":"Bash","input":{"command":"ls"}}]}}""",
@@ -66,7 +67,8 @@ public sealed class ClaudeTurnRunnerTests : IDisposable
             TurnParts.ReadTool(turn.Parts[4]).IsError));
         Assert.Equal("Done.", turn.Parts[5].Content);
         Assert.Equal(["Waiting for your approval", "Denied by you"], writeStatuses);
-        Assert.Equal(new TurnUsage(2000, 1800, 40, 1000), turn.Usage);
+        Assert.Equal(new TurnUsage(2000, 1800, 40, 1000, 1, 1000, 900), turn.Usage);
+        Assert.Equal("claude-haiku-4-5-20251001", turn.Model);
         Assert.Empty(result.UndeliveredMessages);
 
         using var ask = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(_directory, "ask-reply.json")));
@@ -143,7 +145,7 @@ public sealed class ClaudeTurnRunnerTests : IDisposable
         Func<ClaudeCliQuestion, CancellationToken, Task<string?>>? ask = null,
         Func<string, string, CancellationToken, Task<bool>>? approve = null,
         Action<ClaudeCliUserMessage>? delivered = null) =>
-        new(_ => { }, _ => { }, tool ?? (_ => { }), (_, _, _) => { }, delivered ?? (_ => { }), _ => { }, _ => { },
+        new(_ => { }, _ => { }, _ => { }, tool ?? (_ => { }), (_, _, _) => { }, delivered ?? (_ => { }), _ => { }, _ => { },
             ask ?? ((_, _) => Task.FromResult<string?>(null)), approve ?? ((_, _, _) => Task.FromResult(false)));
 
     private static string Lines(params string[] frames) =>

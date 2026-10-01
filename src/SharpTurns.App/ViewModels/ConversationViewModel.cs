@@ -30,6 +30,7 @@ public sealed partial class ConversationViewModel : ObservableObject
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SendCommand))]
     [NotifyCanExecuteChangedFor(nameof(StopCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteTurnCommand))]
     [NotifyPropertyChangedFor(nameof(SendLabel))]
     private bool _isRunning;
 
@@ -94,6 +95,11 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     /// <summary>Tool name and raw JSON input; returns true when the user allows it. Closes when the token is canceled.</summary>
     public Func<string, string, CancellationToken, Task<bool>>? ShowPermissionAsync { get; set; }
+
+    /// <summary>Title and message; returns true when confirmed.</summary>
+    public Func<string, string, Task<bool>>? ConfirmAsync { get; set; }
+
+    public Func<string, Task>? CopyTextAsync { get; set; }
 
     /// <summary>Raised on the UI thread after each turn's content changes, for scrolling.</summary>
     public event EventHandler? TurnContentChanged;
@@ -172,6 +178,7 @@ public sealed partial class ConversationViewModel : ObservableObject
                 TurnContentChanged?.Invoke(this, EventArgs.Empty);
             });
             var callbacks = new TurnCallbacks(
+                saved => Dispatcher.UIThread.Post(() => turn.Started(saved)),
                 delta => Show(() => turn.AppendText(delta)),
                 status => Dispatcher.UIThread.Post(() =>
                 {
@@ -228,6 +235,43 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     private async Task<bool> ApproveAsync(string toolName, string input, CancellationToken token) =>
         ShowPermissionAsync is not null && await ShowPermissionAsync(toolName, input, token);
+
+    [RelayCommand]
+    private Task CopyMetricsAsync(TurnViewModel turn) => CopyAsync(turn.FormatMetrics(), "Copied the turn's metrics.");
+
+    [RelayCommand]
+    private Task CopyTurnAsync(TurnViewModel turn) => CopyAsync(turn.FormatForClipboard(Conversation.Id), "Copied the turn.");
+
+    private async Task CopyAsync(string text, string copied)
+    {
+        if (CopyTextAsync is null) return;
+        try
+        {
+            await CopyTextAsync(text);
+            Status = copied;
+        }
+        catch (Exception e) { Status = "Couldn't copy to the clipboard: " + e.Message; }
+    }
+
+    // Deleting changes the saved history, so the next turn reseeds a fresh CLI session from what remains.
+    private bool CanDeleteTurn(TurnViewModel? turn) => !IsRunning && turn?.Record is not null;
+
+    [RelayCommand(CanExecute = nameof(CanDeleteTurn))]
+    private async Task DeleteTurnAsync(TurnViewModel turn)
+    {
+        var number = turn.Record!.TurnNumber;
+        if (ConfirmAsync is null || !await ConfirmAsync($"Delete Turn {number}",
+                $"Delete turn {number} and everything saved with it? This can't be undone. "
+                + "The next turn starts a new CLI session from the remaining history."))
+            return;
+        try
+        {
+            await _store.DeleteTurnAsync(turn.Record.Id);
+            Turns.Remove(turn);
+            Status = $"Deleted turn {number}.";
+        }
+        catch (Exception e) { Status = "Couldn't delete the turn: " + e.Message; }
+    }
 
     private bool CanStop() => IsRunning;
 

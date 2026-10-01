@@ -36,6 +36,8 @@ public sealed partial class ConversationView : UserControl
         // The view is reused across conversations, so a turn running in the background keeps these hooks.
         _viewModel.ShowQuestionAsync = ShowQuestionAsync;
         _viewModel.ShowPermissionAsync = ShowPermissionAsync;
+        _viewModel.ConfirmAsync = ConfirmAsync;
+        _viewModel.CopyTextAsync = CopyTextAsync;
         // Show the newest turn.
         Dispatcher.UIThread.Post(TurnsScroller.ScrollToEnd, DispatcherPriority.Background);
     }
@@ -131,6 +133,15 @@ public sealed partial class ConversationView : UserControl
 
     private Task<bool> ShowPermissionAsync(string toolName, string input, CancellationToken token) =>
         ShowAsync(new PermissionDialog(toolName, input), dialog => dialog.Allowed, token);
+
+    private async Task<bool> ConfirmAsync(string title, string message) =>
+        TopLevel.GetTopLevel(this) is Window owner
+        && await new PromptDialog(title, message, null, "Delete", destructive: true).ShowDialog<string?>(owner) is not null;
+
+    private async Task CopyTextAsync(string text)
+    {
+        if (TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard) await clipboard.SetTextAsync(text);
+    }
 
     // Non-modal, so the conversation stays readable while the user decides. Canceling the token closes the dialog.
     private async Task<T> ShowAsync<TDialog, T>(TDialog dialog, Func<TDialog, T> result, CancellationToken token)
