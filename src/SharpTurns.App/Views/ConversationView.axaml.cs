@@ -85,12 +85,15 @@ public sealed partial class ConversationView : UserControl
         Composer.Paste();
     }
 
-    private async void AttachImage_Click(object? sender, RoutedEventArgs e)
+    private async void AttachImage_Click(object? sender, RoutedEventArgs e) => await AttachImagesAsync(TopLevel.GetTopLevel(this));
+
+    /// <summary>Owns its errors. The gallery passes itself as the owner so the picker opens over it.</summary>
+    private async Task AttachImagesAsync(TopLevel? owner)
     {
-        if (_viewModel is not { } viewModel || TopLevel.GetTopLevel(this) is not { } topLevel) return;
+        if (_viewModel is not { } viewModel || owner is null) return;
         try
         {
-            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = "Attach Images",
                 AllowMultiple = true,
@@ -113,13 +116,21 @@ public sealed partial class ConversationView : UserControl
     private static bool IsImageFile(IStorageFile file) =>
         Path.GetExtension(file.Name).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".gif" or ".webp" or ".bmp";
 
-    private void Image_Click(object? sender, RoutedEventArgs e)
+    private async void Image_Click(object? sender, RoutedEventArgs e)
     {
         if ((sender as Control)?.DataContext is not ImageAttachmentViewModel image) return;
         try
         {
+            var owner = TopLevel.GetTopLevel(this) as Window;
+            // The composer's images open as an editable gallery of all of them; images in sent turns open alone.
+            if (_viewModel is { } viewModel && viewModel.Attachments.Contains(image) && owner is not null)
+            {
+                await new ImagePreviewWindow(viewModel.Attachments, image, AttachImagesAsync, viewModel.RemoveAttachmentCommand.Execute)
+                    .ShowDialog(owner);
+                return;
+            }
             var window = new ImagePreviewWindow(image);
-            if (TopLevel.GetTopLevel(this) is Window owner) window.Show(owner);
+            if (owner is not null) window.Show(owner);
             else window.Show();
         }
         catch (Exception ex)

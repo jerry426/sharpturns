@@ -7,7 +7,7 @@
              x:Class="SharpTurns.App.Views.ConversationView"
              x:DataType="vm:ConversationViewModel">
   <UserControl.Resources>
-    <!-- Thumbnails open a preview; the composer's copies also have a remove button. -->
+    <!-- Thumbnails open a preview (an editable gallery for the composer's images); the composer's copies also have a remove button. -->
     <DataTemplate x:Key="SentImageTemplate" x:DataType="vm:ImageAttachmentViewModel">
       <Button Classes="thumbnail" Width="96" Height="72" Click="Image_Click" ToolTip.Tip="{Binding ToolTip}">
         <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />
@@ -222,11 +222,10 @@
             <DataTemplate x:DataType="vm:ImageAttachmentViewModel">
               <Panel>
                 <ContentControl Content="{Binding}" ContentTemplate="{StaticResource SentImageTemplate}" />
-                <Button Content="×" Command="{ReflectionBinding $parent[UserControl].DataContext.RemoveAttachmentCommand}"
-                        CommandParameter="{Binding}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,3,3,0"
-                        Width="20" Height="20" Padding="0" FontSize="13" CornerRadius="10" Background="#C0000000"
-                        Foreground="White" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                        ToolTip.Tip="Remove image" />
+                <Button Classes="removeImage" Command="{ReflectionBinding $parent[UserControl].DataContext.RemoveAttachmentCommand}"
+                        CommandParameter="{Binding}" ToolTip.Tip="Remove image">
+                  <Path />
+                </Button>
               </Panel>
             </DataTemplate>
           </ItemsControl.ItemTemplate>

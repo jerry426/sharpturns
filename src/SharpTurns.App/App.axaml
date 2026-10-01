@@ -31,6 +31,7 @@
       <!-- Icon-only buttons must not depend on the UI font's symbol coverage. -->
       <StreamGeometry x:Key="EditIconGeometry">M2,14 L12,4 L16,8 L6,18 L1,19 Z M13,3 L15,1 L19,5 L17,7 Z</StreamGeometry>
       <StreamGeometry x:Key="DeleteIconGeometry">M8,2 H16 V4 H21 V6 H3 V4 H8 Z M5,8 H19 L18,22 H6 Z</StreamGeometry>
+      <StreamGeometry x:Key="RemoveIconGeometry">M0,0 L8,8 M8,0 L0,8</StreamGeometry>
       <!-- Colors LiveMarkdown's code blocks, quotes, and inline code use. -->
       <Color x:Key="BorderColor">#2D3548</Color>
       <Color x:Key="ForegroundColor">#EEF2FA</Color>
@@ -227,6 +228,29 @@
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="6" />
       <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+
+    <!-- The remove button on composer and gallery thumbnails. Its X is a drawn Path (RemoveIconGeometry),
+         which stays centered in the circle; the "×" glyph's font metrics do not. -->
+    <Style Selector="Button.removeImage">
+      <Setter Property="Width" Value="20" />
+      <Setter Property="Height" Value="20" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Margin" Value="0,3,3,0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Background" Value="#C0000000" />
+      <Setter Property="BorderBrush" Value="#F2385A" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="Button.removeImage Path">
+      <Setter Property="Data" Value="{StaticResource RemoveIconGeometry}" />
+      <Setter Property="Stroke" Value="White" />
+      <Setter Property="StrokeThickness" Value="2" />
+      <Setter Property="StrokeLineCap" Value="Round" />
     </Style>
 
     <!-- Main tab strip, as in the Workbench: the selected tab is filled yellow with black text and no underline.

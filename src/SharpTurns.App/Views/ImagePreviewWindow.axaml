@@ -1,9 +1,57 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SharpTurns.App.ViewModels"
         x:Class="SharpTurns.App.Views.ImagePreviewWindow"
-        Width="900"
+        Width="840"
         Height="700"
+        MinWidth="360"
+        MinHeight="300"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource WindowBackgroundBrush}">
-  <Image x:Name="PreviewImage" Stretch="Uniform" StretchDirection="DownOnly" Margin="12" />
+  <Grid RowDefinitions="Auto,*,Auto,Auto" RowSpacing="12" Margin="18">
+    <TextBlock x:Name="HeaderText" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap"
+               Foreground="{StaticResource TextPrimaryBrush}" />
+    <Border Grid.Row="1" Background="#111722" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+            CornerRadius="8" Padding="10">
+      <Panel>
+        <Image x:Name="PreviewImage" Stretch="Uniform" StretchDirection="DownOnly" />
+        <TextBlock x:Name="UnavailableText" Text="Preview unavailable for this image." IsVisible="False"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" />
+      </Panel>
+    </Border>
+    <TextBlock x:Name="DetailsText" Grid.Row="2" FontSize="12" TextWrapping="Wrap"
+               Foreground="{StaticResource TextMutedBrush}" />
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+      <!-- Shown only with more than one image, so read-only previews never show the remove buttons. -->
+      <ListBox x:Name="Thumbnails" Background="Transparent" SelectionChanged="Thumbnails_SelectionChanged"
+               ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Disabled">
+        <ListBox.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal" Spacing="6" />
+          </ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:ImageAttachmentViewModel">
+            <Panel Width="72" Height="72" ToolTip.Tip="{Binding ToolTip}">
+              <Border Background="#0F141C" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                      CornerRadius="3" ClipToBounds="True">
+                <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />
+              </Border>
+              <Button Classes="removeImage" Click="RemoveThumbnail_Click" ToolTip.Tip="Remove image">
+                <Path />
+              </Button>
+            </Panel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+      <!-- Stacked so the thumbnail strip keeps the width; stretched buttons share the widest one's width. -->
+      <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+        <Button x:Name="AddButton" Classes="secondaryActionButton" HorizontalAlignment="Stretch"
+                Content="➕ Add Image" Click="Add_Click" />
+        <Button x:Name="RemoveButton" Classes="secondaryActionButton" HorizontalAlignment="Stretch"
+                Content="🗑 Remove" Click="Remove_Click"
+                ToolTip.Tip="Remove the displayed image from the attachments" />
+      </StackPanel>
+    </Grid>
+  </Grid>
 </Window>

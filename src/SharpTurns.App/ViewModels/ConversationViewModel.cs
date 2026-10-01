@@ -13,7 +13,7 @@ public sealed partial class ConversationViewModel : ObservableObject
 {
     private const string DefaultModel = "Default model";
     private const string DefaultEffort = "Default effort";
-    private const int MaxAttachments = 10;
+    public const int MaxAttachments = 10;
     private readonly ConversationStore _store;
     private readonly ClaudeTurnRunner _runner;
     private readonly Action<ClaudeCliRateLimitSnapshot> _rateLimitsChanged;
