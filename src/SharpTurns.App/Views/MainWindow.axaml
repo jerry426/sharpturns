@@ -31,5 +31,34 @@
         <views:ConversationsTabView />
       </TabItem>
     </TabControl>
+
+    <!-- The conversation display sliders, beside the tab strip as in the Workbench, with its ranges. -->
+    <Border Grid.Row="2" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,12,0" Background="#151820"
+            CornerRadius="999" Padding="10,3">
+      <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+        <TextBlock Text="Font:" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" />
+        <Slider Minimum="-5" Maximum="5" TickFrequency="1" IsSnapToTickEnabled="True" Width="132" Height="24"
+                Value="{Binding Display.FontSizeOffset, Mode=TwoWay}" ToolTip.Tip="Conversation font size" />
+        <Border Background="#1D2230" BorderBrush="#30394E" BorderThickness="1" CornerRadius="4" Padding="6,1" MinHeight="24"
+                VerticalAlignment="Center">
+          <TextBlock Text="{Binding Display.FontSizeLabel}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11"
+                     VerticalAlignment="Center" />
+        </Border>
+
+        <TextBlock Text="BG:" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="5,0,0,0" />
+        <Slider Minimum="0" Maximum="1.5" TickFrequency="0.05" Width="132" Height="24"
+                Value="{Binding Display.BackgroundIntensity, Mode=TwoWay}" ToolTip.Tip="Turn card background brightness" />
+        <TextBlock Text="{Binding Display.BackgroundIntensityLabel}" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"
+                   MinWidth="30" VerticalAlignment="Center" />
+
+        <TextBlock Text="Text:" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="5,0,0,0" />
+        <Slider Minimum="0.6" Maximum="1.4" TickFrequency="0.05" Width="132" Height="24"
+                Value="{Binding Display.TextIntensity, Mode=TwoWay}" ToolTip.Tip="Text brightness" />
+        <TextBlock Text="{Binding Display.TextIntensityLabel}" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"
+                   FontSize="11" MinWidth="36" VerticalAlignment="Center" />
+        <Button Classes="secondaryActionButton" Content="Reset" Command="{Binding Display.ResetCommand}" MinHeight="24" Padding="10,2"
+                FontSize="11" ToolTip.Tip="Restore the Markdown, Mono, font, background, and text defaults" />
+      </StackPanel>
+    </Border>
   </Grid>
 </Window>

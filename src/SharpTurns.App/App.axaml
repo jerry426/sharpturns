@@ -13,7 +13,9 @@
       <SolidColorBrush x:Key="CardBackgroundBrush" Color="#171A22" />
       <SolidColorBrush x:Key="BorderBrush" Color="#2D3548" />
       <SolidColorBrush x:Key="DestructiveBackgroundBrush" Color="#270000" />
+      <!-- Text*Brush resources follow the Text slider (ConversationDisplayViewModel), so use them through DynamicResource. -->
       <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F4F7FB" />
+      <SolidColorBrush x:Key="TextPrimaryAltBrush" Color="#E8EDF7" />
       <SolidColorBrush x:Key="TextStrongBrush" Color="#EEF2FA" />
       <SolidColorBrush x:Key="TextSecondaryBrush" Color="#CFD7E6" />
       <SolidColorBrush x:Key="TextMutedBrush" Color="#AAB3C5" />
@@ -21,6 +23,7 @@
       <SolidColorBrush x:Key="TextCyanBrush" Color="#12D6E7" />
       <SolidColorBrush x:Key="TextBlueMutedBrush" Color="#C7D7FF" />
       <SolidColorBrush x:Key="TextBlueSoftBrush" Color="#66B3FF" />
+      <SolidColorBrush x:Key="TextBlueMetricBrush" Color="#60A5FA" />
       <SolidColorBrush x:Key="TextGreenBrush" Color="#8FD19E" />
       <SolidColorBrush x:Key="TextPurpleBrush" Color="#C9B8FF" />
       <SolidColorBrush x:Key="TextYellowBrush" Color="#E5C07B" />
@@ -28,6 +31,14 @@
       <SolidColorBrush x:Key="TextDangerStrongBrush" Color="#FFD7DC" />
       <SolidColorBrush x:Key="TextDangerDisabledBrush" Color="#816E75" />
       <SolidColorBrush x:Key="ProminentTabAccentBrush" Color="#F3CA01" />
+      <!-- Conversation display settings; ConversationDisplayViewModel replaces these with the Font and BG sliders' values. -->
+      <x:Double x:Key="ConversationFontSize">15</x:Double>
+      <x:Double x:Key="ConversationLineHeight">22</x:Double>
+      <x:Double x:Key="ConversationCodeFontSize">13</x:Double>
+      <x:Double x:Key="ConversationTextIntensity">0.9</x:Double>
+      <FontFamily x:Key="ConversationFontFamily">avares://Avalonia.Fonts.Inter/Assets#Inter</FontFamily>
+      <SolidColorBrush x:Key="TurnBackgroundBrush" Color="#151923" />
+      <SolidColorBrush x:Key="CompressedTurnBackgroundBrush" Color="#0E1B2A" />
       <!-- Icon-only buttons must not depend on the UI font's symbol coverage. -->
       <StreamGeometry x:Key="EditIconGeometry">M2,14 L12,4 L16,8 L6,18 L1,19 Z M13,3 L15,1 L19,5 L17,7 Z</StreamGeometry>
       <StreamGeometry x:Key="DeleteIconGeometry">M8,2 H16 V4 H21 V6 H3 V4 H8 Z M5,8 H19 L18,22 H6 Z</StreamGeometry>
@@ -332,6 +343,47 @@
     </Style>
     <Style Selector="Button.replayImages.replaying:pointerover /template/ ContentPresenter#PART_ContentPresenter">
       <Setter Property="BorderBrush" Value="#00FF00" />
+    </Style>
+
+    <!-- The conversation header's Markdown, Mono, and Auto-scroll toggles, in the Workbench's colors. -->
+    <Style Selector="ToggleButton.headerToggle">
+      <Setter Property="Background" Value="#182235" />
+      <Setter Property="BorderBrush" Value="#2D3A52" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Padding" Value="10,4" />
+      <Setter Property="MinHeight" Value="26" />
+    </Style>
+    <Style Selector="ToggleButton.headerToggle /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="CornerRadius" Value="8" />
+    </Style>
+    <Style Selector="ToggleButton.headerToggle:checked /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#0969DA" />
+      <Setter Property="BorderBrush" Value="#12D6E7" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.headerToggle:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#1177D8" />
+      <Setter Property="BorderBrush" Value="#4AA3FF" />
+    </Style>
+    <Style Selector="ToggleButton.headerToggle:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#084D91" />
+      <Setter Property="BorderBrush" Value="#1B6FC7" />
+    </Style>
+
+    <Style Selector="TextBlock.metricLabel">
+      <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="0,0,5,0" />
+    </Style>
+    <Style Selector="TextBlock.metricValue">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="0,0,18,0" />
     </Style>
 
     <!-- Collapsible card headers: the whole row toggles; no accent fill when expanded. -->

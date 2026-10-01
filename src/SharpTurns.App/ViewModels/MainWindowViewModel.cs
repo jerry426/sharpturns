@@ -77,6 +77,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     public ObservableCollection<Conversation> Conversations { get; } = [];
 
+    /// <summary>The display controls; every conversation shares them.</summary>
+    public ConversationDisplayViewModel Display { get; } = new();
+
     /// <summary>The selected project is pinned above these.</summary>
     public IReadOnlyList<Project> OtherProjects => Projects.Where(p => p != SelectedProject).ToArray();
 
@@ -164,8 +167,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         }
         if (!_openConversations.TryGetValue(value.Id, out var conversation))
         {
-            conversation = new ConversationViewModel(value, SelectedProject, _store, _runner, _summarizer, limits => PlanUsage = limits,
-                OnConversationUpdated);
+            conversation = new ConversationViewModel(value, SelectedProject, _store, _runner, _summarizer, Display,
+                limits => PlanUsage = limits, OnConversationUpdated);
             _openConversations[value.Id] = conversation;
             _ = conversation.LoadAsync();
         }

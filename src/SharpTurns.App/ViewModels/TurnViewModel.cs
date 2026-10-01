@@ -25,7 +25,7 @@ public sealed partial class TurnViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(TurnLabel), nameof(IdLabel), nameof(TimeLabel), nameof(DurationLabel), nameof(HasDuration),
         nameof(ModelLabel), nameof(HasModel), nameof(IsHydrated), nameof(IsCompressed), nameof(HydrationActionLabel),
         nameof(HydrationActionToolTip), nameof(CompressionActionLabel), nameof(CompressionActionToolTip), nameof(CompressedLabel),
-        nameof(CardBackground), nameof(CardBorderBrush), nameof(CardBorderThickness), nameof(RailAccentBrush),
+        nameof(CardBorderBrush), nameof(CardBorderThickness), nameof(RailAccentBrush),
         nameof(RailDividerBrush), nameof(HasViewFullContentButton), nameof(IsViewingFullCompressedContent),
         nameof(ViewFullContentLabel), nameof(CompactViewFullContentLabel), nameof(ReductionToolTip))]
     private ConversationTurn? _record;
@@ -149,8 +149,6 @@ public sealed partial class TurnViewModel : ObservableObject
         { SummaryModel: { } model } => $"Compressed · summary by {model}",
         _ => "Compressed · no tool calls to summarize",
     };
-
-    public string CardBackground => IsCompressed ? "#0E1B2A" : "#151923";
 
     public string CardBorderBrush => IsHydrated ? "#0078D4" : "#F89831";
 

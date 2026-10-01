@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -30,10 +31,15 @@ public sealed partial class ConversationView : UserControl
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        if (_viewModel is not null) _viewModel.TurnContentChanged -= OnTurnContentChanged;
+        if (_viewModel is not null)
+        {
+            _viewModel.TurnContentChanged -= OnTurnContentChanged;
+            _viewModel.Display.PropertyChanged -= OnDisplayChanged;
+        }
         _viewModel = DataContext as ConversationViewModel;
         if (_viewModel is null) return;
         _viewModel.TurnContentChanged += OnTurnContentChanged;
+        _viewModel.Display.PropertyChanged += OnDisplayChanged;
         // The view is reused across conversations, so a turn running in the background keeps these hooks.
         _viewModel.ShowQuestionAsync = ShowQuestionAsync;
         _viewModel.ShowPermissionAsync = ShowPermissionAsync;
@@ -161,9 +167,20 @@ public sealed partial class ConversationView : UserControl
     {
         if (TopLevel.GetTopLevel(this) is not Window owner) return;
         var turn = await new ImagesBeingReplayedDialog { DataContext = images }.ShowDialog<TurnViewModel?>(owner);
-        // Scroll the chosen turn's card to the top.
-        if (turn is not null && TurnsList.ContainerFromItem(turn)?.TranslatePoint(default, TurnsList) is { } top)
-            TurnsScroller.Offset = TurnsScroller.Offset.WithY(top.Y + TurnsList.Margin.Top);
+        if (turn is not null) ScrollToTurn(turn);
+    }
+
+    /// <summary>Scrolls the turn's card to the top, first showing all turns when the Show picker leaves it out.</summary>
+    private void ScrollToTurn(TurnViewModel turn)
+    {
+        if (_viewModel is { } viewModel && !viewModel.ShownTurns.Contains(turn))
+            viewModel.Display.TurnFilterIndex = ConversationDisplayViewModel.AllTurns;
+        // A card the picker just added has no container until layout runs.
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (TurnsList.ContainerFromItem(turn)?.TranslatePoint(default, TurnsList) is { } top)
+                TurnsScroller.Offset = TurnsScroller.Offset.WithY(top.Y + TurnsList.Margin.Top);
+        }, DispatcherPriority.Background);
     }
 
     private async Task CopyTextAsync(string text)
@@ -185,10 +202,16 @@ public sealed partial class ConversationView : UserControl
         return result(dialog);
     }
 
+    // Auto-scroll keeps new output in view; off, the reader controls the scroll. Posted so layout grows the extent first.
     private void OnTurnContentChanged(object? sender, EventArgs e)
     {
-        // Follow new output only when the reader is already at the bottom; this runs before layout grows the extent.
-        var atBottom = TurnsScroller.Offset.Y >= TurnsScroller.Extent.Height - TurnsScroller.Viewport.Height - 48;
-        if (atBottom) Dispatcher.UIThread.Post(TurnsScroller.ScrollToEnd, DispatcherPriority.Background);
+        if (_viewModel?.Display.IsAutoScrollEnabled == true) Dispatcher.UIThread.Post(TurnsScroller.ScrollToEnd, DispatcherPriority.Background);
+    }
+
+    // As in the Workbench, turning auto-scroll on, or a display change that reflows the turns, returns to the bottom.
+    private void OnDisplayChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (_viewModel?.Display.IsAutoScrollEnabled == true && e.PropertyName != nameof(ConversationDisplayViewModel.TurnFilterIndex))
+            Dispatcher.UIThread.Post(TurnsScroller.ScrollToEnd, DispatcherPriority.Background);
     }
 }

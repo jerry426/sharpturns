@@ -1,0 +1,129 @@
+using System.Globalization;
+using Avalonia;
+using Avalonia.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using SharpTurns.Markdown.Rendering.Styling;
+
+namespace SharpTurns.App.ViewModels;
+
+/// <summary>
+/// The conversation display controls, shared by every conversation, with the Workbench's ranges and defaults. As in the
+/// Workbench, they last until the app closes. Font, background, and text changes update application resources that the
+/// views use through DynamicResource.
+/// </summary>
+public sealed partial class ConversationDisplayViewModel : ObservableObject
+{
+    public const double BaseFontSize = 15;
+    public const int AllTurns = 0;
+    public const int VisibleTurns = 1;
+    public const int HiddenTurns = 2;
+    private const double DefaultBackgroundIntensity = 0.85;
+    private const double DefaultTextIntensity = 0.9;
+    private static readonly Color TurnBackground = Color.Parse("#151923");
+    private static readonly Color CompressedTurnBackground = Color.Parse("#0E1B2A");
+    // The Text*Brush resources' colors from App.axaml, which the text intensity adjusts.
+    private readonly Dictionary<string, Color> _textColors = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsMarkdownSourceShown))]
+    private bool _isMarkdownRenderingEnabled = true;
+
+    [ObservableProperty]
+    private bool _isMonospaceFontEnabled;
+
+    /// <summary>Keeps the conversation scrolled to the bottom as turns stream; off, the reader controls the scroll.</summary>
+    [ObservableProperty]
+    private bool _isAutoScrollEnabled = true;
+
+    /// <summary>Added to the 15 px base, from -5 to 5.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FontSizeLabel))]
+    private double _fontSizeOffset;
+
+    /// <summary>Scales the turn cards' background brightness, from 0 to 1.5.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BackgroundIntensityLabel))]
+    private double _backgroundIntensity = DefaultBackgroundIntensity;
+
+    /// <summary>Dims or brightens the app's text colors, from 0.6 to 1.4.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TextIntensityLabel))]
+    private double _textIntensity = DefaultTextIntensity;
+
+    /// <summary>The Show picker: all turns, the turns in Claude's context, or the hidden ones.</summary>
+    [ObservableProperty]
+    private int _turnFilterIndex = VisibleTurns;
+
+    public ConversationDisplayViewModel()
+    {
+        if (Application.Current?.Resources is { } resources)
+        {
+            // Resolved by key: enumerating the dictionary can return XAML's deferred entries instead of the brushes.
+            foreach (var name in resources.Keys.OfType<string>().ToArray())
+            {
+                if (name.StartsWith("Text", StringComparison.Ordinal) && name.EndsWith("Brush", StringComparison.Ordinal)
+                    && resources.TryGetResource(name, null, out var value) && value is ISolidColorBrush brush)
+                    _textColors[name] = brush.Color;
+            }
+        }
+        ApplyResources();
+    }
+
+    public bool IsMarkdownSourceShown => !IsMarkdownRenderingEnabled;
+
+    public double FontSize => BaseFontSize + FontSizeOffset;
+
+    public string FontSizeLabel => string.Create(CultureInfo.CurrentCulture, $"{FontSize:0}px");
+
+    public string BackgroundIntensityLabel => BackgroundIntensity.ToString("P0", CultureInfo.CurrentCulture);
+
+    public string TextIntensityLabel => TextIntensity.ToString("P0", CultureInfo.CurrentCulture);
+
+    public IReadOnlyList<string> TurnFilterOptions { get; } = ["All Turns", "Visible", "Hidden"];
+
+    /// <summary>Whether the Show picker includes a turn; a live turn counts as visible.</summary>
+    public bool Shows(TurnViewModel turn) => TurnFilterIndex switch
+    {
+        VisibleTurns => turn.IsHydrated,
+        HiddenTurns => !turn.IsHydrated,
+        _ => true,
+    };
+
+    [RelayCommand]
+    private void Reset()
+    {
+        IsMarkdownRenderingEnabled = true;
+        IsMonospaceFontEnabled = false;
+        FontSizeOffset = 0;
+        BackgroundIntensity = DefaultBackgroundIntensity;
+        TextIntensity = DefaultTextIntensity;
+    }
+
+    partial void OnIsMonospaceFontEnabledChanged(bool value) => ApplyResources();
+
+    partial void OnFontSizeOffsetChanged(double value) => ApplyResources();
+
+    partial void OnBackgroundIntensityChanged(double value) => ApplyResources();
+
+    partial void OnTextIntensityChanged(double value) => ApplyResources();
+
+    private void ApplyResources()
+    {
+        if (Application.Current?.Resources is not { } resources) return;
+        resources["ConversationFontSize"] = FontSize;
+        resources["ConversationLineHeight"] = FontSize + 7;
+        resources["ConversationCodeFontSize"] = Math.Max(10, FontSize - 2);
+        resources["ConversationFontFamily"] = IsMonospaceFontEnabled ? MarkdownFontFamilies.Mono : MarkdownFontFamilies.Sans;
+        resources["TurnBackgroundBrush"] = new SolidColorBrush(Scale(TurnBackground, BackgroundIntensity));
+        resources["CompressedTurnBackgroundBrush"] = new SolidColorBrush(Scale(CompressedTurnBackground, BackgroundIntensity));
+        resources["ConversationTextIntensity"] = TextIntensity;
+        foreach (var (key, color) in _textColors)
+            resources[key] = new SolidColorBrush(OklchColorUtility.AdjustTextIntensity(color, TextIntensity));
+    }
+
+    private static Color Scale(Color color, double intensity) =>
+        Color.FromRgb(Channel(color.R, intensity), Channel(color.G, intensity), Channel(color.B, intensity));
+
+    private static byte Channel(byte value, double intensity) => (byte)Math.Round(Math.Clamp(value * intensity, 0, 255));
+}

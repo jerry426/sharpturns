@@ -84,13 +84,15 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     /// <summary>conversationUpdated receives the conversation when a turn starts and moves its updated time.</summary>
     internal ConversationViewModel(Conversation conversation, Project project, ConversationStore store, ClaudeTurnRunner runner,
-        TurnSummarizer summarizer, Action<ClaudeCliRateLimitSnapshot> rateLimitsChanged, Action<Conversation> conversationUpdated)
+        TurnSummarizer summarizer, ConversationDisplayViewModel display, Action<ClaudeCliRateLimitSnapshot> rateLimitsChanged,
+        Action<Conversation> conversationUpdated)
     {
         Conversation = conversation;
         Project = project;
         _store = store;
         _runner = runner;
         _summarizer = summarizer;
+        Display = display;
         _rateLimitsChanged = rateLimitsChanged;
         _conversationUpdated = conversationUpdated;
         _title = conversation.Title;
@@ -102,7 +104,12 @@ public sealed partial class ConversationViewModel : ObservableObject
         {
             OnPropertyChanged(nameof(TurnCount));
             OnPropertyChanged(nameof(LastTurn));
-            NotifyReplayImagesChanged();
+            NotifyContextChanged();
+        };
+        // The display outlives every conversation, so this subscription needs no removal.
+        display.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ConversationDisplayViewModel.TurnFilterIndex)) SyncShownTurns(ShownTurns, Turns.Where(display.Shows));
         };
         Attachments.CollectionChanged += (_, _) =>
         {
@@ -121,11 +128,27 @@ public sealed partial class ConversationViewModel : ObservableObject
     /// <summary>Kept current when the project is edited; a running turn keeps the project it started with.</summary>
     public Project Project { get; set; }
 
+    public ConversationDisplayViewModel Display { get; }
+
     public ObservableCollection<TurnViewModel> Turns { get; } = [];
+
+    /// <summary>The turns the Show picker includes, in order.</summary>
+    public ObservableCollection<TurnViewModel> ShownTurns { get; } = [];
 
     public int TurnCount => Turns.Count;
 
     public TurnViewModel? LastTurn => Turns.Count > 0 ? Turns[^1] : null;
+
+    // The metrics row, as in the Workbench without its KB figures. A live turn counts as visible and uncompressed.
+    public string LastReportedInputLabel => LastTurn?.Usage?.ContextTokens is { } tokens ? Count(tokens) : "—";
+
+    public string TurnsTotalLabel => Count(Turns.Count);
+
+    public string TurnsVisibleLabel => Count(Turns.Count(t => t.IsHydrated));
+
+    public string TurnsCompressedLabel => Count(Turns.Count(t => t.IsCompressed));
+
+    public string TurnsHiddenLabel => Count(Turns.Count(t => !t.IsHydrated));
 
     /// <summary>Images for the next turn. Messages sent while a turn runs are text only, so these wait for the next turn.</summary>
     public ObservableCollection<ImageAttachmentViewModel> Attachments { get; } = [];
@@ -285,7 +308,11 @@ public sealed partial class ConversationViewModel : ObservableObject
                     if (QueuedMessages.FirstOrDefault(m => m.Uuid == message.Uuid) is { } queued) QueuedMessages.Remove(queued);
                     turn.AddUserMessage(message.Text);
                 }),
-                usage => Dispatcher.UIThread.Post(() => turn.UpdateUsage(usage)),
+                usage => Dispatcher.UIThread.Post(() =>
+                {
+                    turn.UpdateUsage(usage);
+                    OnPropertyChanged(nameof(LastReportedInputLabel));
+                }),
                 limits => Dispatcher.UIThread.Post(() => _rateLimitsChanged(limits)),
                 (question, token) => Dispatcher.UIThread.InvokeAsync(() => AskAsync(question, token)),
                 (tool, input, token) => Dispatcher.UIThread.InvokeAsync(() => ApproveAsync(tool, input, token)));
@@ -293,6 +320,7 @@ public sealed partial class ConversationViewModel : ObservableObject
                 _queue, callbacks, _turnLifetime.Token);
             // Finish first: clearing IsRunning re-checks the card commands, which need the finished record.
             turn.Finish(result.Turn);
+            OnPropertyChanged(nameof(LastReportedInputLabel));
             IsRunning = false;
             completed = result.Turn.Status == TurnStatus.Completed;
             QueuedMessages.Clear();
@@ -411,7 +439,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         {
             await _store.SetTurnHydratedAsync(record.Id, !record.IsHydrated);
             turn.ApplyRecord(record with { IsHydrated = !record.IsHydrated });
-            NotifyReplayImagesChanged();
+            NotifyContextChanged();
             Status = (record.IsHydrated ? $"Hid turn {record.TurnNumber} from Claude's context."
                 : $"Turn {record.TurnNumber} is back in Claude's context.") + " The next turn starts a new CLI session.";
         }
@@ -428,7 +456,7 @@ public sealed partial class ConversationViewModel : ObservableObject
             {
                 await _store.SetTurnSummaryAsync(record.Id, null, null);
                 turn.ApplyRecord(record with { Summary = null, SummaryModel = null });
-                NotifyReplayImagesChanged();
+                NotifyContextChanged();
                 Status = $"Expanded turn {record.TurnNumber}. The next turn starts a new CLI session.";
             }
             catch (Exception e) { Status = $"Couldn't expand turn {record.TurnNumber}: {e.Message}"; }
@@ -448,7 +476,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         {
             var compressed = await _summarizer.CompressAsync(record);
             turn.ApplyRecord(compressed);
-            NotifyReplayImagesChanged();
+            NotifyContextChanged();
             Status = (automatic ? "Auto-summarized" : "Compressed") + $" turn {record.TurnNumber}"
                 + (TurnCompression.Reduction(compressed) is { } reduction
                     ? string.Create(CultureInfo.CurrentCulture, $" ({reduction:0.0}x replay reduction)") : "")
@@ -494,7 +522,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         {
             Parts = record.Parts.Select(p => p.Sequence == sequence ? TurnParts.WithImageReplay(p, include) : p).ToArray(),
         });
-        NotifyReplayImagesChanged();
+        NotifyContextChanged();
         Status = record is { IsHydrated: true, IsCompressed: true }
             ? $"Turn {record.TurnNumber}'s image is {(include ? "now" : "no longer")} replayed. The next turn starts a new CLI session."
             : $"Turn {record.TurnNumber}'s image {(include ? "will stay" : "won't stay")} in the replay when the turn is compressed.";
@@ -512,13 +540,40 @@ public sealed partial class ConversationViewModel : ObservableObject
         finally { image.Refresh(); } // Also puts the check box back when the save failed.
     }
 
-    private void NotifyReplayImagesChanged()
+    // After the turns or their context state change: the replay image button, the metrics row, and the Show picker's turns.
+    private void NotifyContextChanged()
     {
         OnPropertyChanged(nameof(HasConversationImages));
         OnPropertyChanged(nameof(HasImagesBeingReplayed));
         OnPropertyChanged(nameof(ReplayImagesLabel));
         OpenReplayImagesCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(LastReportedInputLabel));
+        OnPropertyChanged(nameof(TurnsTotalLabel));
+        OnPropertyChanged(nameof(TurnsVisibleLabel));
+        OnPropertyChanged(nameof(TurnsCompressedLabel));
+        OnPropertyChanged(nameof(TurnsHiddenLabel));
+        SyncShownTurns(ShownTurns, Turns.Where(Display.Shows));
     }
+
+    /// <summary>
+    /// Brings shown up to date with target, an ordered subset of the same turns, by removing and inserting only what
+    /// changed, so the cards that stay keep their rendered content.
+    /// </summary>
+    internal static void SyncShownTurns<T>(ObservableCollection<T> shown, IEnumerable<T> target) where T : class
+    {
+        var wanted = target.ToList();
+        var keep = wanted.ToHashSet();
+        for (var i = shown.Count - 1; i >= 0; i--)
+        {
+            if (!keep.Contains(shown[i])) shown.RemoveAt(i);
+        }
+        for (var i = 0; i < wanted.Count; i++)
+        {
+            if (i >= shown.Count || shown[i] != wanted[i]) shown.Insert(i, wanted[i]);
+        }
+    }
+
+    private static string Count(long count) => count.ToString("N0", CultureInfo.CurrentCulture);
 
     private bool CanStop() => IsRunning;
 
