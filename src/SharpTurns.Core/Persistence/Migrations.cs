@@ -67,5 +67,8 @@ internal static class Migrations
         ALTER TABLE conversation_turns ADD COLUMN first_request_input_tokens INTEGER;
         ALTER TABLE conversation_turns ADD COLUMN first_request_cached_tokens INTEGER;
         """,
+        """
+        ALTER TABLE projects ADD COLUMN color TEXT;
+        """,
     ];
 }

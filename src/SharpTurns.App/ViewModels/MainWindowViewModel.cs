@@ -20,17 +20,26 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private long? _conversationToRestore;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(WindowTitle))]
+    [NotifyPropertyChangedFor(nameof(WindowTitle), nameof(ProjectBorderColor), nameof(OtherProjects), nameof(OtherProjectsLabel),
+        nameof(NoConversationText))]
     [NotifyCanExecuteChangedFor(nameof(EditProjectCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteProjectCommand))]
     [NotifyCanExecuteChangedFor(nameof(NewConversationCommand))]
     private Project? _selectedProject;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(WindowTitle))]
+    [NotifyPropertyChangedFor(nameof(WindowTitle), nameof(OtherConversations), nameof(OtherConversationsLabel))]
     [NotifyCanExecuteChangedFor(nameof(RenameConversationCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteConversationCommand))]
     private Conversation? _selectedConversation;
+
+    /// <summary>0 is Projects, 1 is Conversations.</summary>
+    [ObservableProperty]
+    private int _selectedTabIndex = 1;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsConversationSidebarClosed))]
+    private bool _isConversationSidebarOpen = true;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasNoConversation))]
@@ -50,16 +59,46 @@ public sealed partial class MainWindowViewModel : ObservableObject
     {
         _store = store;
         _runner = runner;
+        Projects.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(OtherProjects));
+            OnPropertyChanged(nameof(OtherProjectsLabel));
+        };
+        Conversations.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(OtherConversations));
+            OnPropertyChanged(nameof(OtherConversationsLabel));
+        };
     }
 
     public ObservableCollection<Project> Projects { get; } = [];
 
     public ObservableCollection<Conversation> Conversations { get; } = [];
 
+    /// <summary>The selected project is pinned above these.</summary>
+    public IReadOnlyList<Project> OtherProjects => Projects.Where(p => p != SelectedProject).ToArray();
+
+    public string OtherProjectsLabel => CountLabel(OtherProjects.Count, SelectedProject is null ? "project" : "other project");
+
+    /// <summary>The selected conversation is pinned above these.</summary>
+    public IReadOnlyList<Conversation> OtherConversations => Conversations.Where(c => c != SelectedConversation).ToArray();
+
+    public string OtherConversationsLabel =>
+        CountLabel(OtherConversations.Count, SelectedConversation is null ? "conversation" : "other conversation");
+
+    /// <summary>The selected project's border color, for its cards and the conversations sidebar.</summary>
+    public string ProjectBorderColor => SelectedProject?.Color ?? ProjectColor.Default;
+
+    public bool IsConversationSidebarClosed => !IsConversationSidebarOpen;
+
     public string WindowTitle =>
         string.Join(" — ", new[] { "SharpTurns", SelectedProject?.Name, SelectedConversation?.Title }.Where(s => s is not null));
 
     public bool HasNoConversation => CurrentConversation is null;
+
+    public string NoConversationText => SelectedProject is null
+        ? "Create a project on the Projects tab to get started."
+        : "Create a conversation to get started.";
 
     public bool HasError => ErrorMessage is not null;
 
@@ -90,6 +129,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
             var lastProject = ParseId(await _store.GetSettingAsync(LastProjectSetting));
             _conversationToRestore = ParseId(await _store.GetSettingAsync(LastConversationSetting));
             SelectedProject = Projects.FirstOrDefault(p => p.Id == lastProject) ?? Projects.FirstOrDefault();
+            if (SelectedProject is null) SelectedTabIndex = 0;
         }
         catch (Exception e) { ErrorMessage = "Couldn't open the database: " + e.Message; }
     }
@@ -101,6 +141,15 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     [RelayCommand]
     private void DismissError() => ErrorMessage = null;
+
+    [RelayCommand]
+    private void SelectProject(Project project) => SelectedProject = project;
+
+    [RelayCommand]
+    private void SelectConversation(Conversation conversation) => SelectedConversation = conversation;
+
+    [RelayCommand]
+    private void ToggleConversationSidebar() => IsConversationSidebarOpen = !IsConversationSidebarOpen;
 
     partial void OnSelectedProjectChanged(Project? value) => _ = LoadConversationsAsync(value);
 
@@ -151,7 +200,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         if (ShowProjectDialogAsync is null || !await ShowProjectDialogAsync(dialog)) return;
         await RunAsync("create the project", async () =>
         {
-            var project = await _store.CreateProjectAsync(dialog.Name.Trim(), dialog.WorkingDirectory.Trim());
+            var project = await _store.CreateProjectAsync(dialog.Name.Trim(), dialog.WorkingDirectory.Trim(), dialog.ColorHex);
             Projects.Insert(SortedIndex(project), project);
             SelectedProject = project;
         });
@@ -167,7 +216,10 @@ public sealed partial class MainWindowViewModel : ObservableObject
         if (ShowProjectDialogAsync is null || !await ShowProjectDialogAsync(dialog)) return;
         await RunAsync("save the project", async () =>
         {
-            var project = current with { Name = dialog.Name.Trim(), WorkingDirectory = dialog.WorkingDirectory.Trim() };
+            var project = current with
+            {
+                Name = dialog.Name.Trim(), WorkingDirectory = dialog.WorkingDirectory.Trim(), Color = dialog.ColorHex,
+            };
             await _store.UpdateProjectAsync(project);
             foreach (var conversation in _openConversations.Values.Where(c => c.Project.Id == project.Id))
                 conversation.Project = project;
@@ -284,6 +336,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
         var used = window?.Utilization is { } fraction ? $"{Math.Round(Math.Clamp(fraction, 0, 1) * 100)}% used" : "not reported";
         return window?.ResetsAt is { } reset ? $"{used}, resets {reset.ToLocalTime():g}" : used;
     }
+
+    private static string CountLabel(int count, string noun) =>
+        $"{count.ToString(CultureInfo.CurrentCulture)} {noun}{(count == 1 ? "" : "s")}";
 
     private static long? ParseId(string? value) =>
         long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id) ? id : null;

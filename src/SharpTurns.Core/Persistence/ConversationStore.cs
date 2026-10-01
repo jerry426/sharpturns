@@ -47,23 +47,28 @@ public sealed class ConversationStore
     {
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var command = Command(connection, null,
-            "SELECT id, name, working_directory FROM projects ORDER BY name COLLATE NOCASE, id");
+            "SELECT id, name, working_directory, color FROM projects ORDER BY name COLLATE NOCASE, id");
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         var projects = new List<Project>();
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-            projects.Add(new(reader.GetInt64(0), reader.GetString(1), reader.GetString(2)));
+            projects.Add(new(reader.GetInt64(0), reader.GetString(1), reader.GetString(2),
+                ProjectColor.Normalize(reader.IsDBNull(3) ? null : reader.GetString(3))));
         return projects;
     }
 
-    public async Task<Project> CreateProjectAsync(string name, string workingDirectory, CancellationToken cancellationToken = default)
+    /// <summary>An invalid or missing color uses ProjectColor.Default.</summary>
+    public async Task<Project> CreateProjectAsync(string name, string workingDirectory, string? color = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(workingDirectory);
+        color = ProjectColor.Normalize(color);
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
         var id = (long)(await ScalarAsync(connection, null,
-            "INSERT INTO projects (name, working_directory, created_at) VALUES ($name, $directory, $now) RETURNING id",
-            cancellationToken, ("$name", name), ("$directory", workingDirectory), ("$now", Now())).ConfigureAwait(false))!;
-        return new(id, name, workingDirectory);
+            "INSERT INTO projects (name, working_directory, color, created_at) VALUES ($name, $directory, $color, $now) RETURNING id",
+            cancellationToken, ("$name", name), ("$directory", workingDirectory), ("$color", color), ("$now", Now()))
+            .ConfigureAwait(false))!;
+        return new(id, name, workingDirectory, color);
     }
 
     public async Task UpdateProjectAsync(Project project, CancellationToken cancellationToken = default)
@@ -72,9 +77,9 @@ public sealed class ConversationStore
         ArgumentException.ThrowIfNullOrWhiteSpace(project.WorkingDirectory);
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
         await ExecuteSingleAsync(connection, null,
-            "UPDATE projects SET name = $name, working_directory = $directory WHERE id = $id", "Project",
-            cancellationToken, ("$id", project.Id), ("$name", project.Name), ("$directory", project.WorkingDirectory))
-            .ConfigureAwait(false);
+            "UPDATE projects SET name = $name, working_directory = $directory, color = $color WHERE id = $id", "Project",
+            cancellationToken, ("$id", project.Id), ("$name", project.Name), ("$directory", project.WorkingDirectory),
+            ("$color", ProjectColor.Normalize(project.Color))).ConfigureAwait(false);
     }
 
     /// <summary>Deletes the project with all of its conversations.</summary>

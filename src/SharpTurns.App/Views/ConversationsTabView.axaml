@@ -1,0 +1,114 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:core="using:SharpTurns.Core"
+             xmlns:views="using:SharpTurns.App.Views"
+             xmlns:vm="using:SharpTurns.App.ViewModels"
+             x:Class="SharpTurns.App.Views.ConversationsTabView"
+             x:DataType="vm:MainWindowViewModel">
+  <UserControl.DataTemplates>
+    <DataTemplate DataType="vm:ConversationViewModel">
+      <views:ConversationView />
+    </DataTemplate>
+  </UserControl.DataTemplates>
+
+  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+    <Button Classes="secondaryActionButton" Content="›" Command="{Binding ToggleConversationSidebarCommand}"
+            IsVisible="{Binding IsConversationSidebarClosed}" Width="44" Height="48" Padding="0" FontSize="28"
+            VerticalAlignment="Top" ToolTip.Tip="Show the conversations sidebar" />
+
+    <!-- The sidebar card and every conversation card use the selected project's border color. -->
+    <Border Width="450" IsVisible="{Binding IsConversationSidebarOpen}" Background="{StaticResource CardBackgroundBrush}"
+            BorderBrush="{Binding ProjectBorderColor}" BorderThickness="1" CornerRadius="12" Padding="12">
+      <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" RowSpacing="10">
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+          <TextBlock Text="Project:" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="16"
+                     VerticalAlignment="Center" />
+          <ComboBox Grid.Column="1" ItemsSource="{Binding Projects}" SelectedItem="{Binding SelectedProject}"
+                    BorderBrush="{Binding ProjectBorderColor}" MinHeight="40" FontSize="14" FontWeight="SemiBold"
+                    HorizontalAlignment="Stretch" ToolTip.Tip="The project whose conversations are listed">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="core:Project">
+                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <Button Grid.Column="2" Classes="secondaryActionButton" Content="‹" Command="{Binding ToggleConversationSidebarCommand}"
+                  MinWidth="40" MinHeight="40" Padding="0" FontSize="24" ToolTip.Tip="Hide the conversations sidebar" />
+        </Grid>
+
+        <Button Grid.Row="1" Classes="primaryActionButton" Content="+ New Conversation" Command="{Binding NewConversationCommand}"
+                HorizontalAlignment="Right" ToolTip.Tip="Create a conversation in this project" />
+
+        <Border Grid.Row="2" Classes="card" BorderBrush="{Binding ProjectBorderColor}" CornerRadius="12" Padding="12"
+                IsVisible="{Binding CurrentConversation, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <StackPanel Spacing="8">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+              <TextBlock Text="{Binding CurrentConversation.Title}" Foreground="#FFD54A" FontWeight="SemiBold" FontSize="16"
+                         TextWrapping="Wrap" VerticalAlignment="Center" />
+              <Button Grid.Column="1" Classes="secondaryActionButton" Command="{Binding RenameConversationCommand}"
+                      Width="34" Height="34" Padding="0" ToolTip.Tip="Rename this conversation">
+                <PathIcon Width="16" Height="16" Data="{StaticResource EditIconGeometry}" />
+              </Button>
+              <Button Grid.Column="2" Classes="dangerActionButton" Command="{Binding DeleteConversationCommand}"
+                      Width="34" Height="34" Padding="0" ToolTip.Tip="Delete this conversation">
+                <PathIcon Width="16" Height="16" Data="{StaticResource DeleteIconGeometry}" />
+              </Button>
+            </Grid>
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="6">
+              <TextBlock Classes="cardLabel" Text="ID:" />
+              <TextBlock Grid.Column="1" Classes="cardValue" Text="{Binding CurrentConversation.Conversation.Id}" />
+              <TextBlock Grid.Row="1" Classes="cardLabel" Text="Turns:" />
+              <TextBlock Grid.Row="1" Grid.Column="1" Classes="cardValue" Text="{Binding CurrentConversation.TurnCount}" />
+              <TextBlock Grid.Row="2" Classes="cardLabel" Text="Last Turn:"
+                         IsVisible="{Binding CurrentConversation.LastTurn, Converter={x:Static ObjectConverters.IsNotNull}}" />
+              <TextBlock Grid.Row="2" Grid.Column="1" Classes="cardValue" Text="{Binding CurrentConversation.LastTurn.TimeLabel}"
+                         IsVisible="{Binding CurrentConversation.LastTurn, Converter={x:Static ObjectConverters.IsNotNull}}" />
+              <TextBlock Grid.Row="3" Classes="cardLabel" Text="Workspace:" />
+              <TextBlock Grid.Row="3" Grid.Column="1" Classes="cardValue" Text="{Binding SelectedProject.WorkingDirectory}" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Row="3" IsVisible="{Binding HasPlanUsage}" ToolTip.Tip="{Binding PlanUsageToolTip}"
+                Background="#10230B" BorderBrush="#345B2A" BorderThickness="1" CornerRadius="10" Padding="10,8">
+          <StackPanel Spacing="3">
+            <TextBlock Text="Plan Usage" Foreground="{DynamicResource TextCyanBrush}" FontSize="12" FontWeight="SemiBold" />
+            <TextBlock Text="{Binding PlanUsageText}" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+
+        <TextBlock Grid.Row="4" Text="{Binding OtherConversationsLabel}" Foreground="{DynamicResource TextSubtleBrush}" FontSize="11"
+                   IsVisible="{Binding SelectedProject, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+        <ScrollViewer Grid.Row="5" HorizontalScrollBarVisibility="Disabled">
+          <!-- Reserve the scrollbar gap during measurement; ScrollViewer padding is only applied during arrangement. -->
+          <ItemsControl ItemsSource="{Binding OtherConversations}" Margin="0,0,8,0">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="core:Conversation">
+                <Button Classes="cardButton" Margin="0,0,0,10" ToolTip.Tip="{Binding Title}"
+                        Command="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).SelectConversationCommand}"
+                        CommandParameter="{Binding}">
+                  <Border Classes="card"
+                          BorderBrush="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).ProjectBorderColor}">
+                    <StackPanel Spacing="3">
+                      <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TextStrongBrush}" FontWeight="SemiBold"
+                                 FontSize="15" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" TextTrimming="CharacterEllipsis">
+                        <Run Text="{Binding Id, StringFormat='ID {0} · '}" />
+                        <Run Text="{Binding UpdatedAt.LocalDateTime, StringFormat='{}{0:MMM d, h:mm tt}'}" />
+                      </TextBlock>
+                    </StackPanel>
+                  </Border>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Grid>
+    </Border>
+
+    <ContentControl Grid.Column="1" Content="{Binding CurrentConversation}" />
+    <TextBlock Grid.Column="1" IsVisible="{Binding HasNoConversation}" Text="{Binding NoConversationText}"
+               Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+  </Grid>
+</UserControl>

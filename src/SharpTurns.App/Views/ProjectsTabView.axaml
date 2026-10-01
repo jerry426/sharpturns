@@ -1,0 +1,96 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:core="using:SharpTurns.Core"
+             xmlns:vm="using:SharpTurns.App.ViewModels"
+             x:Class="SharpTurns.App.Views.ProjectsTabView"
+             x:DataType="vm:MainWindowViewModel">
+  <Border Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+          CornerRadius="12" Padding="16">
+    <Grid RowDefinitions="Auto,*" RowSpacing="12">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="12">
+        <TextBlock Text="Projects" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="18"
+                   VerticalAlignment="Center" />
+        <Button Grid.Column="1" Classes="primaryActionButton" Content="+ New Project" Command="{Binding NewProjectCommand}" />
+        <Button Grid.Column="2" Classes="secondaryActionButton" Content="Edit Project" Command="{Binding EditProjectCommand}" />
+        <Button Grid.Column="3" Classes="dangerActionButton" Content="Delete Project" Command="{Binding DeleteProjectCommand}" />
+      </Grid>
+
+      <Grid Grid.Row="1" ColumnDefinitions="450,*" ColumnSpacing="16">
+        <Border Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                CornerRadius="12" Padding="12">
+          <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="12">
+            <TextBlock Text="Select a Project" Foreground="{DynamicResource TextMutedBrush}" FontSize="13" />
+
+            <Border Grid.Row="1" Classes="card" BorderBrush="{Binding ProjectBorderColor}" CornerRadius="12" Padding="12"
+                    IsVisible="{Binding SelectedProject, Converter={x:Static ObjectConverters.IsNotNull}}">
+              <StackPanel Spacing="8">
+                <TextBlock Text="{Binding SelectedProject.Name}" Foreground="{DynamicResource TextStrongBrush}" FontWeight="SemiBold"
+                           FontSize="16" TextWrapping="Wrap" />
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="6">
+                  <TextBlock Classes="cardLabel" Text="ID:" />
+                  <TextBlock Grid.Column="1" Classes="cardValue" Text="{Binding SelectedProject.Id}" />
+                  <TextBlock Grid.Row="1" Classes="cardLabel" Text="Folder:" />
+                  <TextBlock Grid.Row="1" Grid.Column="1" Classes="cardValue" Text="{Binding SelectedProject.WorkingDirectory}" />
+                </Grid>
+              </StackPanel>
+            </Border>
+            <TextBlock Grid.Row="1" Text="Create a project to get started." Foreground="{DynamicResource TextSubtleBrush}"
+                       FontSize="12" IsVisible="{Binding SelectedProject, Converter={x:Static ObjectConverters.IsNull}}" />
+
+            <TextBlock Grid.Row="2" Text="{Binding OtherProjectsLabel}" Foreground="{DynamicResource TextSubtleBrush}" FontSize="11" />
+
+            <ScrollViewer Grid.Row="3" HorizontalScrollBarVisibility="Disabled">
+              <!-- Reserve the scrollbar gap during measurement; ScrollViewer padding is only applied during arrangement. -->
+              <ItemsControl ItemsSource="{Binding OtherProjects}" Margin="0,0,8,0">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="core:Project">
+                    <Button Classes="cardButton" Margin="0,0,0,10" ToolTip.Tip="{Binding WorkingDirectory}"
+                            Command="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).SelectProjectCommand}"
+                            CommandParameter="{Binding}">
+                      <Border Classes="card" BorderBrush="{Binding Color}">
+                        <StackPanel Spacing="3">
+                          <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextStrongBrush}" FontWeight="SemiBold"
+                                     FontSize="15" TextTrimming="CharacterEllipsis" />
+                          <TextBlock Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" TextTrimming="CharacterEllipsis">
+                            <Run Text="{Binding Id, StringFormat='ID {0} · '}" />
+                            <Run Text="{Binding WorkingDirectory}" />
+                          </TextBlock>
+                        </StackPanel>
+                      </Border>
+                    </Button>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </Grid>
+        </Border>
+
+        <Border Grid.Column="1" Background="#121620" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                CornerRadius="10" Padding="16" VerticalAlignment="Top"
+                IsVisible="{Binding SelectedProject, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <StackPanel Spacing="10">
+            <TextBlock Text="Selected project" Foreground="{DynamicResource TextSubtleBrush}" FontSize="12" />
+            <TextBlock Text="{Binding SelectedProject.Name}" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"
+                       FontSize="22" TextWrapping="Wrap" />
+            <Border Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="8" Padding="10">
+              <StackPanel Spacing="6">
+                <TextBlock Text="Working directory" Foreground="{DynamicResource TextSubtleBrush}" FontSize="12" />
+                <SelectableTextBlock Text="{Binding SelectedProject.WorkingDirectory}" Foreground="{DynamicResource TextStrongBrush}"
+                                     TextWrapping="Wrap" />
+                <TextBlock Text="The CLI runs every turn in this folder and reads its CLAUDE.md."
+                           Foreground="{DynamicResource TextSubtleBrush}" FontSize="11" TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="Border color:" Foreground="{DynamicResource TextSubtleBrush}" FontSize="12" VerticalAlignment="Center" />
+              <Border Width="18" Height="18" CornerRadius="4" Background="{Binding ProjectBorderColor}" />
+              <TextBlock Text="{Binding ProjectBorderColor}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"
+                         VerticalAlignment="Center" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Grid>
+  </Border>
+</UserControl>

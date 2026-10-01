@@ -24,7 +24,7 @@ public sealed class ConversationStoreTests : IDisposable
         await _store.InitializeAsync();
         await _store.InitializeAsync();
 
-        Assert.Equal(3L, Scalar("PRAGMA user_version"));
+        Assert.Equal(4L, Scalar("PRAGMA user_version"));
         Assert.Equal("wal", Scalar("PRAGMA journal_mode"));
     }
 
@@ -41,8 +41,8 @@ public sealed class ConversationStoreTests : IDisposable
     public async Task ProjectsAndConversationsRoundTripAndDeleteCascades()
     {
         await _store.InitializeAsync();
-        var project = await _store.CreateProjectAsync("Beta", "/work/beta");
-        await _store.CreateProjectAsync("alpha", "/work/alpha");
+        var project = await _store.CreateProjectAsync("Beta", "/work/beta", "#9437ff");
+        var alpha = await _store.CreateProjectAsync("alpha", "/work/alpha");
         await _store.UpdateProjectAsync(project with { WorkingDirectory = "/work/beta2" });
         var older = await _store.CreateConversationAsync(project.Id, "First");
         var newer = await _store.CreateConversationAsync(project.Id, "Second");
@@ -52,6 +52,11 @@ public sealed class ConversationStoreTests : IDisposable
 
         Assert.Equal(["alpha", "Beta"], (await _store.ListProjectsAsync()).Select(p => p.Name));
         Assert.Equal("/work/beta2", (await _store.ListProjectsAsync()).Single(p => p.Id == project.Id).WorkingDirectory);
+        // Colors are stored as uppercase #RRGGBB; a project without one uses the default.
+        Assert.Equal("#9437FF", (await _store.ListProjectsAsync()).Single(p => p.Id == project.Id).Color);
+        Assert.Equal(ProjectColor.Default, alpha.Color);
+        await _store.UpdateProjectAsync(alpha with { Color = "#12abef" });
+        Assert.Equal("#12ABEF", (await _store.ListProjectsAsync()).Single(p => p.Id == alpha.Id).Color);
         var conversations = await _store.ListConversationsAsync(project.Id);
         // The conversation with the latest turn sorts first.
         Assert.Equal([older.Id, newer.Id], conversations.Select(c => c.Id));
@@ -124,13 +129,15 @@ public sealed class ConversationStoreTests : IDisposable
         foreach (var column in new[] { "input_tokens", "cached_input_tokens", "output_tokens", "context_tokens", "model",
                      "request_count", "first_request_input_tokens", "first_request_cached_tokens" })
             Scalar($"ALTER TABLE conversation_turns DROP COLUMN {column}");
+        Scalar("ALTER TABLE projects DROP COLUMN color");
         Scalar("PRAGMA user_version = 1");
         // Pooled connections cache the schema this test just changed behind the store's back.
         SqliteConnection.ClearAllPools();
 
         await _store.InitializeAsync();
 
-        Assert.Equal(3L, Scalar("PRAGMA user_version"));
+        Assert.Equal(4L, Scalar("PRAGMA user_version"));
+        Assert.Equal(ProjectColor.Default, Assert.Single(await _store.ListProjectsAsync()).Color);
         var loaded = Assert.Single(await _store.LoadTurnsAsync(conversation.Id));
         Assert.Equal(["prompt", "answer"], loaded.Parts.Select(p => p.Content));
         Assert.Null(loaded.Usage);

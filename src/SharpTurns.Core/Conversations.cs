@@ -2,7 +2,22 @@ using System.Text.Json;
 
 namespace SharpTurns.Core;
 
-public sealed record Project(long Id, string Name, string WorkingDirectory);
+/// <summary>Color is the project's border accent as #RRGGBB (see ProjectColor).</summary>
+public sealed record Project(long Id, string Name, string WorkingDirectory, string Color = ProjectColor.Default);
+
+/// <summary>Opaque RGB project accents, as in the Workbench.</summary>
+public static class ProjectColor
+{
+    public const string Default = "#7CFF2B";
+
+    public static bool IsValid(string? value) => value is { Length: 7 }
+        && value[0] == '#'
+        && value.AsSpan(1).IndexOfAnyExcept("0123456789abcdefABCDEF") < 0;
+
+    public static string Normalize(string? value) => IsValid(value?.Trim())
+        ? value!.Trim().ToUpperInvariant()
+        : Default;
+}
 
 /// <summary>Model and Effort are CLI values; null uses the CLI's own default.</summary>
 public sealed record Conversation(long Id, long ProjectId, string Title, string? Model, string? Effort, DateTimeOffset UpdatedAt);

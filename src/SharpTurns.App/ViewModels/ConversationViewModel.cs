@@ -58,6 +58,11 @@ public sealed partial class ConversationViewModel : ObservableObject
         _title = conversation.Title;
         _selectedModel = conversation.Model ?? DefaultModel;
         _selectedEffort = conversation.Effort ?? DefaultEffort;
+        Turns.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(TurnCount));
+            OnPropertyChanged(nameof(LastTurn));
+        };
         Attachments.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasAttachments));
         QueuedMessages.CollectionChanged += (_, _) =>
         {
@@ -72,6 +77,10 @@ public sealed partial class ConversationViewModel : ObservableObject
     public Project Project { get; set; }
 
     public ObservableCollection<TurnViewModel> Turns { get; } = [];
+
+    public int TurnCount => Turns.Count;
+
+    public TurnViewModel? LastTurn => Turns.Count > 0 ? Turns[^1] : null;
 
     /// <summary>Images for the next turn. Messages sent while a turn runs are text only, so these wait for the next turn.</summary>
     public ObservableCollection<ImageAttachmentViewModel> Attachments { get; } = [];

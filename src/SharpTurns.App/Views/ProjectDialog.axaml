@@ -18,6 +18,18 @@
     </StackPanel>
 
     <StackPanel Spacing="6">
+      <TextBlock Text="Project border color" Foreground="{DynamicResource TextStrongBrush}" FontSize="13" />
+      <StackPanel Orientation="Horizontal" Spacing="12">
+        <ColorPicker Color="{Binding SelectedColor}" IsAlphaEnabled="False" IsAlphaVisible="False"
+                     ToolTip.Tip="Choose the border color for this project's cards" />
+        <TextBlock Text="{Binding ColorHex}" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+        <Button Classes="secondaryActionButton" Content="Default green" Command="{Binding ResetColorCommand}" />
+      </StackPanel>
+      <TextBlock Text="Used for the project's cards and the conversations sidebar."
+                 Foreground="{DynamicResource TextSubtleBrush}" FontSize="11" TextWrapping="Wrap" />
+    </StackPanel>
+
+    <StackPanel Spacing="6">
       <TextBlock Text="Working directory" Foreground="{DynamicResource TextStrongBrush}" FontSize="13" />
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
         <TextBox Text="{Binding WorkingDirectory}" PlaceholderText="Required" />

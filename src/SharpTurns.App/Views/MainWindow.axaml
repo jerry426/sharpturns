@@ -1,101 +1,35 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:core="using:SharpTurns.Core"
         xmlns:views="using:SharpTurns.App.Views"
         xmlns:vm="using:SharpTurns.App.ViewModels"
         x:Class="SharpTurns.App.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="{Binding WindowTitle}"
-        Width="1200"
-        Height="820"
+        Width="1400"
+        Height="860"
         MinWidth="820"
         MinHeight="560"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource WindowBackgroundBrush}">
-  <Window.DataTemplates>
-    <DataTemplate DataType="vm:ConversationViewModel">
-      <views:ConversationView />
-    </DataTemplate>
-  </Window.DataTemplates>
+  <Grid RowDefinitions="2,Auto,*">
+    <Border Background="{StaticResource ProminentTabAccentBrush}" />
 
-  <Grid ColumnDefinitions="290,Auto,*">
-    <Border Background="{StaticResource PanelBackgroundBrush}" Padding="10">
-      <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto" RowSpacing="8">
-        <Grid ColumnDefinitions="*,Auto">
-          <TextBlock Classes="sectionHeader" Text="PROJECTS" />
-          <Button Grid.Column="1" Classes="secondaryActionButton" Content="New" Command="{Binding NewProjectCommand}"
-                  ToolTip.Tip="Create a project" />
-        </Grid>
-
-        <ListBox Grid.Row="1" ItemsSource="{Binding Projects}" SelectedItem="{Binding SelectedProject}" MaxHeight="240"
-                 Background="Transparent">
-          <ListBox.ItemTemplate>
-            <DataTemplate x:DataType="core:Project">
-              <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextStrongBrush}" FontWeight="SemiBold"
-                           TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding WorkingDirectory}" Foreground="{DynamicResource TextSubtleBrush}" FontSize="11"
-                           TextTrimming="PathSegmentEllipsis" ToolTip.Tip="{Binding WorkingDirectory}" />
-              </StackPanel>
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
-
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6">
-          <Button Classes="secondaryActionButton" Content="Edit" Command="{Binding EditProjectCommand}" />
-          <Button Classes="dangerActionButton" Content="Delete" Command="{Binding DeleteProjectCommand}" />
-        </StackPanel>
-
-        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,12,0,0">
-          <TextBlock Classes="sectionHeader" Text="CONVERSATIONS" />
-          <Button Grid.Column="1" Classes="secondaryActionButton" Content="New" Command="{Binding NewConversationCommand}"
-                  ToolTip.Tip="Create a conversation in the selected project" />
-        </Grid>
-
-        <ListBox Grid.Row="4" ItemsSource="{Binding Conversations}" SelectedItem="{Binding SelectedConversation}"
-                 Background="Transparent">
-          <ListBox.ItemTemplate>
-            <DataTemplate x:DataType="core:Conversation">
-              <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TextStrongBrush}" TextTrimming="CharacterEllipsis"
-                         ToolTip.Tip="{Binding Title}" />
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
-
-        <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="6">
-          <Button Classes="secondaryActionButton" Content="Rename" Command="{Binding RenameConversationCommand}" />
-          <Button Classes="dangerActionButton" Content="Delete" Command="{Binding DeleteConversationCommand}" />
-        </StackPanel>
-
-        <Border Grid.Row="6" IsVisible="{Binding HasPlanUsage}" ToolTip.Tip="{Binding PlanUsageToolTip}"
-                Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                CornerRadius="6" Padding="8,6" Margin="0,4,0,0">
-          <StackPanel Spacing="3">
-            <TextBlock Classes="sectionHeader" Text="PLAN USAGE" FontSize="11" />
-            <TextBlock Text="{Binding PlanUsageText}" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"
-                       TextWrapping="Wrap" />
-          </StackPanel>
-        </Border>
+    <Border Grid.Row="1" IsVisible="{Binding HasError}" Background="{StaticResource DestructiveBackgroundBrush}"
+            BorderBrush="#7A2E38" BorderThickness="0,0,0,1" Padding="12,8">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+        <SelectableTextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource TextDangerStrongBrush}"
+                             TextWrapping="Wrap" VerticalAlignment="Center" />
+        <Button Grid.Column="1" Classes="secondaryActionButton" Content="Dismiss" Command="{Binding DismissErrorCommand}" />
       </Grid>
     </Border>
 
-    <GridSplitter Grid.Column="1" Width="4" Background="{StaticResource BorderBrush}" ResizeDirection="Columns" />
-
-    <Grid Grid.Column="2" RowDefinitions="Auto,*">
-      <Border IsVisible="{Binding HasError}" Background="{StaticResource DestructiveBackgroundBrush}"
-              BorderBrush="#7A2E38" BorderThickness="0,0,0,1" Padding="12,8">
-        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-          <SelectableTextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource TextDangerStrongBrush}"
-                               TextWrapping="Wrap" VerticalAlignment="Center" />
-          <Button Grid.Column="1" Classes="secondaryActionButton" Content="Dismiss" Command="{Binding DismissErrorCommand}" />
-        </Grid>
-      </Border>
-
-      <ContentControl Grid.Row="1" Content="{Binding CurrentConversation}" />
-
-      <TextBlock Grid.Row="1" IsVisible="{Binding HasNoConversation}"
-                 Text="Create a project, then a conversation, to get started."
-                 Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-    </Grid>
+    <TabControl Grid.Row="2" Classes="mainTabs" SelectedIndex="{Binding SelectedTabIndex}" Padding="8,0,8,8">
+      <TabItem Header="Projects" FontSize="14">
+        <views:ProjectsTabView />
+      </TabItem>
+      <TabItem Header="Conversations" FontSize="14">
+        <views:ConversationsTabView />
+      </TabItem>
+    </TabControl>
   </Grid>
 </Window>

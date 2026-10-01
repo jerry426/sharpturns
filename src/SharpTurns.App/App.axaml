@@ -27,6 +27,10 @@
       <SolidColorBrush x:Key="TextDangerBrush" Color="#FFB8C0" />
       <SolidColorBrush x:Key="TextDangerStrongBrush" Color="#FFD7DC" />
       <SolidColorBrush x:Key="TextDangerDisabledBrush" Color="#816E75" />
+      <SolidColorBrush x:Key="ProminentTabAccentBrush" Color="#F3CA01" />
+      <!-- Icon-only buttons must not depend on the UI font's symbol coverage. -->
+      <StreamGeometry x:Key="EditIconGeometry">M2,14 L12,4 L16,8 L6,18 L1,19 Z M13,3 L15,1 L19,5 L17,7 Z</StreamGeometry>
+      <StreamGeometry x:Key="DeleteIconGeometry">M8,2 H16 V4 H21 V6 H3 V4 H8 Z M5,8 H19 L18,22 H6 Z</StreamGeometry>
       <!-- Colors LiveMarkdown's code blocks, quotes, and inline code use. -->
       <Color x:Key="BorderColor">#2D3548</Color>
       <Color x:Key="ForegroundColor">#EEF2FA</Color>
@@ -39,6 +43,7 @@
 
   <Application.Styles>
     <FluentTheme />
+    <StyleInclude Source="avares://Avalonia.Controls.ColorPicker/Themes/Fluent/Fluent.xaml" />
     <StyleInclude Source="avares://LiveMarkdown.Avalonia/Styles.axaml" />
     <StyleInclude Source="avares://SharpTurns.Markdown.Rendering/Styles/MarkdownStyles.axaml" />
 
@@ -222,6 +227,69 @@
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="6" />
       <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+
+    <!-- Main tab strip, as in the Workbench: the selected tab is filled yellow with black text and no underline.
+         Header TextBlocks must not set their own Foreground, or the black won't apply. -->
+    <Style Selector="TabControl.mainTabs TabItem">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="Padding" Value="10,4,10,4" />
+      <Setter Property="Margin" Value="0,0,14,0" />
+      <Setter Property="MinHeight" Value="34" />
+    </Style>
+    <Style Selector="TabControl.mainTabs /template/ ItemsPresenter#PART_ItemsPresenter">
+      <Setter Property="Margin" Value="0,0,0,6" />
+    </Style>
+    <Style Selector="TabControl.mainTabs /template/ ItemsPresenter#PART_ItemsPresenter > WrapPanel">
+      <Setter Property="Margin" Value="12,0,0,0" />
+    </Style>
+    <Style Selector="TabControl.mainTabs TabItem:selected /template/ Border#PART_LayoutRoot,
+                      TabControl.mainTabs TabItem:selected:pointerover /template/ Border#PART_LayoutRoot,
+                      TabControl.mainTabs TabItem:selected:pressed /template/ Border#PART_LayoutRoot">
+      <Setter Property="Background" Value="{DynamicResource ProminentTabAccentBrush}" />
+      <Setter Property="TextElement.Foreground" Value="Black" />
+      <Setter Property="CornerRadius" Value="0,0,8,8" />
+    </Style>
+    <Style Selector="TabControl.mainTabs TabItem:selected /template/ Border#PART_SelectedPipe">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+
+    <!-- Selectable project and conversation cards: the card's own border shows; the button adds no chrome. -->
+    <Style Selector="Button.cardButton">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="Button.cardButton /template/ ContentPresenter#PART_ContentPresenter,
+                      Button.cardButton:pointerover /template/ ContentPresenter#PART_ContentPresenter,
+                      Button.cardButton:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="CornerRadius" Value="12" />
+    </Style>
+    <Style Selector="Button.cardButton:pointerover Border.card">
+      <Setter Property="Background" Value="#20242E" />
+    </Style>
+
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="#191919" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="11" />
+      <Setter Property="Padding" Value="12,9" />
+    </Style>
+
+    <Style Selector="TextBlock.cardLabel">
+      <Setter Property="Foreground" Value="{DynamicResource TextCyanBrush}" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="TextBlock.cardValue">
+      <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
 
     <Style Selector="TextBlock.sectionHeader">
