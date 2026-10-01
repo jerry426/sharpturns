@@ -50,6 +50,8 @@ public sealed partial class ConversationViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(OpenReplayImagesCommand))]
     [NotifyCanExecuteChangedFor(nameof(ToggleImageReplayCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenUserMessageHistoryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ExportConversationCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ExportTurnCommand))]
     [NotifyPropertyChangedFor(nameof(SendLabel))]
     private bool _isRunning;
 
@@ -223,6 +225,9 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     /// <summary>Shows the notes non-modally, or brings this conversation's open Notes window forward.</summary>
     public Action<NotesDialogViewModel>? ShowNotes { get; set; }
+
+    /// <summary>Shows the export options modally.</summary>
+    public Func<TurnExportDialogViewModel, Task>? ShowExportAsync { get; set; }
 
     /// <summary>Raised on the UI thread after each turn's content changes, for scrolling.</summary>
     public event EventHandler? TurnContentChanged;
@@ -580,6 +585,27 @@ public sealed partial class ConversationViewModel : ObservableObject
         ShowNotes(notes);
     }
 
+    // Exports read the saved turns, so they don't change anything and need only a saved turn. A running turn exports
+    // what's saved so far.
+    private bool CanExportConversation() => Turns.Any(t => t.Record is not null);
+
+    [RelayCommand(CanExecute = nameof(CanExportConversation))]
+    private async Task ExportConversationAsync()
+    {
+        if (ShowExportAsync is null) return;
+        await ShowExportAsync(TurnExportDialogViewModel.ForConversation(
+            Turns.Select(t => t.Record).OfType<ConversationTurn>().ToArray(), Conversation, Project));
+    }
+
+    private static bool CanExportTurn(TurnViewModel? turn) => turn?.Record is { Status: not TurnStatus.Running };
+
+    [RelayCommand(CanExecute = nameof(CanExportTurn))]
+    private async Task ExportTurnAsync(TurnViewModel turn)
+    {
+        if (ShowExportAsync is null) return;
+        await ShowExportAsync(TurnExportDialogViewModel.ForTurn(turn.Record!, Conversation, Project, turn.IsViewingFullCompressedContent));
+    }
+
     // After the turns or their context state change: the header buttons, the metrics row, and the Show picker's turns.
     private void NotifyContextChanged()
     {
@@ -588,6 +614,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         OnPropertyChanged(nameof(ReplayImagesLabel));
         OpenReplayImagesCommand.NotifyCanExecuteChanged();
         OpenUserMessageHistoryCommand.NotifyCanExecuteChanged();
+        ExportConversationCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(LastReportedInputLabel));
         OnPropertyChanged(nameof(TurnsTotalLabel));
         OnPropertyChanged(nameof(TurnsVisibleLabel));

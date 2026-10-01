@@ -47,6 +47,8 @@
                 ToolTip.Tip="Browse the user messages in Claude's context" />
         <Button Classes="headerButton notes" Content="{Binding NotesLabel}" Command="{Binding OpenNotesCommand}"
                 ToolTip.Tip="{Binding NotesToolTip}" />
+        <Button Classes="headerButton export" Content="📤 Export" Command="{Binding ExportConversationCommand}"
+                ToolTip.Tip="Export the conversation to Markdown, text, MacDown, or DOCX" />
       </WrapPanel>
     </Grid>
 
@@ -142,6 +144,9 @@
                       <Button Classes="railButton copy" Content="📋 Copy Turn"
                               Command="{ReflectionBinding $parent[UserControl].DataContext.CopyTurnCommand}" CommandParameter="{Binding}"
                               ToolTip.Tip="Copy the prompt and response as shown (the summary when compressed) as Markdown, without tool activity" />
+                      <Button Classes="railButton export" Content="📤 Export / MacDown / DOCX"
+                              Command="{ReflectionBinding $parent[UserControl].DataContext.ExportTurnCommand}" CommandParameter="{Binding}"
+                              ToolTip.Tip="Open export options for Markdown, MacDown, text, and DOCX" />
                       <Button Classes="railButton viewFull" Content="{Binding CompactViewFullContentLabel}"
                               IsVisible="{Binding HasViewFullContentButton}" Command="{Binding ViewFullContentCommand}"
                               ToolTip.Tip="{Binding ReductionToolTip}" />

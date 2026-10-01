@@ -48,6 +48,7 @@ public sealed partial class ConversationView : UserControl
         _viewModel.ShowReplayImagesAsync = ShowReplayImagesAsync;
         _viewModel.ShowUserMessageHistoryAsync = ShowUserMessageHistoryAsync;
         _viewModel.ShowNotes = ShowNotes;
+        _viewModel.ShowExportAsync = ShowExportAsync;
         // Show the newest turn.
         Dispatcher.UIThread.Post(TurnsScroller.ScrollToEnd, DispatcherPriority.Background);
     }
@@ -177,6 +178,11 @@ public sealed partial class ConversationView : UserControl
         if (TopLevel.GetTopLevel(this) is not Window owner) return;
         var turn = await new UserMessageHistoryDialog { DataContext = history }.ShowDialog<TurnViewModel?>(owner);
         if (turn is not null) ScrollToTurn(turn);
+    }
+
+    private async Task ShowExportAsync(TurnExportDialogViewModel export)
+    {
+        if (TopLevel.GetTopLevel(this) is Window owner) await new TurnExportDialog { DataContext = export }.ShowDialog(owner);
     }
 
     // One Notes window per conversation; each stays with the conversation it was opened for.

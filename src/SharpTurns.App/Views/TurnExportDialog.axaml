@@ -1,0 +1,74 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:fonts="using:SharpTurns.Markdown.Rendering.Styling"
+        xmlns:vm="using:SharpTurns.App.ViewModels"
+        x:Class="SharpTurns.App.Views.TurnExportDialog"
+        x:DataType="vm:TurnExportDialogViewModel"
+        Title="{Binding Title}"
+        Width="860"
+        Height="740"
+        MinWidth="700"
+        MinHeight="560"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource CardBackgroundBrush}">
+  <!-- Laid out like the Workbench's export dialog: format and options, a preview, then the export actions. -->
+  <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="14" Margin="18">
+    <StackPanel>
+      <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="20" />
+      <TextBlock Text="{Binding TurnLabel}" Foreground="{DynamicResource TextBlueSoftBrush}" FontSize="12" FontWeight="SemiBold"
+                 Margin="0,4,0,0" />
+      <TextBlock Text="{Binding ConversationLabel}" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" TextWrapping="Wrap"
+                 Margin="0,4,0,0" />
+    </StackPanel>
+
+    <Border Grid.Row="1" Background="#10131B" BorderBrush="#2D3548" BorderThickness="1" CornerRadius="8" Padding="12">
+      <Grid RowDefinitions="Auto,Auto" RowSpacing="12">
+        <StackPanel Orientation="Horizontal" Spacing="18">
+          <TextBlock Text="Format" Foreground="{DynamicResource TextStrongBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
+          <RadioButton Content="Markdown" GroupName="TurnExportFormat" IsChecked="{Binding IsMarkdown, Mode=TwoWay}"
+                       Foreground="{DynamicResource TextPrimaryBrush}" />
+          <RadioButton Content="Text" GroupName="TurnExportFormat" IsChecked="{Binding IsText, Mode=TwoWay}"
+                       Foreground="{DynamicResource TextPrimaryBrush}" />
+          <RadioButton Content="Word / DOCX" GroupName="TurnExportFormat" IsChecked="{Binding IsDocx, Mode=TwoWay}"
+                       Foreground="{DynamicResource TextPrimaryBrush}" />
+        </StackPanel>
+
+        <WrapPanel Grid.Row="1" Orientation="Horizontal" ItemSpacing="16">
+          <CheckBox Content="Tool calls/results" IsChecked="{Binding IncludeToolDetails, Mode=TwoWay}"
+                    Foreground="{DynamicResource TextPrimaryBrush}" />
+          <CheckBox Content="Full tool results" IsChecked="{Binding FullToolResults, Mode=TwoWay}"
+                    IsEnabled="{Binding IncludeToolDetails}" Foreground="{DynamicResource TextPrimaryBrush}"
+                    ToolTip.Tip="Export each tool result in full; otherwise only its first 10 lines" />
+          <CheckBox Content="Metadata" IsChecked="{Binding IncludeMetadata, Mode=TwoWay}" Foreground="{DynamicResource TextPrimaryBrush}"
+                    ToolTip.Tip="Turn and conversation IDs, project, model, time, tokens, and duration" />
+          <CheckBox Content="Full content of compressed turns" IsChecked="{Binding FullContent, Mode=TwoWay}"
+                    IsVisible="{Binding HasCompressedTurns}" Foreground="{DynamicResource TextPrimaryBrush}"
+                    ToolTip.Tip="Off, a compressed turn exports its user inputs and the summary Claude sees. On, it exports everything saved with the turn." />
+          <CheckBox Content="Include hidden turns" IsChecked="{Binding IncludeHiddenTurns, Mode=TwoWay}"
+                    IsVisible="{Binding IsConversationExport}" Foreground="{DynamicResource TextPrimaryBrush}"
+                    ToolTip.Tip="Also export the turns hidden from Claude's context; otherwise only the turns Claude sees" />
+        </WrapPanel>
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="2" Background="#10131B" BorderBrush="#2D3548" BorderThickness="1" CornerRadius="8" Padding="10">
+      <Grid RowDefinitions="Auto,*" RowSpacing="8">
+        <TextBlock Text="{Binding PreviewLabel}" Foreground="{DynamicResource TextSecondaryBrush}" FontWeight="SemiBold" FontSize="12" />
+        <TextBox Grid.Row="1" Text="{Binding PreviewText, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                 FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12" />
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="10">
+      <TextBlock Text="{Binding Status}" Foreground="{DynamicResource TextSubtleBrush}" FontSize="11" VerticalAlignment="Center"
+                 TextWrapping="Wrap" />
+      <Button Grid.Column="1" Classes="secondaryActionButton" Content="Close" Click="Close_Click" MinWidth="96" IsCancel="True" />
+      <Button Grid.Column="2" Classes="secondaryActionButton" Content="Copy to Clipboard" Click="Copy_Click"
+              IsVisible="{Binding CanCopyToClipboard}" MinWidth="140" />
+      <Button Grid.Column="3" Classes="secondaryActionButton" Content="📝 MacDown" Click="MacDown_Click"
+              IsVisible="{Binding CanOpenInMacDown}" MinWidth="120"
+              ToolTip.Tip="Open the Markdown in MacDown (on other systems, the default app for .md files)" />
+      <Button Grid.Column="4" Classes="primaryActionButton" Content="{Binding SaveButtonLabel}" Click="Save_Click" MinWidth="120" />
+    </Grid>
+  </Grid>
+</Window>

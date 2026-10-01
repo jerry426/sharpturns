@@ -160,6 +160,19 @@
       <Setter Property="BorderBrush" Value="#1F6F2B" />
     </Style>
 
+    <Style Selector="Button.railButton.export">
+      <Setter Property="Background" Value="#0F3444" />
+      <Setter Property="BorderBrush" Value="#00A2C7" />
+    </Style>
+    <Style Selector="Button.railButton.export:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#164A61" />
+      <Setter Property="BorderBrush" Value="#2AC8EE" />
+    </Style>
+    <Style Selector="Button.railButton.export:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#0A2530" />
+      <Setter Property="BorderBrush" Value="#007D99" />
+    </Style>
+
     <!-- Compress, Hide, and Delete share one row of small buttons. -->
     <Style Selector="Button.railButton.small">
       <Setter Property="FontSize" Value="10" />
@@ -417,6 +430,19 @@
     <Style Selector="Button.headerButton.notes:pressed /template/ ContentPresenter#PART_ContentPresenter">
       <Setter Property="Background" Value="#0C1324" />
       <Setter Property="BorderBrush" Value="#5577FF" />
+    </Style>
+    <Style Selector="Button.headerButton.export">
+      <Setter Property="Background" Value="#1E2B12" />
+      <Setter Property="BorderBrush" Value="#BFFF97" />
+    </Style>
+    <Style Selector="Button.headerButton.export:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#2B3D18" />
+      <Setter Property="BorderBrush" Value="#D2FFB5" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+    </Style>
+    <Style Selector="Button.headerButton.export:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#17210E" />
+      <Setter Property="BorderBrush" Value="#97CC71" />
     </Style>
 
     <Style Selector="TextBlock.metricLabel">
