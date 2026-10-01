@@ -162,12 +162,24 @@ public sealed partial class MainWindowViewModel : ObservableObject
         }
         if (!_openConversations.TryGetValue(value.Id, out var conversation))
         {
-            conversation = new ConversationViewModel(value, SelectedProject, _store, _runner, limits => PlanUsage = limits);
+            conversation = new ConversationViewModel(value, SelectedProject, _store, _runner, limits => PlanUsage = limits,
+                OnConversationUpdated);
             _openConversations[value.Id] = conversation;
             _ = conversation.LoadAsync();
         }
         CurrentConversation = conversation;
         _ = SaveSettingAsync(LastConversationSetting, value.Id);
+    }
+
+    // A turn started, so the conversation moves to the top with its new time, matching the store's order.
+    private void OnConversationUpdated(Conversation conversation)
+    {
+        // Missing when another project's list is shown; that list reloads from the store when its project is selected.
+        if (Conversations.FirstOrDefault(c => c.Id == conversation.Id) is not { } listed) return;
+        var selected = SelectedConversation?.Id == conversation.Id;
+        Conversations.Remove(listed);
+        Conversations.Insert(0, conversation);
+        if (selected) SelectedConversation = conversation;
     }
 
     // Owns its errors so property-change callers can fire and forget it.

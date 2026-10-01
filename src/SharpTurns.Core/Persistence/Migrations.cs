@@ -70,5 +70,8 @@ internal static class Migrations
         """
         ALTER TABLE projects ADD COLUMN color TEXT;
         """,
+        """
+        ALTER TABLE conversations ADD COLUMN output_style TEXT;
+        """,
     ];
 }

@@ -24,7 +24,7 @@ public sealed class ConversationStoreTests : IDisposable
         await _store.InitializeAsync();
         await _store.InitializeAsync();
 
-        Assert.Equal(4L, Scalar("PRAGMA user_version"));
+        Assert.Equal(5L, Scalar("PRAGMA user_version"));
         Assert.Equal("wal", Scalar("PRAGMA journal_mode"));
     }
 
@@ -48,6 +48,7 @@ public sealed class ConversationStoreTests : IDisposable
         var newer = await _store.CreateConversationAsync(project.Id, "Second");
         await _store.RenameConversationAsync(older.Id, "Renamed");
         await _store.SetConversationModelAsync(older.Id, "sonnet", "high");
+        await _store.SetConversationOutputStyleAsync(older.Id, "Concise");
         await _store.StartTurnAsync(older.Id, "hello");
 
         Assert.Equal(["alpha", "Beta"], (await _store.ListProjectsAsync()).Select(p => p.Name));
@@ -60,7 +61,9 @@ public sealed class ConversationStoreTests : IDisposable
         var conversations = await _store.ListConversationsAsync(project.Id);
         // The conversation with the latest turn sorts first.
         Assert.Equal([older.Id, newer.Id], conversations.Select(c => c.Id));
-        Assert.Equal(("Renamed", "sonnet", "high"), (conversations[0].Title, conversations[0].Model, conversations[0].Effort));
+        Assert.Equal(("Renamed", "sonnet", "high", "Concise"),
+            (conversations[0].Title, conversations[0].Model, conversations[0].Effort, conversations[0].OutputStyle));
+        Assert.Null(conversations[1].OutputStyle);
 
         await _store.DeleteProjectAsync(project.Id);
 
@@ -130,14 +133,16 @@ public sealed class ConversationStoreTests : IDisposable
                      "request_count", "first_request_input_tokens", "first_request_cached_tokens" })
             Scalar($"ALTER TABLE conversation_turns DROP COLUMN {column}");
         Scalar("ALTER TABLE projects DROP COLUMN color");
+        Scalar("ALTER TABLE conversations DROP COLUMN output_style");
         Scalar("PRAGMA user_version = 1");
         // Pooled connections cache the schema this test just changed behind the store's back.
         SqliteConnection.ClearAllPools();
 
         await _store.InitializeAsync();
 
-        Assert.Equal(4L, Scalar("PRAGMA user_version"));
+        Assert.Equal(5L, Scalar("PRAGMA user_version"));
         Assert.Equal(ProjectColor.Default, Assert.Single(await _store.ListProjectsAsync()).Color);
+        Assert.Null(Assert.Single(await _store.ListConversationsAsync(project.Id)).OutputStyle);
         var loaded = Assert.Single(await _store.LoadTurnsAsync(conversation.Id));
         Assert.Equal(["prompt", "answer"], loaded.Parts.Select(p => p.Content));
         Assert.Null(loaded.Usage);

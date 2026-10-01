@@ -35,10 +35,12 @@ public sealed class ClaudeCliClient
         IReadOnlyList<ClaudeCliHistoryBlock>? retainedHistory = null,
         IReadOnlyList<ClaudeCliImage>? images = null,
         IReadOnlyList<string>? contextFiles = null,
-        ClaudeCliTurnInput? queuedInput = null)
+        ClaudeCliTurnInput? queuedInput = null,
+        string? outputStyle = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(systemPrompt);
         if (model is not null) ArgumentException.ThrowIfNullOrWhiteSpace(model);
+        var settings = ClaudeCliCodingPolicy.SettingsFor(outputStyle);
         if (sessionName is not null) ArgumentException.ThrowIfNullOrWhiteSpace(sessionName);
         if (effort is not null && effort is not ("low" or "medium" or "high" or "xhigh" or "max"))
             throw new ArgumentException("Unsupported Claude CLI effort level.", nameof(effort));
@@ -58,7 +60,7 @@ public sealed class ClaudeCliClient
         try
         {
             return await RunProcessAsync(workingDirectory, userMessage, initialUuid, sessionId, onEvent, onPermission, cancellationToken, model, effort, sessionName, onInputPayloadSent, queuedInput,
-                    systemPrompt: systemPrompt)
+                    systemPrompt: systemPrompt, settings: settings)
                 .ConfigureAwait(false);
         }
         finally { Volatile.Write(ref _running, 0); }
@@ -111,14 +113,14 @@ public sealed class ClaudeCliClient
         Func<ClaudeCliPermissionRequest, CancellationToken, Task<ClaudeCliPermissionDecision>> onPermission,
         CancellationToken cancellationToken, string? model, string? effort, string? sessionName,
         Action<long>? onInputPayloadSent, ClaudeCliTurnInput? queuedInput, string? systemPrompt = null,
-        OneShotOptions? oneShot = null)
+        OneShotOptions? oneShot = null, string? settings = null)
     {
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         using var stderrLifetime = new CancellationTokenSource();
         var token = lifetime.Token;
         using var writeLock = new SemaphoreSlim(1, 1);
         using var inputLock = new SemaphoreSlim(1, 1);
-        using var process = new Process { StartInfo = CreateStartInfo(directory, sessionId, model, effort, sessionName, systemPrompt, oneShot) };
+        using var process = new Process { StartInfo = CreateStartInfo(directory, sessionId, model, effort, sessionName, systemPrompt, oneShot, settings) };
         var pending = new ConcurrentDictionary<string, CancellationTokenSource>();
         var handlers = new List<Task>();
         var stderr = new StringBuilder();
@@ -374,7 +376,7 @@ public sealed class ClaudeCliClient
     }
 
     private ProcessStartInfo CreateStartInfo(string directory, string? sessionId, string? model, string? effort,
-        string? sessionName, string? systemPrompt, OneShotOptions? oneShot)
+        string? sessionName, string? systemPrompt, OneShotOptions? oneShot, string? settings)
     {
         var info = new ProcessStartInfo(_executable)
         {
@@ -424,7 +426,7 @@ public sealed class ClaudeCliClient
             // Availability and automatic approval are separate. Questions still reach the host.
             foreach (var argument in new[] { "--allowed-tools", ClaudeCliCodingPolicy.AutomaticTools,
                          "--disallowed-tools", ClaudeCliCodingPolicy.DeniedTools,
-                         "--settings", ClaudeCliCodingPolicy.Settings,
+                         "--settings", settings ?? ClaudeCliCodingPolicy.Settings,
                          "--append-system-prompt", systemPrompt! })
                 info.ArgumentList.Add(argument);
         }

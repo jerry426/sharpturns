@@ -54,7 +54,7 @@
                 <PathIcon Width="16" Height="16" Data="{StaticResource DeleteIconGeometry}" />
               </Button>
             </Grid>
-            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="6">
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="6">
               <TextBlock Classes="cardLabel" Text="ID:" />
               <TextBlock Grid.Column="1" Classes="cardValue" Text="{Binding CurrentConversation.Conversation.Id}" />
               <TextBlock Grid.Row="1" Classes="cardLabel" Text="Turns:" />
@@ -73,6 +73,11 @@
               <ComboBox Grid.Row="5" Grid.Column="1" ItemsSource="{Binding CurrentConversation.EffortOptions}"
                         SelectedItem="{Binding CurrentConversation.SelectedEffort}" MinHeight="28" FontSize="11"
                         HorizontalAlignment="Stretch" ToolTip.Tip="Effort for this conversation" />
+              <TextBlock Grid.Row="6" Classes="cardLabel" Text="Output style:" VerticalAlignment="Center" />
+              <ComboBox Grid.Row="6" Grid.Column="1" ItemsSource="{Binding CurrentConversation.OutputStyleOptions}"
+                        SelectedItem="{Binding CurrentConversation.SelectedOutputStyle}" MinHeight="28" FontSize="11"
+                        HorizontalAlignment="Stretch"
+                        ToolTip.Tip="The CLI's output style for this conversation. A change starts a new CLI session from the conversation history on the next turn." />
             </Grid>
           </StackPanel>
         </Border>

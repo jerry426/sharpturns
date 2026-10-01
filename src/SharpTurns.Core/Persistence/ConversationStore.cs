@@ -94,7 +94,7 @@ public sealed class ConversationStore
     {
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var command = Command(connection, null, """
-            SELECT id, project_id, title, model, effort, updated_at FROM conversations
+            SELECT id, project_id, title, model, effort, updated_at, output_style FROM conversations
             WHERE project_id = $project ORDER BY updated_at DESC, id DESC
             """, ("$project", projectId));
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
@@ -110,7 +110,7 @@ public sealed class ConversationStore
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var command = Command(connection, null, """
             INSERT INTO conversations (project_id, title, created_at, updated_at) VALUES ($project, $title, $now, $now)
-            RETURNING id, project_id, title, model, effort, updated_at
+            RETURNING id, project_id, title, model, effort, updated_at, output_style
             """, ("$project", projectId), ("$title", title), ("$now", Now()));
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
@@ -132,6 +132,14 @@ public sealed class ConversationStore
         await ExecuteSingleAsync(connection, null, "UPDATE conversations SET model = $model, effort = $effort WHERE id = $id",
             "Conversation", cancellationToken, ("$id", conversationId), ("$model", model), ("$effort", effort))
             .ConfigureAwait(false);
+    }
+
+    public async Task SetConversationOutputStyleAsync(long conversationId, string? outputStyle,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await ExecuteSingleAsync(connection, null, "UPDATE conversations SET output_style = $style WHERE id = $id",
+            "Conversation", cancellationToken, ("$id", conversationId), ("$style", outputStyle)).ConfigureAwait(false);
     }
 
     public async Task DeleteConversationAsync(long conversationId, CancellationToken cancellationToken = default)
@@ -336,7 +344,7 @@ public sealed class ConversationStore
     private static Conversation ReadConversation(SqliteDataReader reader) =>
         new(reader.GetInt64(0), reader.GetInt64(1), reader.GetString(2),
             reader.IsDBNull(3) ? null : reader.GetString(3), reader.IsDBNull(4) ? null : reader.GetString(4),
-            ParseTime(reader.GetString(5)));
+            ParseTime(reader.GetString(5)), reader.IsDBNull(6) ? null : reader.GetString(6));
 
     private static string Now() => DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
 

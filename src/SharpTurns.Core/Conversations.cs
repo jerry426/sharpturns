@@ -19,8 +19,9 @@ public static class ProjectColor
         : Default;
 }
 
-/// <summary>Model and Effort are CLI values; null uses the CLI's own default.</summary>
-public sealed record Conversation(long Id, long ProjectId, string Title, string? Model, string? Effort, DateTimeOffset UpdatedAt);
+/// <summary>Model, Effort, and OutputStyle are CLI values; null uses the CLI's own default.</summary>
+public sealed record Conversation(long Id, long ProjectId, string Title, string? Model, string? Effort, DateTimeOffset UpdatedAt,
+    string? OutputStyle = null);
 
 public enum TurnStatus { Running, Completed, Stopped, Failed }
 

@@ -15,10 +15,12 @@ public sealed partial class ConversationViewModel : ObservableObject
 {
     private const string DefaultModel = "Default model";
     private const string DefaultEffort = "Default effort";
+    private const string DefaultOutputStyle = "Default";
     public const int MaxAttachments = 10;
     private readonly ConversationStore _store;
     private readonly ClaudeTurnRunner _runner;
     private readonly Action<ClaudeCliRateLimitSnapshot> _rateLimitsChanged;
+    private readonly Action<Conversation> _conversationUpdated;
     private CancellationTokenSource? _turnLifetime;
     private ClaudeCliInputQueue? _queue;
 
@@ -57,17 +59,23 @@ public sealed partial class ConversationViewModel : ObservableObject
     [ObservableProperty]
     private string _selectedEffort;
 
+    [ObservableProperty]
+    private string _selectedOutputStyle;
+
+    /// <summary>conversationUpdated receives the conversation when a turn starts and moves its updated time.</summary>
     internal ConversationViewModel(Conversation conversation, Project project, ConversationStore store, ClaudeTurnRunner runner,
-        Action<ClaudeCliRateLimitSnapshot> rateLimitsChanged)
+        Action<ClaudeCliRateLimitSnapshot> rateLimitsChanged, Action<Conversation> conversationUpdated)
     {
         Conversation = conversation;
         Project = project;
         _store = store;
         _runner = runner;
         _rateLimitsChanged = rateLimitsChanged;
+        _conversationUpdated = conversationUpdated;
         _title = conversation.Title;
         _selectedModel = conversation.Model ?? DefaultModel;
         _selectedEffort = conversation.Effort ?? DefaultEffort;
+        _selectedOutputStyle = conversation.OutputStyle ?? DefaultOutputStyle;
         Turns.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(TurnCount));
@@ -116,11 +124,15 @@ public sealed partial class ConversationViewModel : ObservableObject
     // a new ItemsSource clears the selection, which would write back to the conversation.
     private static readonly IReadOnlyList<string> SharedModelOptions = [DefaultModel, "opus", "sonnet", "haiku"];
     private static readonly IReadOnlyList<string> SharedEffortOptions = [DefaultEffort, "low", "medium", "high", "xhigh", "max"];
+    private static readonly IReadOnlyList<string> SharedOutputStyleOptions = [DefaultOutputStyle, .. ClaudeCliCodingPolicy.OutputStyles];
 
     /// <summary>CLI model aliases; the default entry uses the CLI's own default.</summary>
     public IReadOnlyList<string> ModelOptions => SharedModelOptions;
 
     public IReadOnlyList<string> EffortOptions => SharedEffortOptions;
+
+    /// <summary>The CLI's built-in output styles; the default entry leaves the style to the user's CLI settings.</summary>
+    public IReadOnlyList<string> OutputStyleOptions => SharedOutputStyleOptions;
 
     /// <summary>Shows a question non-modally; returns the answer, or null when declined or the token is canceled.</summary>
     public Func<QuestionDialogViewModel, CancellationToken, Task<string?>>? ShowQuestionAsync { get; set; }
@@ -216,7 +228,13 @@ public sealed partial class ConversationViewModel : ObservableObject
                 TurnContentChanged?.Invoke(this, EventArgs.Empty);
             });
             var callbacks = new TurnCallbacks(
-                saved => Dispatcher.UIThread.Post(() => turn.Started(saved)),
+                saved => Dispatcher.UIThread.Post(() =>
+                {
+                    turn.Started(saved);
+                    // Starting the turn moved the conversation's updated time; the sidebar list sorts by it.
+                    Conversation = Conversation with { UpdatedAt = saved.CreatedAt };
+                    _conversationUpdated(Conversation);
+                }),
                 delta => Show(() => turn.AppendText(delta)),
                 status => Dispatcher.UIThread.Post(() =>
                 {
@@ -360,5 +378,17 @@ public sealed partial class ConversationViewModel : ObservableObject
         Conversation = Conversation with { Model = model, Effort = effort };
         try { await _store.SetConversationModelAsync(Conversation.Id, model, effort); }
         catch (Exception e) { Status = "Couldn't save the model choice: " + e.Message; }
+    }
+
+    partial void OnSelectedOutputStyleChanged(string value) => _ = SaveOutputStyleAsync();
+
+    // Owns its errors so property-change callers can fire and forget it. A new style reseeds the next turn.
+    private async Task SaveOutputStyleAsync()
+    {
+        var style = SelectedOutputStyle == DefaultOutputStyle ? null : SelectedOutputStyle;
+        if (style == Conversation.OutputStyle) return;
+        Conversation = Conversation with { OutputStyle = style };
+        try { await _store.SetConversationOutputStyleAsync(Conversation.Id, style); }
+        catch (Exception e) { Status = "Couldn't save the output style: " + e.Message; }
     }
 }

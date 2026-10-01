@@ -124,13 +124,15 @@ public sealed class ClaudeCliTests : IDisposable
     }
 
     [Theory]
-    [InlineData("", null, SystemPrompt)]
-    [InlineData("sonnet", "unsupported", SystemPrompt)]
-    [InlineData(null, null, " ")]
-    public async Task InvalidInvocationOptionsAreRejectedBeforeLaunch(string? model, string? effort, string systemPrompt)
+    [InlineData("", null, SystemPrompt, null)]
+    [InlineData("sonnet", "unsupported", SystemPrompt, null)]
+    [InlineData(null, null, " ", null)]
+    [InlineData(null, null, SystemPrompt, "efficient")]
+    public async Task InvalidInvocationOptionsAreRejectedBeforeLaunch(string? model, string? effort, string systemPrompt,
+        string? outputStyle)
     {
         await Assert.ThrowsAnyAsync<ArgumentException>(() => new ClaudeCliClient("not-an-executable").RunTurnAsync(
-            _directory, "prompt", null, _ => { }, Deny, systemPrompt, model: model, effort: effort));
+            _directory, "prompt", null, _ => { }, Deny, systemPrompt, model: model, effort: effort, outputStyle: outputStyle));
     }
 
     [Theory]
@@ -190,7 +192,8 @@ public sealed class ClaudeCliTests : IDisposable
             foreach (var name in inherited.Keys) Environment.SetEnvironmentVariable(name, "1");
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             await new ClaudeCliClient(executable).RunTurnAsync(_directory, "prompt", Session, _ => { }, Deny,
-                SystemPrompt, deadline.Token, model: "sonnet", effort: "high", sessionName: "My conversation");
+                SystemPrompt, deadline.Token, model: "sonnet", effort: "high", sessionName: "My conversation",
+                outputStyle: "Explanatory");
         }
         finally
         {
@@ -212,6 +215,7 @@ public sealed class ClaudeCliTests : IDisposable
         Assert.True(settings.RootElement.GetProperty("disableAllHooks").GetBoolean());
         Assert.False(settings.RootElement.GetProperty("autoCompactEnabled").GetBoolean());
         Assert.Empty(settings.RootElement.GetProperty("fallbackModel").EnumerateArray());
+        Assert.Equal("Explanatory", settings.RootElement.GetProperty("outputStyle").GetString());
         Assert.Contains($"--resume={Session}", args);
         Assert.Contains("--model=sonnet", args);
         Assert.Contains("--effort=high", args);
@@ -300,6 +304,18 @@ public sealed class ClaudeCliTests : IDisposable
         var version = ClaudeCliCodingPolicy.VersionFor(ClaudeCliCodingPolicy.DefaultSystemPrompt);
         Assert.Equal(version, ClaudeCliCodingPolicy.VersionFor(ClaudeCliCodingPolicy.DefaultSystemPrompt));
         Assert.NotEqual(version, ClaudeCliCodingPolicy.VersionFor(ClaudeCliCodingPolicy.DefaultSystemPrompt + " Be brief."));
+        // The style is part of the CLI's system prompt; sessions without one keep their version.
+        Assert.Equal(version, ClaudeCliCodingPolicy.VersionFor(ClaudeCliCodingPolicy.DefaultSystemPrompt, null));
+        Assert.NotEqual(version, ClaudeCliCodingPolicy.VersionFor(ClaudeCliCodingPolicy.DefaultSystemPrompt, "Concise"));
+    }
+
+    [Fact]
+    public void OutputStyleIsOnlyAddedToSettingsWhenChosen()
+    {
+        Assert.Equal(ClaudeCliCodingPolicy.Settings, ClaudeCliCodingPolicy.SettingsFor(null));
+        using var settings = JsonDocument.Parse(ClaudeCliCodingPolicy.SettingsFor("Learning"));
+        Assert.Equal("Learning", settings.RootElement.GetProperty("outputStyle").GetString());
+        Assert.False(settings.RootElement.GetProperty("autoCompactEnabled").GetBoolean());
     }
 
     private static Task<ClaudeCliPermissionDecision> Deny(ClaudeCliPermissionRequest request, CancellationToken token) =>

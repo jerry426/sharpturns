@@ -18,6 +18,16 @@ public static class ClaudeCliCodingPolicy
     // Overrides the user's settings files, which load so the CLI keeps discovering CLAUDE.md.
     // The app owns context management, so auto-compact stays off.
     public const string Settings = "{\"fallbackModel\":[],\"switchModelsOnFlag\":false,\"disableAllHooks\":true,\"disableClaudeAiConnectors\":true,\"autoCompactEnabled\":false}";
+    // The CLI's built-in styles, as in the Workbench. Null leaves the style to the user's settings files.
+    public static readonly IReadOnlyList<string> OutputStyles = ["Proactive", "Concise", "Explanatory", "Learning"];
+
+    public static string SettingsFor(string? outputStyle)
+    {
+        if (outputStyle is null) return Settings;
+        if (!OutputStyles.Contains(outputStyle, StringComparer.Ordinal))
+            throw new ArgumentException("Unsupported Claude CLI output style.", nameof(outputStyle));
+        return Settings[..^1] + ",\"outputStyle\":\"" + outputStyle + "\"}";
+    }
 
     public const string DefaultSystemPrompt = """
         You are running inside SharpTurns, a desktop conversation UI for the Claude Code CLI. Claude Code owns tool execution.
@@ -41,10 +51,11 @@ public static class ClaudeCliCodingPolicy
 
     /// <summary>
     /// Session compatibility version. The CLI reuses a session's saved system prompt on resume, so a prompt edit
-    /// must change this value and reseed the next turn.
+    /// or an output style change (the style is part of that prompt) must change this value and reseed the next turn.
     /// </summary>
-    public static string VersionFor(string systemPrompt) =>
-        LaunchProfile + ":" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(systemPrompt)))[..16];
+    public static string VersionFor(string systemPrompt, string? outputStyle = null) =>
+        LaunchProfile + ":" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(systemPrompt)))[..16]
+        + (outputStyle is null ? "" : ":" + outputStyle);
 
     public static bool AllowsAutomatically(string toolName) =>
         AutomaticTools.Split(',').Contains(toolName, StringComparer.Ordinal);

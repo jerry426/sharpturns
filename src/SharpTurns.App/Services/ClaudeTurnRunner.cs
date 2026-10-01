@@ -257,7 +257,7 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, string? executab
                 .Where(t => t.Id != turn.Id).ToArray();
             var previous = await store.LoadClaudeCodeSessionAsync(conversation.Id, token).ConfigureAwait(false);
             var fingerprint = ClaudeCodeContext.Fingerprint(history);
-            var policyVersion = ClaudeCliCodingPolicy.VersionFor(systemPrompt);
+            var policyVersion = ClaudeCliCodingPolicy.VersionFor(systemPrompt, conversation.OutputStyle);
             var resume = ClaudeCodeContext.CanResume(previous, directory, fingerprint, policyVersion) ? previous!.SessionId : null;
             var retainedHistory = resume is null
                 ? ClaudeCodeContext.SeedHistoryBlocks(history).Select(block => new ClaudeCliHistoryBlock(block.Text, ToCli(block.Images))).ToArray()
@@ -271,7 +271,8 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, string? executab
 
             var result = await new ClaudeCliClient(executable).RunTurnAsync(directory, prompt, resume, OnEvent, AnswerAsync,
                 systemPrompt, token, conversation.Model, conversation.Effort, sessionName: conversation.Title,
-                retainedHistory: retainedHistory, images: ToCli(images), queuedInput: queue.ToTurnInput(TakeQueued)).ConfigureAwait(false);
+                retainedHistory: retainedHistory, images: ToCli(images), queuedInput: queue.ToTurnInput(TakeQueued),
+                outputStyle: conversation.OutputStyle).ConfigureAwait(false);
             state = state with { SessionId = result.SessionId };
             status = result.IsError ? TurnStatus.Failed : TurnStatus.Completed;
             if (result.IsError)
