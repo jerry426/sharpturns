@@ -24,7 +24,7 @@ public sealed class ConversationStoreTests : IDisposable
         await _store.InitializeAsync();
         await _store.InitializeAsync();
 
-        Assert.Equal(5L, Scalar("PRAGMA user_version"));
+        Assert.Equal(6L, Scalar("PRAGMA user_version"));
         Assert.Equal("wal", Scalar("PRAGMA journal_mode"));
     }
 
@@ -130,7 +130,8 @@ public sealed class ConversationStoreTests : IDisposable
         var turn = await _store.StartTurnAsync(conversation.Id, "prompt");
         await _store.FinishTurnAsync(turn.Id, TurnStatus.Completed, null, [new(2, "assistant", "text", "answer")]);
         foreach (var column in new[] { "input_tokens", "cached_input_tokens", "output_tokens", "context_tokens", "model",
-                     "request_count", "first_request_input_tokens", "first_request_cached_tokens" })
+                     "request_count", "first_request_input_tokens", "first_request_cached_tokens", "is_hydrated", "summary",
+                     "summary_model" })
             Scalar($"ALTER TABLE conversation_turns DROP COLUMN {column}");
         Scalar("ALTER TABLE projects DROP COLUMN color");
         Scalar("ALTER TABLE conversations DROP COLUMN output_style");
@@ -140,13 +141,35 @@ public sealed class ConversationStoreTests : IDisposable
 
         await _store.InitializeAsync();
 
-        Assert.Equal(5L, Scalar("PRAGMA user_version"));
+        Assert.Equal(6L, Scalar("PRAGMA user_version"));
         Assert.Equal(ProjectColor.Default, Assert.Single(await _store.ListProjectsAsync()).Color);
         Assert.Null(Assert.Single(await _store.ListConversationsAsync(project.Id)).OutputStyle);
         var loaded = Assert.Single(await _store.LoadTurnsAsync(conversation.Id));
         Assert.Equal(["prompt", "answer"], loaded.Parts.Select(p => p.Content));
         Assert.Null(loaded.Usage);
         Assert.Null(loaded.Model);
+        Assert.Equal((true, null), (loaded.IsHydrated, loaded.Summary));
+    }
+
+    [Fact]
+    public async Task TurnContextStateRoundTrips()
+    {
+        await _store.InitializeAsync();
+        var project = await _store.CreateProjectAsync("Project", "/work");
+        var conversation = await _store.CreateConversationAsync(project.Id, "Conversation");
+        var turn = await _store.StartTurnAsync(conversation.Id, "prompt");
+
+        await _store.SetTurnHydratedAsync(turn.Id, false);
+        await _store.SetTurnSummaryAsync(turn.Id, "## Work Summary\n\n- Done.", "sonnet");
+        var hidden = Assert.Single(await _store.LoadTurnsAsync(conversation.Id));
+        Assert.Equal((false, "## Work Summary\n\n- Done.", "sonnet", true),
+            (hidden.IsHydrated, hidden.Summary, hidden.SummaryModel, hidden.IsCompressed));
+
+        await _store.SetTurnHydratedAsync(turn.Id, true);
+        await _store.SetTurnSummaryAsync(turn.Id, null, "sonnet");
+        var expanded = Assert.Single(await _store.LoadTurnsAsync(conversation.Id));
+        Assert.Equal((true, null, null), (expanded.IsHydrated, expanded.Summary, expanded.SummaryModel));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _store.SetTurnHydratedAsync(turn.Id + 1, false));
     }
 
     [Fact]

@@ -35,6 +35,11 @@ public static class ClaudeCliCodingPolicy
         Your response text is streamed and rendered as Markdown. Native tool activity appears in separate collapsible
         cards. AskUserQuestion opens a graphical dialog, and the user's answers are returned to you within the same turn. Do not assume the user can see raw terminal output or use Claude Code
         terminal shortcuts or slash commands.
+        Each turn has a Turn ID and a Turn #. The Turn ID is a database identifier that is unique across all conversations;
+        the Turn # is the turn's position within its conversation, starting at 1. Deleting or hiding a turn does not renumber
+        the others. Replayed history labels each turn with turn_id and turn_number, and copied turns show "Turn ID:" and
+        "Turn #" lines. Refer to turns by Turn # (for example, "Turn #3"). If the user mentions a turn by a bare number and
+        it could be either, say which one you took it to be.
         Use one brief progress note before a meaningful batch of edits, validation, git operations, long-running work,
         or a retry after failure. Do not narrate routine searches, reads, or every tool call.
         Native file, search, editing, notebook, shell/code execution and network tools are preapproved.

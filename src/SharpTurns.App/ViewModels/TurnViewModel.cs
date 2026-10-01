@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Text;
+using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using SharpTurns.Core;
 
 namespace SharpTurns.App.ViewModels;
@@ -21,8 +23,21 @@ public sealed partial class TurnViewModel : ObservableObject
     /// <summary>The saved turn; null until a new turn is saved.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TurnLabel), nameof(IdLabel), nameof(TimeLabel), nameof(DurationLabel), nameof(HasDuration),
-        nameof(ModelLabel), nameof(HasModel))]
+        nameof(ModelLabel), nameof(HasModel), nameof(IsHydrated), nameof(IsCompressed), nameof(HydrationActionLabel),
+        nameof(HydrationActionToolTip), nameof(CompressionActionLabel), nameof(CompressionActionToolTip), nameof(CompressedLabel),
+        nameof(CardBackground), nameof(CardBorderBrush), nameof(CardBorderThickness), nameof(RailAccentBrush),
+        nameof(RailDividerBrush), nameof(HasViewFullContentButton), nameof(IsViewingFullCompressedContent),
+        nameof(ViewFullContentLabel), nameof(CompactViewFullContentLabel), nameof(ReductionToolTip))]
     private ConversationTurn? _record;
+
+    /// <summary>A compressed turn temporarily shown in full; reverts on reload.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasViewFullContentButton), nameof(IsViewingFullCompressedContent))]
+    private bool _isViewingFullContent;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CompressionActionLabel))]
+    private bool _isCompressing;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasTokenUsage), nameof(InputTokensLabel), nameof(OutputTokensLabel), nameof(CacheHitLabel),
@@ -40,29 +55,11 @@ public sealed partial class TurnViewModel : ObservableObject
     public TurnViewModel(ConversationTurn turn)
     {
         var parts = turn.Parts.OrderBy(p => p.Sequence).ToArray();
-        var prompt = parts.FirstOrDefault(p => p is { Role: "user", PartType: TurnParts.Text });
-        UserText = prompt?.Content ?? "";
+        UserText = Prompt(parts)?.Content ?? "";
         Images = parts.Where(p => p.PartType == TurnParts.Image)
             .Select(p => new ImageAttachmentViewModel(TurnParts.ReadImage(p))).ToArray();
-        foreach (var part in parts.Where(p => p != prompt))
-        {
-            switch (part)
-            {
-                case { PartType: TurnParts.Text, Role: "assistant" }:
-                    Items.Add(new TextItemViewModel(part.Content, isStreaming: false));
-                    break;
-                case { PartType: TurnParts.Text, Role: "user" }:
-                    Items.Add(new UserMessageItemViewModel(part.Content));
-                    break;
-                case { PartType: TurnParts.Tool }:
-                    Items.Add(new ToolItemViewModel(TurnParts.ReadTool(part)));
-                    break;
-                case { PartType: TurnParts.Question }:
-                    Items.Add(new QuestionItemViewModel(TurnParts.ReadQuestion(part), isWaiting: false));
-                    break;
-            }
-        }
         Finish(turn);
+        RebuildItems();
     }
 
     public string UserText { get; }
@@ -128,6 +125,54 @@ public sealed partial class TurnViewModel : ObservableObject
 
     public bool HasContext => ContextLabel.Length > 0;
 
+    // Context management, with the Workbench's labels and colors. A live turn counts as shown and uncompressed.
+    public bool IsHydrated => Record?.IsHydrated ?? true;
+
+    public bool IsCompressed => Record?.IsCompressed == true;
+
+    public string HydrationActionLabel => IsHydrated ? "Hide" : "Show";
+
+    public string HydrationActionToolTip => IsHydrated
+        ? "Hide: leave this turn out of Claude's context. The next turn starts a new CLI session."
+        : "Show: put this turn back in Claude's context. The next turn starts a new CLI session.";
+
+    public string CompressionActionLabel => IsCompressing ? "…" : IsCompressed ? "Expand" : "Compress";
+
+    public string CompressionActionToolTip => IsCompressed
+        ? "Expand: replay this turn in full again and discard its work summary. The next turn starts a new CLI session."
+        : "Compress: replay this turn as its user inputs, a generated work summary, and its final response verbatim. "
+          + "The next turn starts a new CLI session.";
+
+    public string CompressedLabel => Record switch
+    {
+        { IsCompressed: false } or null => "",
+        { SummaryModel: { } model } => $"Compressed · summary by {model}",
+        _ => "Compressed · no tool calls to summarize",
+    };
+
+    public string CardBackground => IsCompressed ? "#0E1B2A" : "#151923";
+
+    public string CardBorderBrush => IsHydrated ? "#0078D4" : "#F89831";
+
+    public Thickness CardBorderThickness => new(IsHydrated ? 1 : 3);
+
+    public string RailAccentBrush => IsCompressed ? "#1EA7FF" : "#C7D7FF";
+
+    public string RailDividerBrush => IsCompressed ? "#174B73" : "#252D3C";
+
+    public bool HasViewFullContentButton => IsCompressed && !IsViewingFullContent;
+
+    public bool IsViewingFullCompressedContent => IsCompressed && IsViewingFullContent;
+
+    public string ViewFullContentLabel => "👁️ View Full Turn Content" + ReductionSuffix(" replay reduction");
+
+    public string CompactViewFullContentLabel => "👁️ View Full Turn" + ReductionSuffix(" reduction");
+
+    public string ReductionToolTip => Record is { IsCompressed: true } turn
+        ? string.Create(CultureInfo.CurrentCulture,
+            $"View the full turn without changing its compression. Saved content: {TurnCompression.FullContentBytes(turn):N0} bytes; compressed replay: {ClaudeCodeContext.ReplayBytes(turn):N0} bytes.")
+        : "";
+
     public void Started(ConversationTurn turn) => Record = turn;
 
     public void AppendText(string delta)
@@ -184,6 +229,78 @@ public sealed partial class TurnViewModel : ObservableObject
         Outcome = "Failed: " + message;
     }
 
+    /// <summary>Shows a saved change to the turn's context state; a new or cleared summary returns to the default view.</summary>
+    public void ApplyRecord(ConversationTurn turn)
+    {
+        var compressionChanged = turn.Summary != Record?.Summary;
+        Record = turn;
+        if (!compressionChanged) return;
+        IsViewingFullContent = false;
+        RebuildItems();
+    }
+
+    [RelayCommand]
+    private void ViewFullContent()
+    {
+        IsViewingFullContent = true;
+        RebuildItems();
+    }
+
+    [RelayCommand]
+    private void RestoreCompressedView()
+    {
+        IsViewingFullContent = false;
+        RebuildItems();
+    }
+
+    // A compressed turn shows its user inputs and summary unless it is temporarily shown in full.
+    private void RebuildItems()
+    {
+        if (Record is not { } turn) return;
+        var summaryView = turn.IsCompressed && !IsViewingFullContent;
+        var parts = turn.Parts.OrderBy(p => p.Sequence).ToArray();
+        var prompt = Prompt(parts);
+        Items.Clear();
+        foreach (var part in parts.Where(p => p != prompt))
+        {
+            switch (part)
+            {
+                case { PartType: TurnParts.Text, Role: "assistant" } when !summaryView:
+                    Items.Add(new TextItemViewModel(part.Content, isStreaming: false));
+                    break;
+                case { PartType: TurnParts.Text, Role: "user" }:
+                    Items.Add(new UserMessageItemViewModel(part.Content));
+                    break;
+                case { PartType: TurnParts.Tool } when !summaryView:
+                    Items.Add(new ToolItemViewModel(TurnParts.ReadTool(part)));
+                    break;
+                case { PartType: TurnParts.Question }:
+                    Items.Add(new QuestionItemViewModel(TurnParts.ReadQuestion(part), isWaiting: false));
+                    break;
+            }
+        }
+        if (summaryView) Items.Add(new TextItemViewModel(DisplaySummary(turn), isStreaming: false, isSummary: true));
+    }
+
+    private static TurnPart? Prompt(IEnumerable<TurnPart> parts) => parts.FirstOrDefault(p => p is { Role: "user", PartType: TurnParts.Text });
+
+    // The Work Summary heading gains the tool call count and the reduction, as in the Workbench.
+    private static string DisplaySummary(ConversationTurn turn)
+    {
+        var summary = turn.Summary!;
+        const string heading = TurnCompression.WorkSummaryHeading;
+        if (!summary.StartsWith(heading + "\n", StringComparison.Ordinal)) return summary;
+        var tools = turn.Parts.Count(p => p.PartType == TurnParts.Tool);
+        var metrics = $"{Count(tools)} tool call{(tools == 1 ? "" : "s")}";
+        if (TurnCompression.Reduction(turn) is > 1 and var reduction)
+            metrics += string.Create(CultureInfo.CurrentCulture, $", {reduction:0.0}x replay reduction");
+        return $"{heading} ({metrics}){summary[heading.Length..]}";
+    }
+
+    private string ReductionSuffix(string label) => Record is { } turn && TurnCompression.Reduction(turn) is > 1 and var reduction
+        ? string.Create(CultureInfo.CurrentCulture, $" ({reduction:0.0}x{label})")
+        : "";
+
     /// <summary>The rail's details as plain text, one per line.</summary>
     public string FormatMetrics()
     {
@@ -194,6 +311,8 @@ public sealed partial class TurnViewModel : ObservableObject
             lines.AddRange([InputTokensLabel, OutputTokensLabel, "Cumulative across model requests", CacheHitLabel, CacheMissLabel,
                 FirstRequestCacheLabel]);
         if (HasContext) lines.Add(ContextLabel);
+        if (!IsHydrated) lines.Add("Hidden from Claude's context");
+        if (IsCompressed) lines.Add(CompressedLabel + ReductionSuffix(" replay reduction"));
         return string.Join(Environment.NewLine, lines);
     }
 

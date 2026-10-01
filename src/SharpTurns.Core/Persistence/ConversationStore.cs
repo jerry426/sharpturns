@@ -170,7 +170,8 @@ public sealed class ConversationStore
         await using var turnCommand = Command(connection, null, """
             SELECT id, conversation_id, turn_number, status, error_message, created_at, finished_at,
                 input_tokens, cached_input_tokens, output_tokens, context_tokens,
-                request_count, first_request_input_tokens, first_request_cached_tokens, model
+                request_count, first_request_input_tokens, first_request_cached_tokens, model,
+                is_hydrated, summary, summary_model
             FROM conversation_turns WHERE conversation_id = $conversation ORDER BY turn_number
             """, ("$conversation", conversationId));
         await using var turnReader = await turnCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
@@ -187,9 +188,31 @@ public sealed class ConversationStore
                 parts.TryGetValue(id, out var list) ? list : [],
                 turnReader.IsDBNull(7) ? null : new(turnReader.GetInt64(7), turnReader.GetInt64(8), turnReader.GetInt64(9),
                     Optional(10), (int?)Optional(11), Optional(12), Optional(13)),
-                turnReader.IsDBNull(14) ? null : turnReader.GetString(14)));
+                turnReader.IsDBNull(14) ? null : turnReader.GetString(14),
+                turnReader.GetBoolean(15),
+                turnReader.IsDBNull(16) ? null : turnReader.GetString(16),
+                turnReader.IsDBNull(17) ? null : turnReader.GetString(17)));
         }
         return turns;
+    }
+
+    /// <summary>A hidden turn stays saved and shown but is left out of the replayed context.</summary>
+    public async Task SetTurnHydratedAsync(long turnId, bool isHydrated, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await ExecuteSingleAsync(connection, null, "UPDATE conversation_turns SET is_hydrated = $hydrated WHERE id = $id", "Turn",
+            cancellationToken, ("$id", turnId), ("$hydrated", isHydrated)).ConfigureAwait(false);
+    }
+
+    /// <summary>Saves a compressed turn's summary, or clears it (with a null summary) to expand the turn.</summary>
+    public async Task SetTurnSummaryAsync(long turnId, string? summary, string? summaryModel,
+        CancellationToken cancellationToken = default)
+    {
+        if (summary is not null) ArgumentException.ThrowIfNullOrWhiteSpace(summary);
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await ExecuteSingleAsync(connection, null, "UPDATE conversation_turns SET summary = $summary, summary_model = $model WHERE id = $id",
+            "Turn", cancellationToken, ("$id", turnId), ("$summary", summary), ("$model", summary is null ? null : summaryModel))
+            .ConfigureAwait(false);
     }
 
     /// <summary>Saves the prompt and its images as a running turn before the CLI starts, so a failed launch never loses them.</summary>

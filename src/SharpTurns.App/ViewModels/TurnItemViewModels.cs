@@ -8,8 +8,11 @@ namespace SharpTurns.App.ViewModels;
 /// <summary>One item in a turn's response, in display order.</summary>
 public abstract class TurnItemViewModel : ObservableObject;
 
-/// <summary>Assistant text: plain while it streams, rendered as Markdown once complete.</summary>
-public sealed partial class TextItemViewModel(string text, bool isStreaming) : TurnItemViewModel
+/// <summary>
+/// Assistant text: plain while it streams, rendered as Markdown once complete. A compressed turn's summary is one
+/// text item whose Work Summary and response headings are highlighted.
+/// </summary>
+public sealed partial class TextItemViewModel(string text, bool isStreaming, bool isSummary = false) : TurnItemViewModel
 {
     [ObservableProperty]
     private string _text = text;
@@ -19,6 +22,8 @@ public sealed partial class TextItemViewModel(string text, bool isStreaming) : T
     private bool _isStreaming = isStreaming;
 
     public bool IsRendered => !IsStreaming;
+
+    public bool IsSummary { get; } = isSummary;
 }
 
 /// <summary>A message the user sent while the turn ran.</summary>

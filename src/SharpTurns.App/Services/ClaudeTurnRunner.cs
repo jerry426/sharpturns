@@ -266,7 +266,7 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, string? executab
             // Persist the uncertainty before launch. A crash cannot silently resume stale native context.
             await store.SaveClaudeCodeSessionAsync(conversation.Id, state, token).ConfigureAwait(false);
             callbacks.StatusChanged(resume is not null ? "Resuming the CLI session…"
-                : history.Length == 0 ? "Starting a new CLI session…"
+                : retainedHistory is not { Length: > 0 } ? "Starting a new CLI session…"
                 : "Starting a new CLI session from the conversation history…");
 
             var result = await new ClaudeCliClient(executable).RunTurnAsync(directory, prompt, resume, OnEvent, AnswerAsync,

@@ -19,8 +19,8 @@ public sealed class ClaudeCodeContextTests
 
         Assert.Equal(3, blocks.Count);
         Assert.StartsWith("The following JSON blocks are retained conversation background", blocks[0].Text);
-        // Text-only turns keep the phase 1 bytes, so existing sessions stay resumable.
-        Assert.Equal("""{"turn":10,"summary":null,"messages":[{"role":"user","content":"first"},{"role":"assistant","content":"answer"}]}""",
+        // Each block names both the turn's ID and its number within the conversation.
+        Assert.Equal("""{"turn_id":10,"turn_number":1,"summary":null,"messages":[{"role":"user","content":"first"},{"role":"assistant","content":"answer"}]}""",
             blocks[1].Text);
         // Replay text stays literal and token-cheap rather than HTML-escaped.
         Assert.Contains("second `code` & <tags>", blocks[2].Text);
@@ -83,6 +83,56 @@ public sealed class ClaudeCodeContextTests
         {
             Parts = [turn.Parts[0], TurnParts.FromImage(2, image with { Data = "R0lGODlh" }), turn.Parts[2]],
         }]));
+    }
+
+    [Fact]
+    public void HiddenTurnsAreLeftOutOfTheReplay()
+    {
+        var first = Turn(1, 10, "first", "answer");
+        var second = Turn(2, 11, "second", "more");
+
+        var blocks = ClaudeCodeContext.SeedHistoryBlocks([first with { IsHydrated = false }, second]);
+
+        Assert.Equal(2, blocks.Count);
+        Assert.Contains("\"turn_id\":11", blocks[1].Text);
+        Assert.Empty(ClaudeCodeContext.SeedHistoryBlocks([first with { IsHydrated = false }]));
+        Assert.NotEqual(ClaudeCodeContext.Fingerprint([first, second]),
+            ClaudeCodeContext.Fingerprint([first with { IsHydrated = false }, second]));
+    }
+
+    [Fact]
+    public void CompressedTurnsReplayTheirUserInputsAndSummaryWithImageDescriptors()
+    {
+        var image = new ImageAttachment("shot.png", "image/png", "iVBORw0KGgo=");
+        var turn = Turn(1, 10, "look", "seen") with
+        {
+            Parts =
+            [
+                new(1, "user", "text", "look"),
+                TurnParts.FromImage(2, image),
+                new(3, "assistant", "text", "checking"),
+                TurnParts.FromQuestion(4, new("Which color?", "Blue")),
+                new(5, "user", "text", "also this"),
+                new(6, "assistant", "text", "seen"),
+            ],
+            Summary = "## Work Summary\n\n- Looked.\n\n## Final Assistant Response — Verbatim\n\nseen",
+        };
+
+        var block = ClaudeCodeContext.SeedHistoryBlocks([turn])[1];
+
+        Assert.Empty(block.Images);
+        using var json = JsonDocument.Parse(block.Text);
+        Assert.Equal(turn.Summary, json.RootElement.GetProperty("summary").GetString());
+        var messages = json.RootElement.GetProperty("messages").EnumerateArray().ToArray();
+        Assert.Equal(new (string?, string?)[]
+        {
+            ("user", "look\n\n[HISTORICAL ATTACHMENT DESCRIPTORS]\n"
+                + "Image contents are omitted from this summarized replay of a prior turn; only their attachment descriptors are included.\n"
+                + "- Image 1: file_name=\"shot.png\", media_type=\"image/png\", size_bytes=8\n[/HISTORICAL ATTACHMENT DESCRIPTORS]"),
+            ("assistant", "Which color?"), ("user", "Blue"), ("user", "also this"),
+        }, messages.Select(m => (m.GetProperty("role").GetString(), m.GetProperty("content").GetString())));
+        Assert.All(messages, m => Assert.False(m.TryGetProperty("images", out _)));
+        Assert.Equal(System.Text.Encoding.UTF8.GetByteCount(block.Text), ClaudeCodeContext.ReplayBytes(turn));
     }
 
     [Fact]

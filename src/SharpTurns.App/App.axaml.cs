@@ -49,7 +49,7 @@ public sealed partial class App : Application
             }
 
             var store = new ConversationStore(Path.Combine(dataDirectory, "sharpturns.db"));
-            var viewModel = new MainWindowViewModel(store, new ClaudeTurnRunner(store));
+            var viewModel = new MainWindowViewModel(store, new ClaudeTurnRunner(store), new TurnSummarizer(store));
             desktop.MainWindow = new MainWindow { DataContext = viewModel };
             desktop.Exit += (_, _) => _instanceLock?.Dispose();
             // InitializeAsync reports its own failures in the window.

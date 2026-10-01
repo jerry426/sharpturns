@@ -73,5 +73,10 @@ internal static class Migrations
         """
         ALTER TABLE conversations ADD COLUMN output_style TEXT;
         """,
+        """
+        ALTER TABLE conversation_turns ADD COLUMN is_hydrated INTEGER NOT NULL DEFAULT 1;
+        ALTER TABLE conversation_turns ADD COLUMN summary TEXT;
+        ALTER TABLE conversation_turns ADD COLUMN summary_model TEXT;
+        """,
     ];
 }

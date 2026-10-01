@@ -15,6 +15,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private const string LastConversationSetting = "last_conversation_id";
     private readonly ConversationStore _store;
     private readonly ClaudeTurnRunner _runner;
+    private readonly TurnSummarizer _summarizer;
     // Kept while the app runs, so a turn keeps streaming when another conversation is shown.
     private readonly Dictionary<long, ConversationViewModel> _openConversations = [];
     private long? _conversationToRestore;
@@ -55,10 +56,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(HasPlanUsage))]
     private ClaudeCliRateLimitSnapshot? _planUsage;
 
-    internal MainWindowViewModel(ConversationStore store, ClaudeTurnRunner runner)
+    internal MainWindowViewModel(ConversationStore store, ClaudeTurnRunner runner, TurnSummarizer summarizer)
     {
         _store = store;
         _runner = runner;
+        _summarizer = summarizer;
         Projects.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(OtherProjects));
@@ -162,7 +164,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         }
         if (!_openConversations.TryGetValue(value.Id, out var conversation))
         {
-            conversation = new ConversationViewModel(value, SelectedProject, _store, _runner, limits => PlanUsage = limits,
+            conversation = new ConversationViewModel(value, SelectedProject, _store, _runner, _summarizer, limits => PlanUsage = limits,
                 OnConversationUpdated);
             _openConversations[value.Id] = conversation;
             _ = conversation.LoadAsync();

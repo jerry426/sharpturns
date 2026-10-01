@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using Avalonia.Threading;
@@ -19,6 +20,7 @@ public sealed partial class ConversationViewModel : ObservableObject
     public const int MaxAttachments = 10;
     private readonly ConversationStore _store;
     private readonly ClaudeTurnRunner _runner;
+    private readonly TurnSummarizer _summarizer;
     private readonly Action<ClaudeCliRateLimitSnapshot> _rateLimitsChanged;
     private readonly Action<Conversation> _conversationUpdated;
     private CancellationTokenSource? _turnLifetime;
@@ -43,8 +45,17 @@ public sealed partial class ConversationViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(SendCommand))]
     [NotifyCanExecuteChangedFor(nameof(StopCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteTurnCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleHydrationCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleCompressionCommand))]
     [NotifyPropertyChangedFor(nameof(SendLabel))]
     private bool _isRunning;
+
+    /// <summary>A turn's summary is being generated; one at a time.</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(DeleteTurnCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleHydrationCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleCompressionCommand))]
+    private bool _isCompressing;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SendCommand))]
@@ -64,12 +75,13 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     /// <summary>conversationUpdated receives the conversation when a turn starts and moves its updated time.</summary>
     internal ConversationViewModel(Conversation conversation, Project project, ConversationStore store, ClaudeTurnRunner runner,
-        Action<ClaudeCliRateLimitSnapshot> rateLimitsChanged, Action<Conversation> conversationUpdated)
+        TurnSummarizer summarizer, Action<ClaudeCliRateLimitSnapshot> rateLimitsChanged, Action<Conversation> conversationUpdated)
     {
         Conversation = conversation;
         Project = project;
         _store = store;
         _runner = runner;
+        _summarizer = summarizer;
         _rateLimitsChanged = rateLimitsChanged;
         _conversationUpdated = conversationUpdated;
         _title = conversation.Title;
@@ -253,8 +265,9 @@ public sealed partial class ConversationViewModel : ObservableObject
                 (tool, input, token) => Dispatcher.UIThread.InvokeAsync(() => ApproveAsync(tool, input, token)));
             var result = await _runner.RunAsync(Project, Conversation, prompt, images, ClaudeCliCodingPolicy.DefaultSystemPrompt,
                 _queue, callbacks, _turnLifetime.Token);
-            IsRunning = false;
+            // Finish first: clearing IsRunning re-checks the card commands, which need the finished record.
             turn.Finish(result.Turn);
+            IsRunning = false;
             QueuedMessages.Clear();
             Status = result.Turn.Status switch
             {
@@ -337,7 +350,7 @@ public sealed partial class ConversationViewModel : ObservableObject
     }
 
     // Deleting changes the saved history, so the next turn reseeds a fresh CLI session from what remains.
-    private bool CanDeleteTurn(TurnViewModel? turn) => !IsRunning && turn?.Record is not null;
+    private bool CanDeleteTurn(TurnViewModel? turn) => !IsRunning && !IsCompressing && turn?.Record is not null;
 
     [RelayCommand(CanExecute = nameof(CanDeleteTurn))]
     private async Task DeleteTurnAsync(TurnViewModel turn)
@@ -354,6 +367,64 @@ public sealed partial class ConversationViewModel : ObservableObject
             Status = $"Deleted turn {number}.";
         }
         catch (Exception e) { Status = "Couldn't delete the turn: " + e.Message; }
+    }
+
+    // Hiding, showing, compressing, and expanding change the replayed history, so the next turn reseeds a fresh CLI
+    // session. They wait for the running turn, whose session would otherwise be checked against a changed history.
+    private bool CanChangeContext(TurnViewModel? turn) =>
+        !IsRunning && !IsCompressing && turn?.Record is { Status: not TurnStatus.Running };
+
+    [RelayCommand(CanExecute = nameof(CanChangeContext))]
+    private async Task ToggleHydrationAsync(TurnViewModel turn)
+    {
+        var record = turn.Record!;
+        try
+        {
+            await _store.SetTurnHydratedAsync(record.Id, !record.IsHydrated);
+            turn.ApplyRecord(record with { IsHydrated = !record.IsHydrated });
+            Status = (record.IsHydrated ? $"Hid turn {record.TurnNumber} from Claude's context."
+                : $"Turn {record.TurnNumber} is back in Claude's context.") + " The next turn starts a new CLI session.";
+        }
+        catch (Exception e) { Status = $"Couldn't change turn {record.TurnNumber}: {e.Message}"; }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanChangeContext))]
+    private async Task ToggleCompressionAsync(TurnViewModel turn)
+    {
+        var record = turn.Record!;
+        if (record.IsCompressed)
+        {
+            try
+            {
+                await _store.SetTurnSummaryAsync(record.Id, null, null);
+                turn.ApplyRecord(record with { Summary = null, SummaryModel = null });
+                Status = $"Expanded turn {record.TurnNumber}. The next turn starts a new CLI session.";
+            }
+            catch (Exception e) { Status = $"Couldn't expand turn {record.TurnNumber}: {e.Message}"; }
+            return;
+        }
+        IsCompressing = true;
+        turn.IsCompressing = true;
+        Status = $"Compressing turn {record.TurnNumber}…";
+        try
+        {
+            var compressed = await _summarizer.CompressAsync(record);
+            turn.ApplyRecord(compressed);
+            Status = $"Compressed turn {record.TurnNumber}"
+                + (TurnCompression.Reduction(compressed) is { } reduction
+                    ? string.Create(CultureInfo.CurrentCulture, $" ({reduction:0.0}x replay reduction)") : "")
+                + ". The next turn starts a new CLI session.";
+        }
+        catch (Win32Exception)
+        {
+            Status = "Couldn't start the claude CLI. Install it and make sure it's on your PATH.";
+        }
+        catch (Exception e) { Status = $"Couldn't compress turn {record.TurnNumber}: {e.Message}"; }
+        finally
+        {
+            turn.IsCompressing = false;
+            IsCompressing = false;
+        }
     }
 
     private bool CanStop() => IsRunning;

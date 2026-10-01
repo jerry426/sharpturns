@@ -25,6 +25,11 @@ public sealed record Conversation(long Id, long ProjectId, string Title, string?
 
 public enum TurnStatus { Running, Completed, Stopped, Failed }
 
+/// <summary>
+/// A hidden (not hydrated) turn stays out of the replayed context. A compressed turn replays its user inputs and
+/// Summary (a work summary plus the verbatim response; see TurnCompression) instead of its assistant text.
+/// SummaryModel is the model alias that wrote the summary; null when no model was needed.
+/// </summary>
 public sealed record ConversationTurn(
     long Id,
     long ConversationId,
@@ -35,7 +40,13 @@ public sealed record ConversationTurn(
     DateTimeOffset? FinishedAt,
     IReadOnlyList<TurnPart> Parts,
     TurnUsage? Usage = null,
-    string? Model = null);
+    string? Model = null,
+    bool IsHydrated = true,
+    string? Summary = null,
+    string? SummaryModel = null)
+{
+    public bool IsCompressed => Summary is not null;
+}
 
 /// <summary>
 /// Role is "user" or "assistant". The first user text part is the prompt; later ones are messages sent while the

@@ -34,15 +34,16 @@
       <ItemsControl ItemsSource="{Binding Turns}" Margin="20,16">
         <ItemsControl.ItemTemplate>
           <!-- Each turn is a card, laid out like the Workbench's: a rail with the turn's details and actions, then
-               the prompt and response. -->
+               the prompt and response. A compressed turn has a darker blue card; a hidden turn has a thick orange border. -->
           <DataTemplate x:DataType="vm:TurnViewModel">
-            <Border Margin="0,0,0,14" Background="#151923" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="14">
+            <Border Margin="0,0,0,14" Background="{Binding CardBackground}" BorderBrush="{Binding CardBorderBrush}"
+                    BorderThickness="{Binding CardBorderThickness}" CornerRadius="14">
               <Grid ColumnDefinitions="268,*">
-                <Border BorderBrush="#252D3C" BorderThickness="0,0,1,0" Padding="14">
+                <Border BorderBrush="{Binding RailDividerBrush}" BorderThickness="0,0,1,0" Padding="14">
                   <StackPanel Spacing="9">
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
                       <Border Background="#1D2A44" CornerRadius="999" Padding="8,4" HorizontalAlignment="Left">
-                        <TextBlock Text="{Binding TurnLabel}" Foreground="{DynamicResource TextBlueMutedBrush}" FontSize="11"
+                        <TextBlock Text="{Binding TurnLabel}" Foreground="{Binding RailAccentBrush}" FontSize="11"
                                    FontWeight="SemiBold" />
                       </Border>
                       <TextBlock Grid.Column="1" Text="{Binding IdLabel}" Foreground="{DynamicResource TextMutedBrush}" FontSize="12"
@@ -70,24 +71,56 @@
                     <TextBlock Text="{Binding ContextLabel}" IsVisible="{Binding HasContext}"
                                Foreground="{DynamicResource TextMutedBrush}" FontSize="12"
                                ToolTip.Tip="Input size of the turn's last model request: how much context the conversation now uses." />
+                    <TextBlock Text="Hidden from Claude's context" IsVisible="{Binding !IsHydrated}" Foreground="#F89831"
+                               FontSize="12" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding CompressedLabel}" IsVisible="{Binding IsCompressed}" Foreground="#1EA7FF"
+                               FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" />
 
                     <Button Classes="railButton copy" Content="📋 Copy Metrics"
                             Command="{ReflectionBinding $parent[UserControl].DataContext.CopyMetricsCommand}" CommandParameter="{Binding}"
                             ToolTip.Tip="Copy the details shown here as text" />
-                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,5,0,0">
-                      <Button Classes="railButton delete" Content="Delete" Width="72"
+                    <Grid ColumnDefinitions="72,72,72" ColumnSpacing="6" Margin="0,5,0,0">
+                      <Button Classes="railButton small compress" Content="{Binding CompressionActionLabel}"
+                              Command="{ReflectionBinding $parent[UserControl].DataContext.ToggleCompressionCommand}"
+                              CommandParameter="{Binding}" ToolTip.Tip="{Binding CompressionActionToolTip}" />
+                      <Button Grid.Column="1" Classes="railButton small hide" Content="{Binding HydrationActionLabel}"
+                              Command="{ReflectionBinding $parent[UserControl].DataContext.ToggleHydrationCommand}"
+                              CommandParameter="{Binding}" ToolTip.Tip="{Binding HydrationActionToolTip}" />
+                      <Button Grid.Column="2" Classes="railButton small delete" Content="Delete"
                               Command="{ReflectionBinding $parent[UserControl].DataContext.DeleteTurnCommand}"
                               CommandParameter="{Binding}" ToolTip.Tip="Delete this turn and everything saved with it" />
-                    </StackPanel>
+                    </Grid>
                     <Button Classes="railButton copy" Content="📋 Copy Turn"
                             Command="{ReflectionBinding $parent[UserControl].DataContext.CopyTurnCommand}" CommandParameter="{Binding}"
-                            ToolTip.Tip="Copy the prompt and response as Markdown, without tool activity" />
+                            ToolTip.Tip="Copy the prompt and response as shown (the summary when compressed) as Markdown, without tool activity" />
+                    <Button Classes="railButton viewFull" Content="{Binding CompactViewFullContentLabel}"
+                            IsVisible="{Binding HasViewFullContentButton}" Command="{Binding ViewFullContentCommand}"
+                            ToolTip.Tip="{Binding ReductionToolTip}" />
+                    <Button Classes="railButton restore" Content="📦 Restore Compressed View"
+                            IsVisible="{Binding IsViewingFullCompressedContent}" Command="{Binding RestoreCompressedViewCommand}"
+                            ToolTip.Tip="Return this card to its compressed view without changing what's saved" />
                   </StackPanel>
                 </Border>
 
                 <StackPanel Grid.Column="1" Margin="16" Spacing="10">
-                  <TextBlock Text="{Binding ModelLabel}" IsVisible="{Binding HasModel}" Foreground="{DynamicResource TextMutedBrush}"
-                             FontSize="13" />
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <TextBlock Text="{Binding ModelLabel}" IsVisible="{Binding HasModel}" Foreground="{DynamicResource TextMutedBrush}"
+                               FontSize="13" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Classes="railButton viewFull large" Content="{Binding ViewFullContentLabel}"
+                            IsVisible="{Binding HasViewFullContentButton}" Command="{Binding ViewFullContentCommand}"
+                            ToolTip.Tip="{Binding ReductionToolTip}" />
+                  </Grid>
+                  <Border IsVisible="{Binding IsViewingFullCompressedContent}" Background="#0F1C2A" BorderBrush="#0078D4"
+                          BorderThickness="2" CornerRadius="8" Padding="12,8">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                      <TextBlock Text="📖 Temporarily expanded - viewing full content (will revert to compressed view on reload)"
+                                 Foreground="{DynamicResource TextMutedBrush}" FontSize="13" VerticalAlignment="Center"
+                                 TextWrapping="Wrap" />
+                      <Button Grid.Column="1" Classes="railButton restore large" Content="📦 Restore Compressed View"
+                              Command="{Binding RestoreCompressedViewCommand}"
+                              ToolTip.Tip="Return this card to its compressed view without changing what's saved" />
+                    </Grid>
+                  </Border>
                   <TextBlock Text="USER:" Foreground="{DynamicResource TextYellowBrush}" FontSize="12" FontWeight="SemiBold" />
                   <SelectableTextBlock Text="{Binding UserText}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="14"
                                        LineHeight="21" TextWrapping="Wrap" />
@@ -113,6 +146,8 @@
                         <Panel>
                           <markdown:MarkdownDocumentBlock Classes="conversationMarkdown" Markdown="{Binding Text}"
                                                           IsVisible="{Binding IsRendered}"
+                                                          HighlightHybridCompressionSectionLabels="{Binding IsSummary}"
+                                                          HybridCompressionSectionLabelForeground="#00FFFF"
                                                           ContentForeground="{DynamicResource TextSecondaryBrush}"
                                                           ContentFontSize="14" ContentLineHeight="21" CodeFontSize="12"
                                                           CodeBlockColorTheme="DarkPlus" />

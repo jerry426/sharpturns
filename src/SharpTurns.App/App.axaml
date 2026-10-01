@@ -149,10 +149,80 @@
       <Setter Property="BorderBrush" Value="#1F6F2B" />
     </Style>
 
-    <Style Selector="Button.railButton.delete">
+    <!-- Compress, Hide, and Delete share one row of small buttons. -->
+    <Style Selector="Button.railButton.small">
       <Setter Property="FontSize" Value="10" />
       <Setter Property="MinHeight" Value="24" />
       <Setter Property="Padding" Value="6,2" />
+    </Style>
+
+    <Style Selector="Button.railButton.compress">
+      <Setter Property="Background" Value="#123F1A" />
+      <Setter Property="BorderBrush" Value="#21E786" />
+    </Style>
+    <Style Selector="Button.railButton.compress:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#164F22" />
+      <Setter Property="BorderBrush" Value="#4CFFAA" />
+    </Style>
+    <Style Selector="Button.railButton.compress:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#0F3315" />
+      <Setter Property="BorderBrush" Value="#18B766" />
+    </Style>
+
+    <Style Selector="Button.railButton.hide">
+      <Setter Property="Background" Value="#0B3857" />
+      <Setter Property="BorderBrush" Value="#008AD8" />
+    </Style>
+    <Style Selector="Button.railButton.hide:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#104D75" />
+      <Setter Property="BorderBrush" Value="#19A8FF" />
+    </Style>
+    <Style Selector="Button.railButton.hide:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#082B42" />
+      <Setter Property="BorderBrush" Value="#006FAE" />
+    </Style>
+
+    <!-- View Full Turn Content and Restore Compressed View; the large ones sit in the content column. -->
+    <Style Selector="Button.railButton.viewFull">
+      <Setter Property="Padding" Value="4,3" />
+      <Setter Property="Background" Value="#153D5A" />
+      <Setter Property="BorderBrush" Value="#0078D4" />
+      <Setter Property="Foreground" Value="#0EA5FF" />
+    </Style>
+    <Style Selector="Button.railButton.viewFull:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#1C537A" />
+      <Setter Property="BorderBrush" Value="#1EA7FF" />
+      <Setter Property="Foreground" Value="#34B7FF" />
+    </Style>
+    <Style Selector="Button.railButton.viewFull:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#102E44" />
+      <Setter Property="BorderBrush" Value="#005A9E" />
+      <Setter Property="Foreground" Value="#BCE7FF" />
+    </Style>
+
+    <Style Selector="Button.railButton.restore">
+      <Setter Property="Background" Value="#2C2923" />
+      <Setter Property="BorderBrush" Value="#5D5549" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="Button.railButton.restore:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#3B372F" />
+      <Setter Property="BorderBrush" Value="#7B705F" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="Button.railButton.restore:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#201E19" />
+      <Setter Property="BorderBrush" Value="#453F35" />
+    </Style>
+
+    <Style Selector="Button.railButton.large">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="MinHeight" Value="30" />
+      <Setter Property="Padding" Value="14,4" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+    </Style>
+
+    <Style Selector="Button.railButton.delete">
       <Setter Property="Background" Value="#561010" />
       <Setter Property="BorderBrush" Value="#B31616" />
     </Style>
