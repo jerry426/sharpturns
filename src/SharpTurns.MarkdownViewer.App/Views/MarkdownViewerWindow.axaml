@@ -1,0 +1,298 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:markdown="using:SharpTurns.Markdown.Rendering"
+        xmlns:vm="using:SharpTurns.MarkdownViewer.App.ViewModels"
+        x:Class="SharpTurns.MarkdownViewer.App.Views.MarkdownViewerWindow"
+        x:DataType="vm:MarkdownViewerViewModel"
+        Title="{Binding Title}"
+        Width="{x:Static markdown:MarkdownViewerWindowDefaults.DefaultWidth}"
+        Height="{x:Static markdown:MarkdownViewerWindowDefaults.DefaultHeight}"
+        MinWidth="{x:Static markdown:MarkdownViewerWindowDefaults.MinWidth}"
+        MinHeight="{x:Static markdown:MarkdownViewerWindowDefaults.MinHeight}"
+        WindowStartupLocation="CenterScreen"
+        CanResize="True"
+        Background="#111318">
+  <Window.Resources>
+    <!-- Vector icons remain visible regardless of bundled font coverage. -->
+    <StreamGeometry x:Key="CloseIconGeometry">M0,2 L2,0 L6,4 L10,0 L12,2 L8,6 L12,10 L10,12 L6,8 L2,12 L0,10 L4,6 Z</StreamGeometry>
+    <StreamGeometry x:Key="RefreshIconGeometry">M20,4 V10 H14 L16.3,7.7 A6,6 0 1 0 18,12 H20 A8,8 0 1 1 17.7,6.3 Z</StreamGeometry>
+    <StreamGeometry x:Key="SearchIconGeometry">F0 M16,9 A7,7 0 1 1 2,9 A7,7 0 1 1 16,9 Z M14,9 A5,5 0 1 0 4,9 A5,5 0 1 0 14,9 Z M14,12 L22,20 L20,22 L12,14 Z</StreamGeometry>
+  </Window.Resources>
+  <Border Background="#171A22" BorderBrush="#FFE066" BorderThickness="1" CornerRadius="0,0,12,12" Margin="0,1,0,0" Padding="18">
+    <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="12">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <StackPanel>
+          <TextBlock Text="📖 Markdown Viewer" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="20" />
+          <TextBlock Text="Standalone documentation viewer" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" Margin="0,4,0,0" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+          <Button Classes="viewerActionButton" Content="Rendered" Command="{Binding ShowRenderedCommand}" ToolTip.Tip="Show rendered Markdown" />
+          <Button Classes="viewerActionButton" Content="Raw" Command="{Binding ShowRawCommand}" ToolTip.Tip="Show the original Markdown source" />
+          <Button Classes="viewerActionButton" Content="New Window" Click="NewWindow_Click" ToolTip.Tip="Open another independent viewer window" />
+          <Button Classes="viewerActionButton" Content="Open Markdown…" Click="OpenFile_Click" />
+          <Button Classes="viewerActionButton" Content="Refresh" Click="Refresh_Click" IsEnabled="{Binding CanRefresh}" ToolTip.Tip="Reload the current document" />
+          <Button Classes="viewerIconButton" AutomationProperties.Name="Close this window" Click="Close_Click" ToolTip.Tip="Close this window">
+            <PathIcon Width="12" Height="12" Data="{StaticResource CloseIconGeometry}" />
+          </Button>
+        </StackPanel>
+      </Grid>
+
+      <Border Grid.Row="1" Background="#111A2E" BorderBrush="#324A86" BorderThickness="1" CornerRadius="8" Padding="10,7">
+        <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
+          <Button x:Name="BackButton" Classes="viewerIconButton" AutomationProperties.Name="Back" Command="{Binding BackCommand}" ToolTip.Tip="Previous document (Alt+Left)">
+            <PathIcon Width="14" Height="14" Data="M10,0 L12,2 L6,8 L12,14 L10,16 L2,8 Z" />
+          </Button>
+          <Button x:Name="ForwardButton" Grid.Column="1" Classes="viewerIconButton" AutomationProperties.Name="Forward" Command="{Binding ForwardCommand}" ToolTip.Tip="Next document (Alt+Right)">
+            <PathIcon Width="14" Height="14" Data="M4,0 L2,2 L8,8 L2,14 L4,16 L12,8 Z" />
+          </Button>
+          <TextBlock Grid.Column="2" Text="{Binding StatusMessage}"
+                     Foreground="{DynamicResource TextMutedBrush}"
+                     FontSize="15"
+                     TextWrapping="Wrap"
+                     HorizontalAlignment="Left"
+                     VerticalAlignment="Center" />
+        </Grid>
+      </Border>
+
+      <Border Grid.Row="2" Background="#131722" BorderBrush="#2D3548" BorderThickness="1" CornerRadius="8" Padding="10,5">
+        <Grid x:Name="SearchCardLayout"
+              RowDefinitions="Auto,Auto"
+              ColumnDefinitions="*,Auto"
+              ColumnSpacing="10"
+              RowSpacing="4"
+              SizeChanged="SearchCardLayout_SizeChanged">
+          <Grid x:Name="SearchControls"
+                ColumnDefinitions="Auto,260,Auto,Auto,Auto,Auto"
+                ColumnSpacing="7"
+                VerticalAlignment="Center">
+            <PathIcon Width="13" Height="13" Data="{StaticResource SearchIconGeometry}" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
+            <TextBox x:Name="SearchTextBox"
+                     Grid.Column="1"
+                     Text="{Binding SearchQuery, Mode=TwoWay}"
+                     PlaceholderText="Search this view…"
+                     MinHeight="28"
+                     FontSize="12"
+                     KeyDown="SearchTextBox_KeyDown"
+                     ToolTip.Tip="Search the visible representation. Enter = next, Shift+Enter = previous." />
+            <Button Grid.Column="2" Classes="viewerIconButton" AutomationProperties.Name="Previous match" Command="{Binding PreviousSearchMatchCommand}" IsVisible="{Binding IsSearchActive}" MinWidth="28" MinHeight="28" ToolTip.Tip="Previous match (Shift+Enter)">
+              <PathIcon Width="10" Height="8" Data="M0,8 L6,0 L12,8 Z" />
+            </Button>
+            <Button Grid.Column="3" Classes="viewerIconButton" AutomationProperties.Name="Next match" Command="{Binding NextSearchMatchCommand}" IsVisible="{Binding IsSearchActive}" MinWidth="28" MinHeight="28" ToolTip.Tip="Next match (Enter)">
+              <PathIcon Width="10" Height="8" Data="M0,0 L12,0 L6,8 Z" />
+            </Button>
+            <Button Grid.Column="4" Classes="viewerIconButton" AutomationProperties.Name="Clear search" Command="{Binding ClearSearchCommand}" IsVisible="{Binding IsSearchActive}" MinWidth="28" MinHeight="28" ToolTip.Tip="Clear search">
+              <PathIcon Width="12" Height="12" Data="{StaticResource CloseIconGeometry}" />
+            </Button>
+            <TextBlock Grid.Column="5" Text="{Binding SearchMatchStatusLabel}" IsVisible="{Binding IsSearchActive}" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="4,0,0,0" />
+          </Grid>
+
+          <WrapPanel x:Name="AppearanceControls"
+                     Grid.Column="1"
+                     HorizontalAlignment="Right"
+                     VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock Text="Text:" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,5,0" />
+              <Slider Minimum="0.6"
+                      Maximum="1.4"
+                      TickFrequency="0.05"
+                      Width="132"
+                      Height="26"
+                      Value="{Binding Appearance.TextIntensity, Mode=TwoWay}"
+                      Margin="0,0,8,0" />
+              <TextBlock Text="{Binding Appearance.TextIntensityLabel}" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="11" MinWidth="36" VerticalAlignment="Center" Margin="0,0,12,0" />
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock Text="Font:" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,5,0" />
+              <Slider Minimum="-5"
+                      Maximum="5"
+                      TickFrequency="1"
+                      IsSnapToTickEnabled="True"
+                      Width="150"
+                      Height="26"
+                      Value="{Binding Appearance.FontSizeOffset, Mode=TwoWay}"
+                      Margin="0,0,8,0" />
+              <Border Background="#1D2230" BorderBrush="#30394E" BorderThickness="1" CornerRadius="4" Padding="6,1" MinHeight="24" VerticalAlignment="Center" Margin="0,0,12,0">
+                <TextBlock Text="{Binding Appearance.FontSizeLabel}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" VerticalAlignment="Center" />
+              </Border>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock Text="BG:" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,5,0" />
+              <Slider Minimum="0"
+                      Maximum="1.5"
+                      TickFrequency="0.05"
+                      Width="150"
+                      Height="26"
+                      Value="{Binding Appearance.BackgroundIntensity, Mode=TwoWay}"
+                      Margin="0,0,8,0" />
+              <TextBlock Text="{Binding Appearance.BackgroundIntensityLabel}" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" MinWidth="36" VerticalAlignment="Center" Margin="0,0,12,0" />
+            </StackPanel>
+
+            <Button Classes="viewerActionButton"
+                    Content="Reset"
+                    Command="{Binding Appearance.ResetCommand}"
+                    MinHeight="26"
+                    Padding="10,3"
+                    FontSize="11" />
+          </WrapPanel>
+        </Grid>
+      </Border>
+
+      <Grid Grid.Row="3" ColumnSpacing="8">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="{x:Static markdown:MarkdownViewerWindowDefaults.DefaultExplorerColumnWidth}"
+                            MinWidth="{x:Static markdown:MarkdownViewerWindowDefaults.MinExplorerWidth}" />
+          <ColumnDefinition Width="6" />
+          <ColumnDefinition Width="*"
+                            MinWidth="{x:Static markdown:MarkdownViewerWindowDefaults.MinDocumentWidth}" />
+        </Grid.ColumnDefinitions>
+        <Border Grid.Column="0"
+                Background="#131722"
+                BorderBrush="#2D3548"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="10">
+          <Grid RowDefinitions="Auto,*" RowSpacing="8">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+              <StackPanel>
+                <TextBlock Text="EXPLORER"
+                           Foreground="{DynamicResource TextPrimaryBrush}"
+                           FontWeight="SemiBold"
+                           FontSize="13" />
+                <TextBlock Text="{Binding FileBrowser.RootDirectory}"
+                           Foreground="{DynamicResource TextSubtleBrush}"
+                           FontSize="10"
+                           TextTrimming="CharacterEllipsis"
+                           ToolTip.Tip="{Binding FileBrowser.RootDirectory}"
+                           IsVisible="{Binding FileBrowser.HasRoot}" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                <Button Classes="viewerIconButton"
+                        AutomationProperties.Name="Set Explorer root"
+                        Click="ReanchorFileTree_Click"
+                        IsEnabled="{Binding FileBrowser.CanReanchor}"
+                        MinWidth="28"
+                        MinHeight="28"
+                        ToolTip.Tip="Set the selected directory as the Explorer root">
+                  <PathIcon Width="14" Height="14" Data="M0,10 L10,0 L20,10 H17 V20 H12 V13 H8 V20 H3 V10 Z" />
+                </Button>
+                <Button Classes="viewerIconButton"
+                        AutomationProperties.Name="Refresh file tree"
+                        Click="RefreshFileTree_Click"
+                        MinWidth="28"
+                        MinHeight="28"
+                        ToolTip.Tip="Refresh the Markdown file tree">
+                  <PathIcon Width="14" Height="14" Data="{StaticResource RefreshIconGeometry}" />
+                </Button>
+              </StackPanel>
+            </Grid>
+
+            <Border Grid.Row="1"
+                    Background="#111318"
+                    BorderBrush="#242C3C"
+                    BorderThickness="1"
+                    CornerRadius="5"
+                    Padding="4">
+              <Grid>
+                <TextBlock Text="{Binding FileBrowser.StatusMessage}"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           FontSize="11"
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Top"
+                           Margin="8"
+                           IsVisible="{Binding FileBrowser.HasNoRoot}" />
+
+                <TreeView x:Name="FileTree"
+                          ItemsSource="{Binding FileBrowser.RootNodes}"
+                          SelectedItem="{Binding FileBrowser.SelectedNode, Mode=TwoWay}"
+                          SelectionMode="Single"
+                          AutoScrollToSelectedItem="True"
+                          SelectionChanged="FileTree_SelectionChanged"
+                          ScrollViewer.VerticalScrollBarVisibility="Auto"
+                          ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                          IsVisible="{Binding FileBrowser.HasRoot}">
+                  <TreeView.Styles>
+                    <Style Selector="TreeViewItem" x:DataType="vm:MarkdownViewerFileBrowserNode">
+                      <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                      <Setter Property="MinHeight" Value="27" />
+                    </Style>
+                  </TreeView.Styles>
+                  <TreeView.DataTemplates>
+                    <TreeDataTemplate DataType="vm:MarkdownViewerFileBrowserNode"
+                                      ItemsSource="{Binding Children}">
+                      <StackPanel Orientation="Horizontal"
+                                  Spacing="2"
+                                  ToolTip.Tip="{Binding FullPath}">
+                        <TextBlock Text="{Binding Icon}"
+                                   Width="28"
+                                   Foreground="{DynamicResource TextBlueSoftBrush}"
+                                   FontSize="13"
+                                   TextAlignment="Center"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Name}"
+                                   Foreground="{Binding $parent[Window].DataContext.Appearance.ContentForeground}"
+                                   FontSize="14"
+                                   TextWrapping="NoWrap"
+                                   VerticalAlignment="Center" />
+                      </StackPanel>
+                    </TreeDataTemplate>
+                  </TreeView.DataTemplates>
+                </TreeView>
+              </Grid>
+            </Border>
+          </Grid>
+        </Border>
+
+        <GridSplitter Grid.Column="1"
+                      Background="#2D3548"
+                      ResizeDirection="Columns"
+                      ResizeBehavior="PreviousAndNext"
+                      ShowsPreview="False"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch"
+                      ToolTip.Tip="Drag to resize the Explorer" />
+
+        <Grid Grid.Column="2">
+          <ScrollViewer x:Name="RenderedScrollViewer"
+                        IsVisible="{Binding IsRenderedMode}"
+                        HorizontalScrollBarVisibility="Disabled"
+                        VerticalScrollBarVisibility="Auto"
+                        HorizontalContentAlignment="Stretch">
+            <Border Background="{Binding Appearance.DocumentBackground}" Padding="24,20" HorizontalAlignment="Stretch">
+              <markdown:MarkdownDocumentBlock x:Name="RenderedDocument"
+                                               Markdown="{Binding Markdown}"
+                                               Classes="conversationMarkdown markdownViewer"
+                                               HighlightIdentifiers="True"
+                                               IdentifierForeground="{Binding Appearance.IdentifierForeground}"
+                                               UseBrightHeadingColors="True"
+                                               ConstrainTablesToAvailableWidth="True"
+                                               TextIntensity="{Binding Appearance.TextIntensity}"
+                                               ContentFontSize="{Binding Appearance.FontSize}"
+                                               ContentLineHeight="{Binding Appearance.LineHeight}"
+                                               CodeFontSize="{Binding Appearance.CodeFontSize}"
+                                               ContentForeground="{Binding Appearance.ContentForeground}"
+                                               InlineCodeForeground="{Binding Appearance.InlineCodeForeground}"
+                                               HorizontalAlignment="Stretch" />
+            </Border>
+          </ScrollViewer>
+
+          <ScrollViewer x:Name="RawScrollViewer"
+                        IsVisible="{Binding IsRawMode}"
+                        HorizontalScrollBarVisibility="Disabled"
+                        VerticalScrollBarVisibility="Auto"
+                        HorizontalContentAlignment="Stretch">
+            <Border Background="{Binding Appearance.DocumentBackground}" Padding="24,20" HorizontalAlignment="Stretch">
+              <markdown:RawMarkdownDocumentBlock x:Name="RawDocument"
+                                                 SourceText="{Binding Markdown}"
+                                                 SourceForeground="{Binding Appearance.ContentForeground}"
+                                                 SourceFontSize="{Binding Appearance.FontSize}"
+                                                 SourceLineHeight="{Binding Appearance.LineHeight}"
+                                                 HorizontalAlignment="Stretch" />
+            </Border>
+          </ScrollViewer>
+        </Grid>
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

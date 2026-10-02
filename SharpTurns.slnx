@@ -4,6 +4,7 @@
     <Project Path="src/SharpTurns.ClaudeCli/SharpTurns.ClaudeCli.csproj" />
     <Project Path="src/SharpTurns.Core/SharpTurns.Core.csproj" />
     <Project Path="src/SharpTurns.Markdown.Rendering/SharpTurns.Markdown.Rendering.csproj" />
+    <Project Path="src/SharpTurns.MarkdownViewer.App/SharpTurns.MarkdownViewer.App.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SharpTurns.Tests/SharpTurns.Tests.csproj" />

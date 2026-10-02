@@ -1,0 +1,61 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="SharpTurns.MarkdownViewer.App.App"
+             RequestedThemeVariant="Dark">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://LiveMarkdown.Avalonia/Defaults.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+
+      <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F4F7FB" />
+      <SolidColorBrush x:Key="TextSecondaryBrush" Color="#CFD7E6" />
+      <SolidColorBrush x:Key="TextMutedBrush" Color="#AAB3C5" />
+      <SolidColorBrush x:Key="TextSubtleBrush" Color="#8792A8" />
+      <SolidColorBrush x:Key="TextStrongBrush" Color="#EEF2FA" />
+      <SolidColorBrush x:Key="TextYellowBrush" Color="#E5C07B" />
+      <SolidColorBrush x:Key="TextBlueSoftBrush" Color="#66B3FF" />
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme />
+    <StyleInclude Source="avares://LiveMarkdown.Avalonia/Styles.axaml" />
+    <StyleInclude Source="avares://SharpTurns.Markdown.Rendering/Styles/MarkdownStyles.axaml" />
+
+    <Style Selector="ScrollViewer">
+      <Setter Property="AllowAutoHide" Value="False" />
+    </Style>
+
+    <Style Selector="Button.viewerActionButton, Button.viewerIconButton">
+      <Setter Property="Background" Value="#182235" />
+      <Setter Property="BorderBrush" Value="#2D3A52" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Padding" Value="12,5" />
+      <Setter Property="MinHeight" Value="34" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.viewerActionButton:pointerover, Button.viewerIconButton:pointerover">
+      <Setter Property="Background" Value="#21304A" />
+      <Setter Property="BorderBrush" Value="#3D5274" />
+    </Style>
+    <Style Selector="Button.viewerActionButton:pressed, Button.viewerIconButton:pressed">
+      <Setter Property="Background" Value="#141D2D" />
+      <Setter Property="BorderBrush" Value="#26364E" />
+    </Style>
+    <Style Selector="Button.viewerActionButton:disabled, Button.viewerIconButton:disabled">
+      <Setter Property="Background" Value="#171B24" />
+      <Setter Property="BorderBrush" Value="#252D3C" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSubtleBrush}" />
+    </Style>
+    <Style Selector="Button.viewerIconButton">
+      <Setter Property="FontSize" Value="16" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="MinWidth" Value="34" />
+    </Style>
+  </Application.Styles>
+</Application>

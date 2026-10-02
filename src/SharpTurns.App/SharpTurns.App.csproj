@@ -21,5 +21,22 @@
     <ProjectReference Include="..\SharpTurns.ClaudeCli\SharpTurns.ClaudeCli.csproj" />
     <ProjectReference Include="..\SharpTurns.Core\SharpTurns.Core.csproj" />
     <ProjectReference Include="..\SharpTurns.Markdown.Rendering\SharpTurns.Markdown.Rendering.csproj" />
+    <ProjectReference Include="..\SharpTurns.MarkdownViewer.App\SharpTurns.MarkdownViewer.App.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
+
+  <!-- The Markdown Viewer runs as a separate process from its own folder beside the app, as in the Workbench. -->
+  <PropertyGroup>
+    <MarkdownViewerOutputPath>..\SharpTurns.MarkdownViewer.App\bin\$(Configuration)\$(TargetFramework)\</MarkdownViewerOutputPath>
+    <MarkdownViewerOutputPath Condition="'$(RuntimeIdentifier)' != ''">..\SharpTurns.MarkdownViewer.App\bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\</MarkdownViewerOutputPath>
+  </PropertyGroup>
+
+  <Target Name="CopyMarkdownViewer" AfterTargets="Build">
+    <ItemGroup>
+      <MarkdownViewerBuildOutput Include="$(MarkdownViewerOutputPath)**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(MarkdownViewerBuildOutput)"
+          DestinationFiles="@(MarkdownViewerBuildOutput->'$(OutputPath)markdown-viewer\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="'@(MarkdownViewerBuildOutput)' != ''" />
+  </Target>
 </Project>

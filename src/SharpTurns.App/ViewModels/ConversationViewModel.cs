@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
+using Avalonia;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -228,6 +229,9 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     /// <summary>Shows the export options modally.</summary>
     public Func<TurnExportDialogViewModel, Task>? ShowExportAsync { get; set; }
+
+    /// <summary>The center of the screen showing the conversation, so the Markdown Viewer opens on that monitor.</summary>
+    public Func<PixelPoint?>? GetScreenPoint { get; set; }
 
     /// <summary>Raised on the UI thread after each turn's content changes, for scrolling.</summary>
     public event EventHandler? TurnContentChanged;
@@ -595,6 +599,21 @@ public sealed partial class ConversationViewModel : ObservableObject
         if (ShowExportAsync is null) return;
         await ShowExportAsync(TurnExportDialogViewModel.ForConversation(
             Turns.Select(t => t.Record).OfType<ConversationTurn>().ToArray(), Conversation, Project));
+    }
+
+    // The viewer is a separate app that only reads the project's files, so it's always available.
+    [RelayCommand]
+    private void OpenMarkdownViewer()
+    {
+        try
+        {
+            MarkdownViewerLauncher.Launch(Project.WorkingDirectory, GetScreenPoint?.Invoke());
+            Status = "Opened the Markdown Viewer.";
+        }
+        catch (Exception e)
+        {
+            Status = "Couldn't open the Markdown Viewer: " + e.Message;
+        }
     }
 
     private static bool CanExportTurn(TurnViewModel? turn) => turn?.Record is { Status: not TurnStatus.Running };

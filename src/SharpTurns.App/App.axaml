@@ -444,6 +444,19 @@
       <Setter Property="Background" Value="#17210E" />
       <Setter Property="BorderBrush" Value="#97CC71" />
     </Style>
+    <Style Selector="Button.headerButton.viewer">
+      <Setter Property="Background" Value="#2B2410" />
+      <Setter Property="BorderBrush" Value="#FFE066" />
+    </Style>
+    <Style Selector="Button.headerButton.viewer:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#403516" />
+      <Setter Property="BorderBrush" Value="#FFF0A3" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+    </Style>
+    <Style Selector="Button.headerButton.viewer:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#201A0B" />
+      <Setter Property="BorderBrush" Value="#D6B52E" />
+    </Style>
 
     <Style Selector="TextBlock.metricLabel">
       <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />

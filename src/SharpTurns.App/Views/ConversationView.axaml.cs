@@ -49,6 +49,7 @@ public sealed partial class ConversationView : UserControl
         _viewModel.ShowUserMessageHistoryAsync = ShowUserMessageHistoryAsync;
         _viewModel.ShowNotes = ShowNotes;
         _viewModel.ShowExportAsync = ShowExportAsync;
+        _viewModel.GetScreenPoint = GetScreenPoint;
         // Show the newest turn.
         Dispatcher.UIThread.Post(TurnsScroller.ScrollToEnd, DispatcherPriority.Background);
     }
@@ -196,6 +197,14 @@ public sealed partial class ConversationView : UserControl
             return;
         }
         new NotesDialog { DataContext = notes }.Show(owner);
+    }
+
+    // As in the Workbench, the center of the screen showing the main window.
+    private PixelPoint? GetScreenPoint()
+    {
+        if (TopLevel.GetTopLevel(this) is not Window window || window.Screens.ScreenFromWindow(window) is not { } screen)
+            return null;
+        return new PixelPoint(screen.Bounds.X + screen.Bounds.Width / 2, screen.Bounds.Y + screen.Bounds.Height / 2);
     }
 
     /// <summary>Scrolls the turn's card to the top, first showing all turns when the Show picker leaves it out.</summary>
