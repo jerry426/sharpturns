@@ -127,9 +127,57 @@
           </TabItem>
 
           <TabItem Header="Sounds" FontSize="13">
-            <Border Classes="preferenceSection">
-              <TextBlock Classes="comingSoon" Text="Notification sounds arrive in a later step." />
-            </Border>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+              <Border Background="#121620" BorderBrush="#2D3548" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,12,0">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="14">
+                  <StackPanel Spacing="4">
+                    <TextBlock Classes="sectionTitle" Text="Notification Sounds" />
+                    <TextBlock Text="Configure best-effort platform system sounds for SharpTurns events. Saved in SharpTurns' local database."
+                               Foreground="{DynamicResource TextSubtleBrush}" FontSize="12" TextWrapping="Wrap" />
+                  </StackPanel>
+
+                  <Border Grid.Row="1" Background="#101824" BorderBrush="#315B7A" BorderThickness="1" CornerRadius="10" Padding="12">
+                    <Grid ColumnDefinitions="*,220,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="10">
+                      <StackPanel Spacing="3">
+                        <CheckBox Content="Play when a conversation turn finishes"
+                                  IsChecked="{Binding Preferences.Sounds.ConversationTurnFinishedSoundEnabled}"
+                                  Foreground="{DynamicResource TextPrimaryBrush}" />
+                        <TextBlock Text="{Binding Preferences.Sounds.ConversationTurnFinishedSoundDefaultLabel}"
+                                   Foreground="{DynamicResource TextMutedBrush}" FontSize="12" Margin="26,0,0,0" />
+                      </StackPanel>
+                      <ComboBox Grid.Column="1" ItemsSource="{Binding Preferences.Sounds.SystemSoundOptions}"
+                                SelectedItem="{Binding Preferences.Sounds.ConversationTurnFinishedSound}" MinHeight="30" />
+                      <Button Grid.Column="2" Classes="secondaryActionButton preferenceButton" Content="Preview"
+                              Command="{Binding Preferences.Sounds.PreviewConversationTurnFinishedCommand}" />
+
+                      <StackPanel Grid.Row="1" Spacing="3">
+                        <CheckBox Content="Play when a permission or question dialog is displayed"
+                                  IsChecked="{Binding Preferences.Sounds.CommandApprovalSoundEnabled}"
+                                  Foreground="{DynamicResource TextPrimaryBrush}" />
+                        <TextBlock Text="{Binding Preferences.Sounds.CommandApprovalSoundDefaultLabel}"
+                                   Foreground="{DynamicResource TextMutedBrush}" FontSize="12" Margin="26,0,0,0" />
+                      </StackPanel>
+                      <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Preferences.Sounds.SystemSoundOptions}"
+                                SelectedItem="{Binding Preferences.Sounds.CommandApprovalSound}" MinHeight="30" />
+                      <Button Grid.Row="1" Grid.Column="2" Classes="secondaryActionButton preferenceButton" Content="Preview"
+                              Command="{Binding Preferences.Sounds.PreviewCommandApprovalCommand}" />
+                    </Grid>
+                  </Border>
+
+                  <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
+                    <Button Classes="secondaryActionButton preferenceButton" Content="Reload"
+                            Command="{Binding Preferences.Sounds.ReloadCommand}" ToolTip.Tip="Bring back the saved sounds" />
+                    <Button Grid.Column="1" Classes="secondaryActionButton preferenceButton" Content="Save Sounds"
+                            Command="{Binding Preferences.Sounds.SaveCommand}" />
+                    <TextBlock Grid.Column="2" Text="{Binding Preferences.Sounds.Status}" Foreground="{DynamicResource TextSubtleBrush}"
+                               FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap" />
+                  </Grid>
+
+                  <TextBlock Grid.Row="3" Text="{Binding Preferences.Sounds.PlaybackDescription}" Foreground="{DynamicResource TextMutedBrush}"
+                             FontSize="12" TextWrapping="Wrap" />
+                </Grid>
+              </Border>
+            </ScrollViewer>
           </TabItem>
 
           <TabItem Header="Preferences" FontSize="13">

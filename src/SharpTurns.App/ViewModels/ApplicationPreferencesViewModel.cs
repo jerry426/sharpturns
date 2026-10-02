@@ -11,7 +11,7 @@ namespace SharpTurns.App.ViewModels;
 /// The Config tab's Preferences. As in the Workbench: restoring the last session at startup, the startup, Notes, and
 /// Markdown Viewer window sizes, and the DOCX export defaults. SharpTurns adds the claude path, the model and effort for
 /// new conversations, the summarizer model, and the system prompt. Each is saved in the settings table when it changes.
-/// The Models subtab's list, which the model pickers offer, lives here too.
+/// The Models subtab's list, which the model pickers offer, and the Sounds subtab live here too.
 /// </summary>
 public sealed partial class ApplicationPreferencesViewModel : ObservableObject
 {
@@ -64,10 +64,12 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
     [ObservableProperty]
     private string _status = "";
 
-    internal ApplicationPreferencesViewModel(ConversationStore store)
+    /// <param name="soundPlayer">Null uses the platform's system sounds.</param>
+    internal ApplicationPreferencesViewModel(ConversationStore store, IAppSoundPlayer? soundPlayer = null)
     {
         _store = store;
         Models = new(store);
+        Sounds = new(store, soundPlayer ?? AppSoundPlayerFactory.CreateDefault());
         Models.ModelsChanged += (_, _) => _ = ReloadModelSettingsAsync();
         StartupWindow = new(store, "startup_window_size", "startup window size", new(1400, 860), new(820, 560));
         NotesWindow = new(store, "notes_window_size", "Notes window size", new(980, 660), new(820, 520));
@@ -78,6 +80,9 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
 
     /// <summary>The Config tab's Models subtab.</summary>
     public ModelsConfigViewModel Models { get; }
+
+    /// <summary>The Config tab's Sounds subtab.</summary>
+    public SoundPreferencesViewModel Sounds { get; }
 
     public WindowSizePreferenceViewModel StartupWindow { get; }
 
@@ -116,6 +121,7 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
         try
         {
             await Models.LoadAsync();
+            await Sounds.LoadAsync();
             RestoreLastSession = await _store.GetSettingAsync(RestoreLastSessionSetting) != "false";
             DocxExportSettings = DocxExportSettings.Parse(await _store.GetSettingAsync(DocxExportSetting));
             await StartupWindow.LoadAsync();

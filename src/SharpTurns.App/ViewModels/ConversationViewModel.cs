@@ -359,6 +359,8 @@ public sealed partial class ConversationViewModel : ObservableObject
             OnPropertyChanged(nameof(LastReportedInputLabel));
             IsRunning = false;
             completed = result.Turn.Status == TurnStatus.Completed;
+            // As in the Workbench, only a turn that completes plays the sound.
+            if (completed) Preferences.Sounds.PlayNotification(AppSoundNotificationKind.ConversationTurnFinished);
             QueuedMessages.Clear();
             Status = result.Turn.Status switch
             {
@@ -418,12 +420,20 @@ public sealed partial class ConversationViewModel : ObservableObject
         return string.Create(CultureInfo.InvariantCulture, $"{seconds / 60:00}:{seconds % 60:00}");
     }
 
-    private async Task<string?> AskAsync(ClaudeCliQuestion question, CancellationToken token) =>
-        ShowQuestionAsync is null ? null
-            : await ShowQuestionAsync(new QuestionDialogViewModel(question, Project.Name, Title), token);
+    // As in the Workbench, both dialogs play the approval sound as they open.
+    private async Task<string?> AskAsync(ClaudeCliQuestion question, CancellationToken token)
+    {
+        if (ShowQuestionAsync is null) return null;
+        Preferences.Sounds.PlayNotification(AppSoundNotificationKind.CommandApprovalDisplayed);
+        return await ShowQuestionAsync(new QuestionDialogViewModel(question, Project.Name, Title), token);
+    }
 
-    private async Task<bool> ApproveAsync(string toolName, string input, CancellationToken token) =>
-        ShowPermissionAsync is not null && await ShowPermissionAsync(toolName, input, token);
+    private async Task<bool> ApproveAsync(string toolName, string input, CancellationToken token)
+    {
+        if (ShowPermissionAsync is null) return false;
+        Preferences.Sounds.PlayNotification(AppSoundNotificationKind.CommandApprovalDisplayed);
+        return await ShowPermissionAsync(toolName, input, token);
+    }
 
     [RelayCommand]
     private Task CopyMetricsAsync(TurnViewModel turn) => CopyAsync(turn.FormatMetrics(), "Copied the turn's metrics.");
