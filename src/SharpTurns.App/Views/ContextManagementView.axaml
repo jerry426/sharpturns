@@ -1,0 +1,192 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:SharpTurns.App.ViewModels"
+             x:Class="SharpTurns.App.Views.ContextManagementView"
+             x:DataType="vm:ConversationViewModel">
+  <!-- Laid out like the Workbench's Context Management tab for a Claude conversation, in its colors. -->
+  <UserControl.Styles>
+    <Style Selector="Border.contextCount">
+      <Setter Property="Background" Value="#121A27" />
+      <Setter Property="BorderBrush" Value="#2D3548" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="10" />
+      <Setter Property="MinWidth" Value="110" />
+    </Style>
+    <Style Selector="Border.contextPanel">
+      <Setter Property="Background" Value="#10131B" />
+      <Setter Property="BorderBrush" Value="#2D3548" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+    </Style>
+    <Style Selector="Button.contextAction">
+      <Setter Property="MinHeight" Value="30" />
+      <Setter Property="Padding" Value="10,3" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Margin" Value="8,0,0,0" />
+    </Style>
+    <Style Selector="Button.contextAction /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+    <Style Selector="Button.apply">
+      <Setter Property="Background" Value="#123F1A" />
+      <Setter Property="BorderBrush" Value="#19A8FF" />
+      <Setter Property="Foreground" Value="#46C2FF" />
+    </Style>
+    <Style Selector="Button.apply:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#164F22" />
+      <Setter Property="BorderBrush" Value="#46C2FF" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="Button.show">
+      <Setter Property="BorderBrush" Value="#42E38F" />
+      <Setter Property="Foreground" Value="#42E38F" />
+    </Style>
+    <Style Selector="Button.show:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="BorderBrush" Value="#7DFFC0" />
+      <Setter Property="Foreground" Value="#7DFFC0" />
+    </Style>
+    <Style Selector="Button.hide">
+      <Setter Property="BorderBrush" Value="#F3AC22" />
+      <Setter Property="Foreground" Value="#F3AC22" />
+    </Style>
+    <Style Selector="Button.hide:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="BorderBrush" Value="#FFD15B" />
+      <Setter Property="Foreground" Value="#FFD15B" />
+    </Style>
+    <Style Selector="Button.rowHide">
+      <Setter Property="Background" Value="#123F1A" />
+      <Setter Property="MinWidth" Value="82" />
+      <Setter Property="MinHeight" Value="28" />
+      <Setter Property="Margin" Value="0" />
+    </Style>
+    <Style Selector="Button.rowHide:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#174F22" />
+    </Style>
+    <Style Selector="Button.delete">
+      <Setter Property="Background" Value="#561010" />
+      <Setter Property="BorderBrush" Value="#FF4D4D" />
+      <Setter Property="Foreground" Value="#FFB3B3" />
+    </Style>
+    <Style Selector="Button.delete:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#741717" />
+      <Setter Property="BorderBrush" Value="#FF6F6F" />
+      <Setter Property="Foreground" Value="#FFE0E0" />
+    </Style>
+    <Style Selector="Button.branch">
+      <Setter Property="Background" Value="#0E2230" />
+      <Setter Property="BorderBrush" Value="#19A8FF" />
+      <Setter Property="Foreground" Value="#19A8FF" />
+    </Style>
+    <!-- After the colors, so a disabled button looks disabled whatever its color. -->
+    <Style Selector="Button.contextAction:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#171B24" />
+      <Setter Property="BorderBrush" Value="#252D3C" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSubtleBrush}" />
+    </Style>
+  </UserControl.Styles>
+
+  <Border Background="#171A22" BorderBrush="#2D3548" BorderThickness="1" CornerRadius="12" Padding="16">
+    <Grid RowDefinitions="Auto,Auto,*" RowSpacing="12">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <StackPanel Spacing="4">
+          <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="18"
+                     TextWrapping="Wrap" />
+          <TextBlock Text="{Binding ContextStatusLabel}" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" TextWrapping="Wrap" />
+          <TextBlock Text="Claude owns the live session context. Changing the included turns starts a new session on the next send, seeded with the retained dialogue, recorded answers, and work summaries. Hidden tool state and cache are not transferred; the old Claude session and the filesystem remain unchanged."
+                     Foreground="{DynamicResource TextMutedBrush}" FontSize="12" TextWrapping="Wrap" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+          <Border Classes="contextCount">
+            <StackPanel Spacing="2">
+              <TextBlock Text="Visible turns" Foreground="{DynamicResource TextSubtleBrush}" FontSize="11" />
+              <TextBlock Text="{Binding TurnsVisibleLabel}" Foreground="{DynamicResource TextStrongBrush}" FontSize="16" FontWeight="SemiBold" />
+            </StackPanel>
+          </Border>
+          <Border Classes="contextCount">
+            <StackPanel Spacing="2">
+              <TextBlock Text="Hidden turns" Foreground="{DynamicResource TextSubtleBrush}" FontSize="11" />
+              <TextBlock Text="{Binding TurnsHiddenLabel}" Foreground="#F89831" FontSize="16" FontWeight="SemiBold" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Grid>
+
+      <Border Grid.Row="1" Classes="contextPanel" Padding="10">
+        <Grid ColumnDefinitions="Auto,260,Auto,*" ColumnSpacing="10">
+          <TextBlock Text="Smart Cleanup" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="14"
+                     VerticalAlignment="Center" />
+          <ComboBox Grid.Column="1" ItemsSource="{Binding SmartCleanupOptions}" SelectedIndex="{Binding SmartCleanupIndex, Mode=TwoWay}"
+                    MinHeight="32" FontSize="12" HorizontalAlignment="Stretch"
+                    ToolTip.Tip="How many of the most recent turns stay in Claude's context" />
+          <Button Grid.Column="2" Classes="secondaryActionButton contextAction apply" Content="Apply" Command="{Binding KeepRecentTurnsCommand}"
+                  MinWidth="80" MinHeight="32" Margin="0" ToolTip.Tip="Show the chosen number of most recent turns and hide every older one" />
+          <TextBlock Grid.Column="3" Text="Hide older turns while keeping the selected number of recent turns in Claude's context."
+                     Foreground="{DynamicResource TextSubtleBrush}" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center" />
+        </Grid>
+      </Border>
+
+      <Border Grid.Row="2" Classes="contextPanel" Padding="12">
+        <Grid RowDefinitions="Auto,*" RowSpacing="10">
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+            <TextBlock Text="{Binding ContextTurnsHeaderLabel}" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"
+                       FontSize="16" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Text="{Binding SelectedTurnsLabel}" Foreground="{DynamicResource TextBlueSoftBrush}" FontSize="13"
+                       HorizontalAlignment="Right" VerticalAlignment="Center" />
+            <WrapPanel Grid.Column="2" VerticalAlignment="Center">
+              <Button Classes="secondaryActionButton contextAction" Content="Select All" Command="{Binding SelectAllContextTurnsCommand}"
+                      ToolTip.Tip="Select every listed turn" />
+              <Button Classes="secondaryActionButton contextAction" Content="Clear" Command="{Binding ClearContextTurnSelectionCommand}"
+                      ToolTip.Tip="Clear the selection" />
+              <Button Classes="secondaryActionButton contextAction show" Content="{Binding ShowSelectedTurnsLabel}"
+                      Command="{Binding ShowSelectedTurnsCommand}" ToolTip.Tip="Put the selected turns back in Claude's context" />
+              <Button Classes="secondaryActionButton contextAction hide" Content="{Binding HideSelectedTurnsLabel}"
+                      Command="{Binding HideSelectedTurnsCommand}" ToolTip.Tip="Leave the selected turns out of Claude's context" />
+              <Button Classes="secondaryActionButton contextAction delete" Content="{Binding DeleteSelectedTurnsLabel}"
+                      Command="{Binding DeleteSelectedTurnsCommand}"
+                      ToolTip.Tip="Permanently delete the selected turns and everything saved with them, after confirming" />
+              <!-- Placeholders until branching (phase 4). -->
+              <Button Classes="secondaryActionButton contextAction branch" Content="{Binding BranchRangeLabel}" IsEnabled="False"
+                      ToolTip.ShowOnDisabled="True" ToolTip.Tip="Branching isn't available yet" />
+              <Button Classes="secondaryActionButton contextAction branch" Content="{Binding BranchThroughLabel}" IsEnabled="False"
+                      ToolTip.ShowOnDisabled="True" ToolTip.Tip="Branching isn't available yet" />
+            </WrapPanel>
+          </Grid>
+
+          <!-- The Show picker's turns. The right margin leaves room for the scrollbar. -->
+          <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding ShownTurns}" Margin="0,0,14,0">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:TurnViewModel">
+                  <Border Margin="0,0,0,4" Background="{Binding ContextRowBackground}" BorderBrush="#3A3F4D" BorderThickness="1"
+                          CornerRadius="6" Padding="10,3">
+                    <!-- The Workbench's columns; the fourth holds its replay sizes, which a Claude conversation doesn't show. -->
+                    <Grid ColumnDefinitions="100,100,120,230,210,40,92" ColumnSpacing="12" MinHeight="30">
+                      <TextBlock Text="{Binding ContextTurnLabel}" Foreground="{DynamicResource TextStrongBrush}" FontWeight="SemiBold"
+                                 FontSize="13" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="1" Text="{Binding ContextIdLabel}" Foreground="{DynamicResource TextSecondaryBrush}"
+                                 FontSize="12" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="2" Text="{Binding ContextTimeLabel}" Foreground="{DynamicResource TextSecondaryBrush}"
+                                 FontSize="12" VerticalAlignment="Center" />
+                      <Border Grid.Column="4" IsVisible="{Binding IsCompressed}" Background="#168DD8" CornerRadius="5" Padding="8,3"
+                              HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <TextBlock Text="Compressed" Foreground="#F4FAFF" FontSize="12" FontWeight="SemiBold" />
+                      </Border>
+                      <CheckBox Grid.Column="5" IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                IsEnabled="{Binding Record, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                ToolTip.Tip="Select this turn for the bulk actions. Shift-click another turn to select the range between them." />
+                      <Button Grid.Column="6" Classes="secondaryActionButton contextAction hide rowHide" Content="{Binding HydrationActionLabel}"
+                              Command="{Binding $parent[UserControl].((vm:ConversationViewModel)DataContext).ToggleHydrationCommand}"
+                              CommandParameter="{Binding}" ToolTip.Tip="{Binding HydrationActionToolTip}" VerticalAlignment="Center" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+    </Grid>
+  </Border>
+</UserControl>

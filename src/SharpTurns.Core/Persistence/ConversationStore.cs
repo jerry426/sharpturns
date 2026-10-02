@@ -401,6 +401,18 @@ public sealed class ConversationStore
             cancellationToken, ("$id", turnId), ("$hydrated", isHydrated)).ConfigureAwait(false);
     }
 
+    /// <summary>Hides or shows several turns together, for the Context Management tab's bulk actions and Smart Cleanup.</summary>
+    public async Task SetTurnsHydratedAsync(IReadOnlyCollection<(long TurnId, bool IsHydrated)> changes,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = connection.BeginTransaction();
+        foreach (var (turnId, isHydrated) in changes)
+            await ExecuteSingleAsync(connection, transaction, "UPDATE conversation_turns SET is_hydrated = $hydrated WHERE id = $id",
+                "Turn", cancellationToken, ("$id", turnId), ("$hydrated", isHydrated)).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     /// <summary>Saves a compressed turn's summary, or clears it (with a null summary) to expand the turn.</summary>
     public async Task SetTurnSummaryAsync(long turnId, string? summary, string? summaryModel,
         CancellationToken cancellationToken = default)
@@ -489,6 +501,17 @@ public sealed class ConversationStore
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
         await ExecuteSingleAsync(connection, null, "DELETE FROM conversation_turns WHERE id = $id", "Turn",
             cancellationToken, ("$id", turnId)).ConfigureAwait(false);
+    }
+
+    /// <summary>Deletes several turns together; either all are deleted or none.</summary>
+    public async Task DeleteTurnsAsync(IReadOnlyCollection<long> turnIds, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = connection.BeginTransaction();
+        foreach (var turnId in turnIds)
+            await ExecuteSingleAsync(connection, transaction, "DELETE FROM conversation_turns WHERE id = $id", "Turn",
+                cancellationToken, ("$id", turnId)).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<ClaudeCodeSessionState?> LoadClaudeCodeSessionAsync(long conversationId, CancellationToken cancellationToken = default)

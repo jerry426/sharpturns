@@ -27,8 +27,13 @@ public sealed partial class TurnViewModel : ObservableObject
         nameof(HydrationActionToolTip), nameof(CompressionActionLabel), nameof(CompressionActionToolTip), nameof(CompressedLabel),
         nameof(CardBorderBrush), nameof(CardBorderThickness), nameof(RailAccentBrush),
         nameof(RailDividerBrush), nameof(HasViewFullContentButton), nameof(IsViewingFullCompressedContent),
-        nameof(ViewFullContentLabel), nameof(CompactViewFullContentLabel), nameof(ReductionToolTip))]
+        nameof(ViewFullContentLabel), nameof(CompactViewFullContentLabel), nameof(ReductionToolTip),
+        nameof(ContextTurnLabel), nameof(ContextIdLabel), nameof(ContextTimeLabel), nameof(ContextRowBackground))]
     private ConversationTurn? _record;
+
+    /// <summary>Checked in the Context Management tab's turn list for its bulk actions.</summary>
+    [ObservableProperty]
+    private bool _isSelected;
 
     /// <summary>A compressed turn temporarily shown in full; reverts on reload.</summary>
     [ObservableProperty]
@@ -170,6 +175,15 @@ public sealed partial class TurnViewModel : ObservableObject
         ? string.Create(CultureInfo.CurrentCulture,
             $"View the full turn without changing its compression. Saved content: {TurnCompression.FullContentBytes(turn):N0} bytes; compressed replay: {ClaudeCodeContext.ReplayBytes(turn):N0} bytes.")
         : "";
+
+    // The Context Management tab's row, with the Workbench's labels and colors.
+    public string ContextTurnLabel => Record is { } turn ? $"Turn #{turn.TurnNumber.ToString(CultureInfo.InvariantCulture)}" : "Turn";
+
+    public string ContextIdLabel => Record is { } turn ? $"ID: {turn.Id.ToString(CultureInfo.InvariantCulture)}" : "";
+
+    public string ContextTimeLabel => Record?.CreatedAt.ToLocalTime().ToString("M/d, h:mm tt", CultureInfo.CurrentCulture) ?? "Live";
+
+    public string ContextRowBackground => IsHydrated ? "#123F1A" : "#3F2B16";
 
     public void Started(ConversationTurn turn) => Record = turn;
 

@@ -52,6 +52,10 @@ public sealed partial class ConversationViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(OpenUserMessageHistoryCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExportConversationCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExportTurnCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ShowSelectedTurnsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(HideSelectedTurnsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteSelectedTurnsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(KeepRecentTurnsCommand))]
     [NotifyPropertyChangedFor(nameof(SendLabel))]
     private bool _isRunning;
 
@@ -63,6 +67,10 @@ public sealed partial class ConversationViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(ToggleCompressionCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenReplayImagesCommand))]
     [NotifyCanExecuteChangedFor(nameof(ToggleImageReplayCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ShowSelectedTurnsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(HideSelectedTurnsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteSelectedTurnsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(KeepRecentTurnsCommand))]
     private bool _isCompressing;
 
     [ObservableProperty]
@@ -109,8 +117,10 @@ public sealed partial class ConversationViewModel : ObservableObject
         _selectedEffort = conversation.Effort ?? DefaultEffort;
         _selectedOutputStyle = conversation.OutputStyle ?? DefaultOutputStyle;
         _autoSummarize = conversation.AutoSummarize;
-        Turns.CollectionChanged += (_, _) =>
+        Turns.CollectionChanged += (_, e) =>
         {
+            // Removed turns are gone for good, so only new ones need the selection hook.
+            foreach (var turn in e.NewItems?.OfType<TurnViewModel>() ?? []) turn.PropertyChanged += OnTurnPropertyChanged;
             OnPropertyChanged(nameof(TurnCount));
             OnPropertyChanged(nameof(LastTurn));
             NotifyContextChanged();
@@ -118,7 +128,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         // The display outlives every conversation, so this subscription needs no removal.
         display.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(ConversationDisplayViewModel.TurnFilterIndex)) SyncShownTurns(ShownTurns, Turns.Where(display.Shows));
+            if (e.PropertyName == nameof(ConversationDisplayViewModel.TurnFilterIndex)) RefreshShownTurns();
         };
         Attachments.CollectionChanged += (_, _) =>
         {
@@ -643,7 +653,8 @@ public sealed partial class ConversationViewModel : ObservableObject
             turn.IsViewingFullCompressedContent));
     }
 
-    // After the turns or their context state change: the header buttons, the metrics row, and the Show picker's turns.
+    // After the turns or their context state change: the header buttons, the metrics row, the Show picker's turns, and
+    // the Context Management tab.
     private void NotifyContextChanged()
     {
         OnPropertyChanged(nameof(HasConversationImages));
@@ -657,7 +668,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         OnPropertyChanged(nameof(TurnsVisibleLabel));
         OnPropertyChanged(nameof(TurnsCompressedLabel));
         OnPropertyChanged(nameof(TurnsHiddenLabel));
-        SyncShownTurns(ShownTurns, Turns.Where(Display.Shows));
+        RefreshShownTurns();
     }
 
     /// <summary>

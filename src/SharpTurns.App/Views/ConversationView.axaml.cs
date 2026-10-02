@@ -230,9 +230,13 @@ public sealed partial class ConversationView : UserControl
         return new PixelPoint(screen.Bounds.X + screen.Bounds.Width / 2, screen.Bounds.Y + screen.Bounds.Height / 2);
     }
 
-    /// <summary>Scrolls the turn's card to the top, first showing all turns when the Show picker leaves it out.</summary>
+    /// <summary>
+    /// Scrolls the turn's card to the top, first showing the Conversation Turns tab, and all turns when the Show picker
+    /// leaves it out.
+    /// </summary>
     private void ScrollToTurn(TurnViewModel turn)
     {
+        TurnsTab.IsSelected = true;
         if (_viewModel is { } viewModel && !viewModel.ShownTurns.Contains(turn))
             viewModel.Display.TurnFilterIndex = ConversationDisplayViewModel.AllTurns;
         // A card the picker just added has no container until layout runs.
@@ -276,7 +280,9 @@ public sealed partial class ConversationView : UserControl
         if (_viewModel?.Display is not { } display) return;
         switch (e.PropertyName)
         {
+            // Searching is about the turns, so typing a search shows them.
             case nameof(ConversationDisplayViewModel.SearchQuery):
+                if (display.IsSearchActive) TurnsTab.IsSelected = true;
                 ScheduleSearch();
                 break;
             case nameof(ConversationDisplayViewModel.CurrentMatchIndex):
@@ -309,6 +315,7 @@ public sealed partial class ConversationView : UserControl
         if (e.Key != Key.Enter || _viewModel?.Display is not { } display) return;
         var command = (e.KeyModifiers & KeyModifiers.Shift) != 0 ? display.PreviousSearchMatchCommand : display.NextSearchMatchCommand;
         if (!command.CanExecute(null)) return;
+        TurnsTab.IsSelected = true;
         command.Execute(null);
         e.Handled = true;
     }
