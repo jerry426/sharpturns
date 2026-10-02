@@ -383,10 +383,98 @@
             </ScrollViewer>
           </TabItem>
 
+          <!-- The Workbench's list and editor with only the Deepgram key, so no custom keys and no key, name, category,
+               format, or secret fields to edit. -->
           <TabItem Header="API Keys" FontSize="13">
-            <Border Classes="preferenceSection">
-              <TextBlock Classes="comingSoon" Text="The Deepgram API key arrives in a later step." />
-            </Border>
+            <Grid RowDefinitions="Auto,*" RowSpacing="12" Margin="0,0,12,0">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <StackPanel Spacing="4">
+                  <TextBlock Classes="sectionTitle" Text="API Keys (1)" />
+                  <TextBlock Text="Manage the API keys SharpTurns uses. Values are plain text in SharpTurns' local database, but masked in the UI until explicitly revealed."
+                             Foreground="{DynamicResource TextSubtleBrush}" FontSize="12" TextWrapping="Wrap" />
+                </StackPanel>
+                <Button Grid.Column="1" Classes="secondaryActionButton preferenceButton" Content="Reload"
+                        Command="{Binding Preferences.ApiKeys.LoadCommand}" VerticalAlignment="Top"
+                        ToolTip.Tip="Bring back the saved key" />
+              </Grid>
+
+              <Grid Grid.Row="1" ColumnDefinitions="430,*" ColumnSpacing="16">
+                <Border Background="#171A22" BorderBrush="#2D3548" BorderThickness="1" CornerRadius="12" Padding="12">
+                  <Grid RowDefinitions="Auto,*,Auto" RowSpacing="10">
+                    <Border Background="#10232B" BorderBrush="#008AD8" BorderThickness="1" CornerRadius="11" Padding="12">
+                      <StackPanel Spacing="7">
+                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                          <TextBlock Text="Deepgram API Key" Foreground="{DynamicResource TextStrongBrush}" FontWeight="SemiBold" FontSize="13" />
+                          <Border Grid.Column="1" Background="#253047" BorderBrush="#4D608B" BorderThickness="1" CornerRadius="4" Padding="6,2"
+                                  VerticalAlignment="Center">
+                            <TextBlock Text="Built-in" Foreground="#A8C7FA" FontSize="10" />
+                          </Border>
+                          <Border Grid.Column="2" Background="#21351F" BorderBrush="#3E7E38" BorderThickness="1" CornerRadius="4" Padding="6,2"
+                                  VerticalAlignment="Center" IsVisible="{Binding Preferences.ApiKeys.IsConfigured}">
+                            <TextBlock Text="Configured" Foreground="#B7F7B0" FontSize="10" />
+                          </Border>
+                        </Grid>
+                        <TextBlock Text="deepgram_api_key" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"
+                                   FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" />
+                        <TextBlock Text="Used by dictation transcription." Foreground="{DynamicResource TextSubtleBrush}" FontSize="11"
+                                   TextWrapping="Wrap" />
+                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                          <TextBlock Text="Secret" Foreground="{DynamicResource TextMutedBrush}" FontSize="10" />
+                          <TextBlock Text="{Binding Preferences.ApiKeys.StatusLabel}" Foreground="{DynamicResource TextMutedBrush}" FontSize="10" />
+                        </StackPanel>
+                      </StackPanel>
+                    </Border>
+
+                    <TextBlock Grid.Row="2" Text="{Binding Preferences.ApiKeys.Status}" Foreground="{DynamicResource TextSubtleBrush}"
+                               FontSize="11" TextWrapping="Wrap" />
+                  </Grid>
+                </Border>
+
+                <Border Grid.Column="1" Background="#121620" BorderBrush="#2D3548" BorderThickness="1" CornerRadius="10" Padding="16">
+                  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Spacing="14" Margin="0,0,12,0">
+                      <StackPanel Spacing="6">
+                        <TextBlock Text="Edit API Key: Deepgram API Key" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"
+                                   FontSize="16" />
+                        <TextBlock Text="The settings table stores the key in plain text. Keep the database file and its backups protected."
+                                   Foreground="{DynamicResource TextSubtleBrush}" FontSize="12" TextWrapping="Wrap" />
+                      </StackPanel>
+
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                        <StackPanel Spacing="5">
+                          <TextBlock Text="Value" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13" />
+                          <TextBox Text="{Binding Preferences.ApiKeys.ValueText}" PasswordChar="•"
+                                   IsVisible="{Binding !Preferences.ApiKeys.RevealValue}" PlaceholderText="Paste API key" MinHeight="32"
+                                   FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12" />
+                          <TextBox Text="{Binding Preferences.ApiKeys.ValueText}"
+                                   IsVisible="{Binding Preferences.ApiKeys.RevealValue}" PlaceholderText="Paste API key" MinHeight="32"
+                                   FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12" />
+                          <TextBlock Text="Leave blank and save to clear the stored value, or use Clear Value."
+                                     Foreground="{DynamicResource TextMutedBrush}" FontSize="11" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <CheckBox Grid.Column="1" Content="Reveal value" IsChecked="{Binding Preferences.ApiKeys.RevealValue}"
+                                  Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                      </Grid>
+
+                      <StackPanel Spacing="5">
+                        <TextBlock Text="Description" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13" />
+                        <TextBlock Text="Used by dictation transcription, which arrives in a later phase. Nothing reads the key until then."
+                                   Foreground="{DynamicResource TextMutedBrush}" FontSize="12" TextWrapping="Wrap" />
+                      </StackPanel>
+
+                      <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                        <Button Classes="secondaryActionButton preferenceButton" Content="Clear Value"
+                                Command="{Binding Preferences.ApiKeys.ClearValueCommand}" ToolTip.Tip="Remove the saved key" />
+                        <Button Classes="secondaryActionButton preferenceButton" Content="Cancel"
+                                Command="{Binding Preferences.ApiKeys.CancelCommand}" />
+                        <Button Classes="primaryActionButton preferenceButton" Content="Save"
+                                Command="{Binding Preferences.ApiKeys.SaveCommand}" />
+                      </StackPanel>
+                    </StackPanel>
+                  </ScrollViewer>
+                </Border>
+              </Grid>
+            </Grid>
           </TabItem>
         </TabControl>
       </Grid>
