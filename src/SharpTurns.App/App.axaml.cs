@@ -49,7 +49,10 @@ public sealed partial class App : Application
             }
 
             var store = new ConversationStore(Path.Combine(dataDirectory, "sharpturns.db"));
-            var viewModel = new MainWindowViewModel(store, new ClaudeTurnRunner(store), new TurnSummarizer(store));
+            // Turns and summaries read the claude path from the preferences at launch, so a saved change applies next time.
+            var preferences = new ApplicationPreferencesViewModel(store);
+            var viewModel = new MainWindowViewModel(store, new ClaudeTurnRunner(store, () => preferences.ClaudePath),
+                new TurnSummarizer(store, () => preferences.ClaudePath), preferences);
             desktop.Exit += (_, _) => _instanceLock?.Dispose();
             _ = ShowMainWindowAsync(desktop, viewModel);
         }

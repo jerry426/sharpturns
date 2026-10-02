@@ -30,10 +30,16 @@ internal sealed record TurnRunResult(ConversationTurn Turn, IReadOnlyList<string
 
 /// <summary>
 /// Runs one turn through the CLI: saves the prompt, resumes the conversation's CLI session or seeds a fresh one
-/// from the visible history, streams the response, and saves how the turn ended.
+/// from the visible history, streams the response, and saves how the turn ended. executable returns the CLI to launch;
+/// it's read for each turn, so a changed setting applies to the next one, and null runs claude from the PATH.
 /// </summary>
-internal sealed class ClaudeTurnRunner(ConversationStore store, string? executable = null)
+internal sealed class ClaudeTurnRunner(ConversationStore store, Func<string?> executable)
 {
+    public const string ClaudeCliNotStarted =
+        "Couldn't start the claude CLI. Install it and make sure it's on your PATH, or set its path in Config → Preferences.";
+
+    public ClaudeTurnRunner(ConversationStore store, string? executable = null) : this(store, () => executable) { }
+
     /// <summary>Returns the saved turn, including after Stop or failure. Throws only if the database fails.</summary>
     public async Task<TurnRunResult> RunAsync(Project project, Conversation conversation, string prompt,
         IReadOnlyList<ImageAttachment> images, string systemPrompt, ClaudeCliInputQueue queue, TurnCallbacks callbacks,
@@ -269,7 +275,7 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, string? executab
                 : retainedHistory is not { Length: > 0 } ? "Starting a new CLI session…"
                 : "Starting a new CLI session from the conversation history…");
 
-            var result = await new ClaudeCliClient(executable).RunTurnAsync(directory, prompt, resume, OnEvent, AnswerAsync,
+            var result = await new ClaudeCliClient(executable()).RunTurnAsync(directory, prompt, resume, OnEvent, AnswerAsync,
                 systemPrompt, token, conversation.Model, conversation.Effort, sessionName: conversation.Title,
                 retainedHistory: retainedHistory, images: ToCli(images), queuedInput: queue.ToTurnInput(TakeQueued),
                 outputStyle: conversation.OutputStyle).ConfigureAwait(false);
@@ -283,7 +289,7 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, string? executab
         catch (Win32Exception)
         {
             status = TurnStatus.Failed;
-            error = "Couldn't start the claude CLI. Install it and make sure it's on your PATH.";
+            error = ClaudeCliNotStarted;
         }
         catch (Exception e)
         {

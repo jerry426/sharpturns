@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:SharpTurns.App.ViewModels"
+             xmlns:fonts="using:SharpTurns.Markdown.Rendering.Styling"
              x:Class="SharpTurns.App.Views.ConfigTabView"
              x:DataType="vm:MainWindowViewModel">
   <!-- Laid out like the Workbench's Config tab, with the subtabs SharpTurns uses, in the Workbench's order. -->
@@ -84,6 +85,51 @@
                   <TextBlock Grid.Column="1" Text="{Binding Preferences.Status}" Foreground="{DynamicResource TextSubtleBrush}"
                              FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" />
                 </Grid>
+
+                <!-- SharpTurns' own sections; the Workbench sets these elsewhere. -->
+                <Border Classes="preferenceSection">
+                  <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="16">
+                    <TextBlock Classes="sectionTitle" Text="Claude CLI" />
+                    <TextBlock Grid.Row="1" Classes="sectionText"
+                               Text="The claude executable that runs turns and summaries, the model and effort new conversations start with, and the model that writes compressed turns' summaries." />
+
+                    <Border Grid.Row="2" Classes="preferenceInset">
+                      <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="18" RowSpacing="12">
+                        <StackPanel Spacing="4">
+                          <TextBlock Text="claude path" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="14" />
+                          <TextBlock Classes="sectionText" FontSize="12"
+                                     Text="Leave blank to run claude from your PATH. Applies to the next turn or summary." />
+                        </StackPanel>
+                        <TextBox Grid.Row="1" Text="{Binding Preferences.ClaudePathText}" PlaceholderText="claude (from your PATH)"
+                                 MinHeight="30" VerticalAlignment="Center" />
+                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                          <Button Classes="secondaryActionButton preferenceButton" Content="Save Path"
+                                  Command="{Binding Preferences.SaveClaudePathCommand}" />
+                          <Button Classes="secondaryActionButton preferenceButton" Content="Reset"
+                                  Command="{Binding Preferences.ResetClaudePathCommand}" ToolTip.Tip="Run claude from your PATH" />
+                        </StackPanel>
+                      </Grid>
+                    </Border>
+
+                    <Grid Grid.Row="3" ColumnDefinitions="Auto,180,Auto,180,Auto,180" RowDefinitions="Auto,Auto" ColumnSpacing="10"
+                          RowSpacing="12">
+                      <TextBlock Classes="fieldLabel" Text="New conversation model" />
+                      <ComboBox Grid.Column="1" ItemsSource="{Binding Preferences.ModelOptions}"
+                                SelectedItem="{Binding Preferences.NewConversationModel}" HorizontalAlignment="Stretch" MinHeight="30"
+                                ToolTip.Tip="The model new conversations start with; each conversation's own picker changes it" />
+                      <TextBlock Grid.Column="2" Classes="fieldLabel" Text="Effort" Margin="10,0,0,0" />
+                      <ComboBox Grid.Column="3" ItemsSource="{Binding Preferences.EffortOptions}"
+                                SelectedItem="{Binding Preferences.NewConversationEffort}" HorizontalAlignment="Stretch" MinHeight="30"
+                                ToolTip.Tip="The effort new conversations start with; each conversation's own picker changes it" />
+                      <TextBlock Grid.Column="4" Classes="fieldLabel" Text="Summarizer model" Margin="10,0,0,0" />
+                      <ComboBox Grid.Column="5" ItemsSource="{Binding Preferences.SummarizerModelOptions}"
+                                SelectedItem="{Binding Preferences.SummarizerModel}" HorizontalAlignment="Stretch" MinHeight="30"
+                                ToolTip.Tip="Writes the Work Summary when a turn is compressed or auto-summarized" />
+                      <TextBlock Grid.Row="1" Grid.ColumnSpan="6" Classes="fieldLabel" Text="{Binding Preferences.ClaudeCliMessage}"
+                                 TextWrapping="Wrap" />
+                    </Grid>
+                  </Grid>
+                </Border>
 
                 <Border Classes="preferenceSection">
                   <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="16">
@@ -205,6 +251,28 @@
                                FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center" />
                     <Button Grid.Row="2" Grid.Column="1" Classes="primaryActionButton" Content="Configure DOCX Export…"
                             Command="{Binding Preferences.ConfigureDocxExportCommand}" HorizontalAlignment="Stretch" MinHeight="36" />
+                  </Grid>
+                </Border>
+
+                <Border Classes="preferenceSection">
+                  <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="14">
+                    <TextBlock Classes="sectionTitle" Text="System Prompt" />
+                    <TextBlock Grid.Row="1" Classes="sectionText"
+                               Text="Appended to the CLI's own system prompt for every turn. Your CLAUDE.md and AGENTS.md files still load. A saved change starts a new CLI session from the conversation history on each conversation's next turn." />
+                    <TextBox Grid.Row="2" Text="{Binding Preferences.SystemPromptText}" AcceptsReturn="True" TextWrapping="Wrap"
+                             MinHeight="320" MaxLength="20000" FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12" />
+                    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" ColumnSpacing="18">
+                      <TextBlock Classes="fieldLabel" Text="{Binding Preferences.SystemPromptMessage}" TextWrapping="Wrap" />
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                        <Button Classes="secondaryActionButton preferenceButton" Content="Reset to Default"
+                                Command="{Binding Preferences.ResetSystemPromptCommand}"
+                                ToolTip.Tip="Put the built-in prompt in the editor; Save applies it" />
+                        <Button Classes="secondaryActionButton preferenceButton" Content="Cancel"
+                                Command="{Binding Preferences.CancelSystemPromptCommand}" />
+                        <Button Classes="primaryActionButton preferenceButton" Content="Save Changes"
+                                Command="{Binding Preferences.SaveSystemPromptCommand}" />
+                      </StackPanel>
+                    </Grid>
                   </Grid>
                 </Border>
               </StackPanel>

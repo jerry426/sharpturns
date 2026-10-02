@@ -1,5 +1,6 @@
 using SharpTurns.App.Services;
 using SharpTurns.App.ViewModels;
+using SharpTurns.ClaudeCli;
 using SharpTurns.Core.Persistence;
 using Xunit;
 
@@ -59,6 +60,87 @@ public sealed class ApplicationPreferencesViewModelTests : IDisposable
         reloaded.ShowDocxExportDefaultsDialogAsync = _ => Task.FromResult<DocxExportSettings?>(null);
         await reloaded.ConfigureDocxExportCommand.ExecuteAsync(null);
         Assert.Equal(docx, reloaded.DocxExportSettings);
+    }
+
+    [Fact]
+    public async Task CliSettingsAreSavedAndReloaded()
+    {
+        Directory.CreateDirectory(_directory);
+        var store = new ConversationStore(Path.Combine(_directory, "test.db"));
+        await store.InitializeAsync();
+        var preferences = new ApplicationPreferencesViewModel(store);
+        await preferences.LoadAsync();
+        Assert.Null(preferences.ClaudePath);
+        Assert.Equal(ClaudeCliCodingPolicy.DefaultSystemPrompt, preferences.SystemPrompt);
+        Assert.False(preferences.ResetSystemPromptCommand.CanExecute(null));
+
+        // The path must be a full path to a file that exists.
+        preferences.ClaudePathText = "bin/claude";
+        await preferences.SaveClaudePathCommand.ExecuteAsync(null);
+        Assert.StartsWith("Enter the full path", preferences.ClaudeCliMessage);
+        preferences.ClaudePathText = Path.Combine(_directory, "missing");
+        await preferences.SaveClaudePathCommand.ExecuteAsync(null);
+        Assert.StartsWith("There's no file at", preferences.ClaudeCliMessage);
+        Assert.Null(preferences.ClaudePath);
+        var claude = Path.Combine(_directory, OperatingSystem.IsWindows() ? "claude.exe" : "claude");
+        await File.WriteAllTextAsync(claude, "");
+        preferences.ClaudePathText = " " + claude + " ";
+        await preferences.SaveClaudePathCommand.ExecuteAsync(null);
+        Assert.Equal(claude, preferences.ClaudePath);
+
+        preferences.NewConversationModel = "opus";
+        await WaitForSettingAsync(store, "default_model", "opus");
+        preferences.NewConversationEffort = "high";
+        await WaitForSettingAsync(store, "default_effort", "high");
+        preferences.SummarizerModel = "haiku";
+        await WaitForSettingAsync(store, TurnSummarizer.ModelSetting, "haiku");
+        Assert.Equal("haiku", await new TurnSummarizer(store).GetModelAsync());
+
+        // A blank prompt is refused; Cancel brings back the saved one.
+        preferences.SystemPromptText = "  \n ";
+        await preferences.SaveSystemPromptCommand.ExecuteAsync(null);
+        Assert.StartsWith("The system prompt can't be empty.", preferences.SystemPromptMessage);
+        preferences.CancelSystemPromptCommand.Execute(null);
+        Assert.False(preferences.HasSystemPromptChanges);
+        preferences.SystemPromptText = "Be brief.\r\nUse British spelling.\n";
+        Assert.True(preferences.SaveSystemPromptCommand.CanExecute(null));
+        await preferences.SaveSystemPromptCommand.ExecuteAsync(null);
+        Assert.Equal("Be brief.\nUse British spelling.", preferences.SystemPrompt);
+        Assert.False(preferences.HasSystemPromptChanges);
+
+        var reloaded = new ApplicationPreferencesViewModel(store);
+        await reloaded.LoadAsync();
+        Assert.Equal(claude, reloaded.ClaudePath);
+        Assert.Equal(claude, reloaded.ClaudePathText);
+        Assert.Equal("opus", reloaded.NewConversationModelOrNull);
+        Assert.Equal("high", reloaded.NewConversationEffortOrNull);
+        Assert.Equal("haiku", reloaded.SummarizerModel);
+        Assert.Equal("Be brief.\nUse British spelling.", reloaded.SystemPrompt);
+
+        // Reset fills the editor with the built-in prompt; saving it removes the setting.
+        reloaded.ResetSystemPromptCommand.Execute(null);
+        Assert.Equal(ClaudeCliCodingPolicy.DefaultSystemPrompt, reloaded.SystemPromptText);
+        Assert.Equal("Be brief.\nUse British spelling.", reloaded.SystemPrompt);
+        await reloaded.SaveSystemPromptCommand.ExecuteAsync(null);
+        Assert.Equal(ClaudeCliCodingPolicy.DefaultSystemPrompt, reloaded.SystemPrompt);
+        Assert.Null(await store.GetSettingAsync("system_prompt"));
+        await reloaded.ResetClaudePathCommand.ExecuteAsync(null);
+        Assert.Null(reloaded.ClaudePath);
+        Assert.Equal("", reloaded.ClaudePathText);
+
+        var project = await store.CreateProjectAsync("Project", _directory);
+        var conversation = await store.CreateConversationAsync(project.Id, "Conversation", reloaded.NewConversationModelOrNull,
+            reloaded.NewConversationEffortOrNull);
+        Assert.Equal(("opus", "high"), (conversation.Model, conversation.Effort));
+        var other = await store.CreateConversationAsync(project.Id, "Other");
+        Assert.Equal(((string?)null, (string?)null), (other.Model, other.Effort));
+    }
+
+    // The pickers save without being awaited.
+    private static async Task WaitForSettingAsync(ConversationStore store, string key, string expected)
+    {
+        for (var i = 0; i < 100 && await store.GetSettingAsync(key) != expected; i++) await Task.Delay(20);
+        Assert.Equal(expected, await store.GetSettingAsync(key));
     }
 
     [Fact]

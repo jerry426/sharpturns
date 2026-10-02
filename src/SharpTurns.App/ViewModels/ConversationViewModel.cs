@@ -15,8 +15,8 @@ namespace SharpTurns.App.ViewModels;
 
 public sealed partial class ConversationViewModel : ObservableObject
 {
-    private const string DefaultModel = "Default model";
-    private const string DefaultEffort = "Default effort";
+    internal const string DefaultModel = "Default model";
+    internal const string DefaultEffort = "Default effort";
     private const string DefaultOutputStyle = "Default";
     public const int MaxAttachments = 10;
     private readonly ConversationStore _store;
@@ -140,7 +140,10 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     public ConversationDisplayViewModel Display { get; }
 
-    /// <summary>Shared by every conversation: the Notes and Markdown Viewer window sizes and the DOCX export defaults.</summary>
+    /// <summary>
+    /// Shared by every conversation: the system prompt, the Notes and Markdown Viewer window sizes, and the DOCX export
+    /// defaults.
+    /// </summary>
     public ApplicationPreferencesViewModel Preferences { get; }
 
     public ObservableCollection<TurnViewModel> Turns { get; } = [];
@@ -199,8 +202,9 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     // Shared by every conversation so the sidebar's pickers keep the same ItemsSource when the conversation changes;
     // a new ItemsSource clears the selection, which would write back to the conversation.
-    private static readonly IReadOnlyList<string> SharedModelOptions = [DefaultModel, "opus", "sonnet", "haiku"];
-    private static readonly IReadOnlyList<string> SharedEffortOptions = [DefaultEffort, "low", "medium", "high", "xhigh", "max"];
+    // Preferences' defaults for new conversations use the same lists.
+    internal static readonly IReadOnlyList<string> SharedModelOptions = [DefaultModel, "opus", "sonnet", "haiku"];
+    internal static readonly IReadOnlyList<string> SharedEffortOptions = [DefaultEffort, "low", "medium", "high", "xhigh", "max"];
     private static readonly IReadOnlyList<string> SharedOutputStyleOptions = [DefaultOutputStyle, .. ClaudeCliCodingPolicy.OutputStyles];
 
     /// <summary>CLI model aliases; the default entry uses the CLI's own default.</summary>
@@ -349,7 +353,8 @@ public sealed partial class ConversationViewModel : ObservableObject
                 limits => Dispatcher.UIThread.Post(() => _rateLimitsChanged(limits)),
                 (question, token) => Dispatcher.UIThread.InvokeAsync(() => AskAsync(question, token)),
                 (tool, input, token) => Dispatcher.UIThread.InvokeAsync(() => ApproveAsync(tool, input, token)));
-            var result = await _runner.RunAsync(Project, Conversation, prompt, images, ClaudeCliCodingPolicy.DefaultSystemPrompt,
+            // A changed system prompt changes the session policy version, so this turn starts a new CLI session.
+            var result = await _runner.RunAsync(Project, Conversation, prompt, images, Preferences.SystemPrompt,
                 _queue, callbacks, _turnLifetime.Token);
             // Finish first: clearing IsRunning re-checks the card commands, which need the finished record.
             turn.Finish(result.Turn);
@@ -517,7 +522,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         }
         catch (Win32Exception)
         {
-            Status = "Couldn't start the claude CLI. Install it and make sure it's on your PATH.";
+            Status = ClaudeTurnRunner.ClaudeCliNotStarted;
         }
         catch (Exception e)
         {

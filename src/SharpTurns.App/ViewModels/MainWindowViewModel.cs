@@ -56,12 +56,13 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(HasPlanUsage))]
     private ClaudeCliRateLimitSnapshot? _planUsage;
 
-    internal MainWindowViewModel(ConversationStore store, ClaudeTurnRunner runner, TurnSummarizer summarizer)
+    internal MainWindowViewModel(ConversationStore store, ClaudeTurnRunner runner, TurnSummarizer summarizer,
+        ApplicationPreferencesViewModel preferences)
     {
         _store = store;
         _runner = runner;
         _summarizer = summarizer;
-        Preferences = new ApplicationPreferencesViewModel(store);
+        Preferences = preferences;
         Projects.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(OtherProjects));
@@ -288,7 +289,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
             return;
         await RunAsync("create the conversation", async () =>
         {
-            var conversation = await _store.CreateConversationAsync(project.Id, title.Trim());
+            var conversation = await _store.CreateConversationAsync(project.Id, title.Trim(), Preferences.NewConversationModelOrNull,
+                Preferences.NewConversationEffortOrNull);
             if (SelectedProject != project) return;
             Conversations.Insert(0, conversation);
             SelectedConversation = conversation;

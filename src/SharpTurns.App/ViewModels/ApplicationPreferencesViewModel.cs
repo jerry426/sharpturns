@@ -1,21 +1,55 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SharpTurns.App.Services;
+using SharpTurns.ClaudeCli;
 using SharpTurns.Core.Persistence;
 using SharpTurns.Markdown.Rendering;
 
 namespace SharpTurns.App.ViewModels;
 
 /// <summary>
-/// The Config tab's Preferences, as in the Workbench: restoring the last session at startup, the startup, Notes, and
-/// Markdown Viewer window sizes, and the DOCX export defaults. Each is saved in the settings table when it changes.
+/// The Config tab's Preferences. As in the Workbench: restoring the last session at startup, the startup, Notes, and
+/// Markdown Viewer window sizes, and the DOCX export defaults. SharpTurns adds the claude path, the model and effort for
+/// new conversations, the summarizer model, and the system prompt. Each is saved in the settings table when it changes.
 /// </summary>
 public sealed partial class ApplicationPreferencesViewModel : ObservableObject
 {
     private const string RestoreLastSessionSetting = "restore_last_session";
     private const string DocxExportSetting = "docx_export_settings";
+    private const string ClaudePathSetting = "claude_path";
+    private const string NewConversationModelSetting = "default_model";
+    private const string NewConversationEffortSetting = "default_effort";
+    private const string SystemPromptSetting = "system_prompt";
     private readonly ConversationStore _store;
     private bool _isLoading;
+
+    /// <summary>The claude path as typed; <see cref="ClaudePath"/> holds the saved one.</summary>
+    [ObservableProperty]
+    private string _claudePathText = "";
+
+    [ObservableProperty]
+    private string _newConversationModel = ConversationViewModel.DefaultModel;
+
+    [ObservableProperty]
+    private string _newConversationEffort = ConversationViewModel.DefaultEffort;
+
+    [ObservableProperty]
+    private string _summarizerModel = TurnSummarizer.DefaultModel;
+
+    /// <summary>The outcome of the last change in the Claude CLI section.</summary>
+    [ObservableProperty]
+    private string _claudeCliMessage = UsingClaudePathLabel(null);
+
+    /// <summary>The system prompt as edited; <see cref="SystemPrompt"/> holds the saved one.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSystemPromptChanges))]
+    [NotifyCanExecuteChangedFor(nameof(SaveSystemPromptCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CancelSystemPromptCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ResetSystemPromptCommand))]
+    private string _systemPromptText = ClaudeCliCodingPolicy.DefaultSystemPrompt;
+
+    [ObservableProperty]
+    private string _systemPromptMessage = SystemPromptLabel(ClaudeCliCodingPolicy.DefaultSystemPrompt);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RestoreLastSessionDescription))]
@@ -50,6 +84,24 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
 
     public string DocxExportSettingsSummary => DocxExportSettings.SummaryLabel;
 
+    /// <summary>The saved claude executable; null runs claude from the PATH.</summary>
+    public string? ClaudePath { get; private set; }
+
+    public IReadOnlyList<string> ModelOptions => ConversationViewModel.SharedModelOptions;
+
+    public IReadOnlyList<string> EffortOptions => ConversationViewModel.SharedEffortOptions;
+
+    public IReadOnlyList<string> SummarizerModelOptions { get; } = ["opus", "sonnet", "haiku"];
+
+    public string? NewConversationModelOrNull => NewConversationModel == ConversationViewModel.DefaultModel ? null : NewConversationModel;
+
+    public string? NewConversationEffortOrNull => NewConversationEffort == ConversationViewModel.DefaultEffort ? null : NewConversationEffort;
+
+    /// <summary>The saved system prompt, appended to the CLI's own for every turn.</summary>
+    public string SystemPrompt { get; private set; } = ClaudeCliCodingPolicy.DefaultSystemPrompt;
+
+    public bool HasSystemPromptChanges => SystemPromptText != SystemPrompt;
+
     /// <summary>Shows the DOCX export defaults dialog; returns the new settings, or null when canceled.</summary>
     public Func<DocxExportDefaultsDialogViewModel, Task<DocxExportSettings?>>? ShowDocxExportDefaultsDialogAsync { get; set; }
 
@@ -64,10 +116,150 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
             await StartupWindow.LoadAsync();
             await NotesWindow.LoadAsync();
             await MarkdownViewerWindow.LoadAsync();
+            ApplyClaudePath(await _store.GetSettingAsync(ClaudePathSetting) is { Length: > 0 } path ? path : null);
+            ClaudeCliMessage = UsingClaudePathLabel(ClaudePath);
+            NewConversationModel = Option(ModelOptions, await _store.GetSettingAsync(NewConversationModelSetting), ConversationViewModel.DefaultModel);
+            NewConversationEffort = Option(EffortOptions, await _store.GetSettingAsync(NewConversationEffortSetting), ConversationViewModel.DefaultEffort);
+            SummarizerModel = Option(SummarizerModelOptions, await _store.GetSettingAsync(TurnSummarizer.ModelSetting), TurnSummarizer.DefaultModel);
+            ApplySystemPrompt(await _store.GetSettingAsync(SystemPromptSetting) is { Length: > 0 } prompt
+                ? prompt : ClaudeCliCodingPolicy.DefaultSystemPrompt);
+            SystemPromptMessage = SystemPromptLabel(SystemPrompt);
         }
         catch (Exception e) { Status = "Couldn't load the preferences: " + e.Message; }
         finally { _isLoading = false; }
     }
+
+    // A saved value no longer offered falls back to the default.
+    private static string Option(IReadOnlyList<string> options, string? value, string fallback) =>
+        value is not null && options.Contains(value) ? value : fallback;
+
+    [RelayCommand]
+    private async Task SaveClaudePathAsync()
+    {
+        var path = ClaudePathText.Trim();
+        if (path.Length == 0)
+        {
+            await StoreClaudePathAsync(null);
+            return;
+        }
+        if (!Path.IsPathFullyQualified(path))
+            ClaudeCliMessage = "Enter the full path to the claude executable, or leave it blank to use claude from your PATH.";
+        else if (OperatingSystem.IsWindows() && !path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            ClaudeCliMessage = "Choose the native claude.exe, not a shell or .cmd wrapper.";
+        else if (!File.Exists(path))
+            ClaudeCliMessage = $"There's no file at {path}.";
+        else
+            await StoreClaudePathAsync(path);
+    }
+
+    [RelayCommand]
+    private Task ResetClaudePathAsync() => StoreClaudePathAsync(null);
+
+    // Null removes the setting, so turns run claude from the PATH.
+    private async Task StoreClaudePathAsync(string? path)
+    {
+        try
+        {
+            await _store.SetSettingAsync(ClaudePathSetting, path);
+            ApplyClaudePath(path);
+            ClaudeCliMessage = "Saved. " + UsingClaudePathLabel(path);
+        }
+        catch (Exception e) { ClaudeCliMessage = "Couldn't save the claude path: " + e.Message; }
+    }
+
+    private void ApplyClaudePath(string? path)
+    {
+        ClaudePath = path;
+        ClaudePathText = path ?? "";
+    }
+
+    private static string UsingClaudePathLabel(string? path) => path is null
+        ? "Turns and summaries run claude from your PATH."
+        : $"Turns and summaries run {path}.";
+
+    partial void OnNewConversationModelChanged(string value)
+    {
+        if (!_isLoading)
+            _ = SaveCliSettingAsync(NewConversationModelSetting, NewConversationModelOrNull,
+                $"New conversations will use {NewConversationModelOrNull ?? "the CLI's default model"}.");
+    }
+
+    partial void OnNewConversationEffortChanged(string value)
+    {
+        if (!_isLoading)
+            _ = SaveCliSettingAsync(NewConversationEffortSetting, NewConversationEffortOrNull,
+                $"New conversations will use {(NewConversationEffortOrNull is { } effort ? effort + " effort" : "the CLI's default effort")}.");
+    }
+
+    partial void OnSummarizerModelChanged(string value)
+    {
+        if (!_isLoading)
+            _ = SaveCliSettingAsync(TurnSummarizer.ModelSetting, value == TurnSummarizer.DefaultModel ? null : value,
+                $"Turns will be compressed with {value}.");
+    }
+
+    // Owns its errors so the property setters can fire and forget it. Null removes the setting, so the default applies.
+    private async Task SaveCliSettingAsync(string key, string? value, string saved)
+    {
+        try
+        {
+            await _store.SetSettingAsync(key, value);
+            ClaudeCliMessage = "Saved. " + saved;
+        }
+        catch (Exception e) { ClaudeCliMessage = "Couldn't save the setting: " + e.Message; }
+    }
+
+    private bool CanSaveSystemPrompt() => HasSystemPromptChanges;
+
+    /// <summary>Saving the default removes the setting, so a later change to the built-in prompt applies.</summary>
+    [RelayCommand(CanExecute = nameof(CanSaveSystemPrompt))]
+    private async Task SaveSystemPromptAsync()
+    {
+        var prompt = SystemPromptText.ReplaceLineEndings("\n").Trim();
+        if (prompt.Length == 0)
+        {
+            SystemPromptMessage = "The system prompt can't be empty. Click Reset to Default to start from the built-in one.";
+            return;
+        }
+        try
+        {
+            await _store.SetSettingAsync(SystemPromptSetting, prompt == ClaudeCliCodingPolicy.DefaultSystemPrompt ? null : prompt);
+            ApplySystemPrompt(prompt);
+            SystemPromptMessage = "Saved. Each conversation's next turn starts a new CLI session with this prompt.";
+        }
+        catch (Exception e) { SystemPromptMessage = "Couldn't save the system prompt: " + e.Message; }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSaveSystemPrompt))]
+    private void CancelSystemPrompt()
+    {
+        SystemPromptText = SystemPrompt;
+        SystemPromptMessage = SystemPromptLabel(SystemPrompt);
+    }
+
+    private bool CanResetSystemPrompt() => SystemPromptText != ClaudeCliCodingPolicy.DefaultSystemPrompt;
+
+    /// <summary>Puts the built-in prompt in the editor; Save applies it and Cancel brings back the saved one.</summary>
+    [RelayCommand(CanExecute = nameof(CanResetSystemPrompt))]
+    private void ResetSystemPrompt()
+    {
+        SystemPromptText = ClaudeCliCodingPolicy.DefaultSystemPrompt;
+        SystemPromptMessage = "The built-in prompt is in the editor. Save to use it, or Cancel to keep your saved prompt.";
+    }
+
+    private void ApplySystemPrompt(string prompt)
+    {
+        SystemPrompt = prompt;
+        SystemPromptText = prompt;
+        // SystemPromptText may not have changed, so its notifications may not have run.
+        OnPropertyChanged(nameof(HasSystemPromptChanges));
+        SaveSystemPromptCommand.NotifyCanExecuteChanged();
+        CancelSystemPromptCommand.NotifyCanExecuteChanged();
+    }
+
+    private static string SystemPromptLabel(string prompt) => prompt == ClaudeCliCodingPolicy.DefaultSystemPrompt
+        ? "Using the built-in system prompt."
+        : "Using your saved system prompt.";
 
     partial void OnRestoreLastSessionChanged(bool value)
     {

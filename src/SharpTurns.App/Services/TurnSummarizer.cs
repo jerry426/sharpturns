@@ -7,13 +7,16 @@ namespace SharpTurns.App.Services;
 
 /// <summary>
 /// Compresses turns with a disposable, tool-less one-shot CLI call that never touches the conversation's session.
-/// The summarizer model is the "summarizer_model" setting (editable in phase 5), Sonnet by default.
+/// The summarizer model is the "summarizer_model" setting (chosen in Config → Preferences), Sonnet by default.
+/// executable returns the CLI to launch, as for <see cref="ClaudeTurnRunner"/>.
 /// </summary>
-internal sealed class TurnSummarizer(ConversationStore store, string? executable = null)
+internal sealed class TurnSummarizer(ConversationStore store, Func<string?> executable)
 {
     public const string ModelSetting = "summarizer_model";
     public const string DefaultModel = "sonnet";
     private const int OutputTokenCap = 16_384;
+
+    public TurnSummarizer(ConversationStore store, string? executable = null) : this(store, () => executable) { }
 
     public async Task<string> GetModelAsync(CancellationToken cancellationToken = default) =>
         await store.GetSettingAsync(ModelSetting, cancellationToken) is { Length: > 0 } model ? model : DefaultModel;
@@ -32,7 +35,7 @@ internal sealed class TurnSummarizer(ConversationStore store, string? executable
         if (source.HasWork)
         {
             model = await GetModelAsync(cancellationToken).ConfigureAwait(false);
-            var generated = await new ClaudeCliClient(executable).RunOneShotAsync(TurnCompression.SystemPrompt,
+            var generated = await new ClaudeCliClient(executable()).RunOneShotAsync(TurnCompression.SystemPrompt,
                 TurnCompression.Instruction(turn.TurnNumber), [new(source.SummarizerSource)], model, null, OutputTokenCap,
                 cancellationToken).ConfigureAwait(false);
             workSummary = TurnCompression.NormalizeWorkSummary(generated);
