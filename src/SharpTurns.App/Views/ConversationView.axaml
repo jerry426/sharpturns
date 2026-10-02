@@ -199,6 +199,10 @@
                         <Button Classes="railButton export" Content="📤 Export / MacDown / DOCX"
                                 Command="{ReflectionBinding $parent[UserControl].DataContext.ExportTurnCommand}" CommandParameter="{Binding}"
                                 ToolTip.Tip="Open export options for Markdown, MacDown, text, and DOCX" />
+                        <Button Classes="railButton branch" Content="{Binding BranchEndpointLabel}"
+                                Command="{ReflectionBinding $parent[UserControl].DataContext.ToggleBranchEndpointCommand}"
+                                CommandParameter="{Binding}"
+                                ToolTip.Tip="Mark this turn as a branch endpoint. Select two endpoints to create a branched conversation from the inclusive range." />
                         <Button Classes="railButton viewFull" Content="{Binding CompactViewFullContentLabel}"
                                 IsVisible="{Binding HasViewFullContentButton}" Command="{Binding ViewFullContentCommand}"
                                 ToolTip.Tip="{Binding ReductionToolTip}" />

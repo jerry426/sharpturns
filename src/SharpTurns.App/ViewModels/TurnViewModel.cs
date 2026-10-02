@@ -36,6 +36,11 @@ public sealed partial class TurnViewModel : ObservableObject
     [ObservableProperty]
     private bool _isSelected;
 
+    /// <summary>Chosen with the rail's Select as Branch End Point, as in the Workbench; the card gets a thick yellow border.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BranchEndpointLabel), nameof(CardBorderBrush), nameof(CardBorderThickness))]
+    private bool _isBranchEndpoint;
+
     /// <summary>A compressed turn temporarily shown in full; reverts on reload.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasViewFullContentButton), nameof(IsViewingFullCompressedContent))]
@@ -170,9 +175,11 @@ public sealed partial class TurnViewModel : ObservableObject
         _ => "Compressed · no tool calls to summarize",
     };
 
-    public string CardBorderBrush => IsHydrated ? "#0078D4" : "#F89831";
+    public string CardBorderBrush => IsBranchEndpoint ? "#FFCC00" : IsHydrated ? "#0078D4" : "#F89831";
 
-    public Thickness CardBorderThickness => new(IsHydrated ? 1 : 3);
+    public Thickness CardBorderThickness => new(IsHydrated && !IsBranchEndpoint ? 1 : 3);
+
+    public string BranchEndpointLabel => IsBranchEndpoint ? "✓ Branch Endpoint Selected" : "⚑ Select as Branch End Point";
 
     public string RailAccentBrush => IsCompressed ? "#1EA7FF" : "#C7D7FF";
 

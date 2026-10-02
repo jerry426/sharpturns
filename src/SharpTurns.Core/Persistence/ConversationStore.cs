@@ -514,6 +514,69 @@ public sealed class ConversationStore
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// As in the Workbench, copies a contiguous run of the conversation's turns, renumbered from 1, with their parts and
+    /// context state into a new conversation with the same project, title, and settings. The source is unchanged. The
+    /// branch has no CLI session, so its first turn reseeds from the copied history. Throws unless turnIds are every
+    /// turn between the first and last of them, none still running.
+    /// </summary>
+    public async Task<Conversation> BranchConversationAsync(long conversationId, IReadOnlyCollection<long> turnIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (turnIds.Count == 0) throw new ArgumentException("Choose at least one turn to branch.", nameof(turnIds));
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = connection.BeginTransaction();
+        var turns = new List<(long Id, string Status)>();
+        await using (var command = Command(connection, transaction,
+            "SELECT id, status FROM conversation_turns WHERE conversation_id = $conversation ORDER BY turn_number",
+            ("$conversation", conversationId)))
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+        {
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                turns.Add((reader.GetInt64(0), reader.GetString(1)));
+        }
+        var chosen = turnIds.ToHashSet();
+        var first = turns.FindIndex(t => chosen.Contains(t.Id));
+        var run = turns.Skip(Math.Max(first, 0)).Take(chosen.Count).ToArray();
+        if (chosen.Count != turnIds.Count || run.Length != chosen.Count || !run.All(t => chosen.Contains(t.Id)))
+            throw new InvalidOperationException("The turns to branch must be every turn from the first chosen to the last.");
+        if (run.Any(t => t.Status == "running")) throw new InvalidOperationException("A running turn can't be branched.");
+
+        var now = Now();
+        Conversation branch;
+        await using (var command = Command(connection, transaction, """
+            INSERT INTO conversations (project_id, title, model, effort, output_style, auto_summarize, created_at, updated_at)
+            SELECT project_id, title, model, effort, output_style, auto_summarize, $now, $now FROM conversations WHERE id = $source
+            RETURNING id, project_id, title, model, effort, updated_at, output_style, auto_summarize
+            """, ("$source", conversationId), ("$now", now)))
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+        {
+            if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                throw new InvalidOperationException("Conversation no longer exists.");
+            branch = ReadConversation(reader);
+        }
+        for (var i = 0; i < run.Length; i++)
+        {
+            var turnId = (long)(await ScalarAsync(connection, transaction, $"""
+                INSERT INTO conversation_turns (conversation_id, turn_number, {BranchedTurnColumns})
+                SELECT $branch, $number, {BranchedTurnColumns} FROM conversation_turns WHERE id = $turn
+                RETURNING id
+                """, cancellationToken, ("$branch", branch.Id), ("$number", i + 1), ("$turn", run[i].Id)).ConfigureAwait(false))!;
+            await ExecuteAsync(connection, transaction, """
+                INSERT INTO conversation_turn_parts (turn_id, sequence, role, part_type, content)
+                SELECT $new, sequence, role, part_type, content FROM conversation_turn_parts WHERE turn_id = $turn
+                """, cancellationToken, ("$new", turnId), ("$turn", run[i].Id)).ConfigureAwait(false);
+        }
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return branch;
+    }
+
+    // Every turn column but the key, conversation, and number.
+    private const string BranchedTurnColumns = """
+        status, error_message, created_at, finished_at, input_tokens, cached_input_tokens, output_tokens, context_tokens,
+        model, request_count, first_request_input_tokens, first_request_cached_tokens, is_hydrated, summary, summary_model
+        """;
+
     public async Task<ClaudeCodeSessionState?> LoadClaudeCodeSessionAsync(long conversationId, CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);

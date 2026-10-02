@@ -1,0 +1,79 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="SharpTurns.App.Views.BranchConfirmationDialog"
+        Title="Confirm Action"
+        Width="560"
+        MinHeight="300"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="#111318">
+  <!-- The Workbench's branch confirmation: a yellow-bordered card with the turns to copy and an amber warning. -->
+  <Window.Styles>
+    <Style Selector="Button.dialogButton">
+      <Setter Property="MinHeight" Value="40" />
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.createBranch">
+      <Setter Property="Background" Value="#0E2230" />
+      <Setter Property="BorderBrush" Value="#19A8FF" />
+      <Setter Property="Foreground" Value="#19A8FF" />
+    </Style>
+    <Style Selector="Button.createBranch:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#15293A" />
+      <Setter Property="BorderBrush" Value="#46C2FF" />
+      <Setter Property="Foreground" Value="#9FD4FF" />
+    </Style>
+    <Style Selector="Button.createBranch:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#0A1A26" />
+      <Setter Property="BorderBrush" Value="#0D78BA" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+    </Style>
+  </Window.Styles>
+  <Border Background="#0E1A26" BorderBrush="#FFCC00" BorderThickness="1" CornerRadius="0,0,12,12" Padding="18">
+    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="18">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <StackPanel>
+          <TextBlock x:Name="TitleText" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="20"
+                     TextWrapping="Wrap" />
+          <TextBlock x:Name="MessageText" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" Margin="0,4,0,0"
+                     TextWrapping="Wrap" />
+        </StackPanel>
+        <Button Grid.Column="1" Classes="secondaryActionButton" Click="Cancel_Click" Width="34" Height="34" Padding="0"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center" VerticalAlignment="Top"
+                ToolTip.Tip="Close" AutomationProperties.Name="Close">
+          <PathIcon Width="12" Height="12" Data="{StaticResource CloseIconGeometry}" />
+        </Button>
+      </Grid>
+
+      <StackPanel Grid.Row="1" Spacing="12">
+        <Border Background="#1D2330" BorderBrush="#2D3548" BorderThickness="1" CornerRadius="10" Padding="12">
+          <StackPanel Spacing="6">
+            <TextBlock x:Name="DetailTitleText" Foreground="{DynamicResource TextStrongBrush}" FontWeight="SemiBold" FontSize="16"
+                       TextWrapping="Wrap" />
+            <TextBlock x:Name="DetailText" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+        <Border Background="#2A2410" BorderBrush="#7A6B2E" BorderThickness="1" CornerRadius="10" Padding="12">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+            <TextBlock Text="⚠" Foreground="{DynamicResource TextDangerBrush}" FontSize="18" VerticalAlignment="Top" />
+            <TextBlock x:Name="WarningText" Grid.Column="1" Foreground="{DynamicResource TextDangerBrush}" FontSize="13"
+                       TextWrapping="Wrap" />
+          </Grid>
+        </Border>
+      </StackPanel>
+
+      <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+        <TextBlock Text="You can cancel to leave things unchanged." Foreground="{DynamicResource TextSubtleBrush}" FontSize="11"
+                   VerticalAlignment="Center" TextWrapping="Wrap" />
+        <Button Grid.Column="1" Classes="secondaryActionButton dialogButton" Content="Cancel" Click="Cancel_Click" MinWidth="96"
+                IsCancel="True" />
+        <Button Grid.Column="2" Classes="dialogButton createBranch" Content="Create Branch" Click="Confirm_Click" MinWidth="160"
+                IsDefault="True" />
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

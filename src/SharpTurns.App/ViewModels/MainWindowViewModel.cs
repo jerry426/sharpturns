@@ -180,7 +180,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         if (!_openConversations.TryGetValue(value.Id, out var conversation))
         {
             conversation = new ConversationViewModel(value, SelectedProject, _store, _runner, _summarizer, Display, Preferences,
-                limits => PlanUsage = limits, OnConversationUpdated);
+                limits => PlanUsage = limits, OnConversationUpdated, OnConversationBranched);
             _openConversations[value.Id] = conversation;
             _ = conversation.LoadAsync();
         }
@@ -197,6 +197,17 @@ public sealed partial class MainWindowViewModel : ObservableObject
         Conversations.Remove(listed);
         Conversations.Insert(0, conversation);
         if (selected) SelectedConversation = conversation;
+    }
+
+    // As in the Workbench, a new branch opens at once. It's the newest conversation, so it goes first, matching the
+    // store's order.
+    private void OnConversationBranched(Conversation branch, string status)
+    {
+        // Another project's list reloads from the store when its project is selected.
+        if (SelectedProject?.Id != branch.ProjectId) return;
+        Conversations.Insert(0, branch);
+        SelectedConversation = branch;
+        if (CurrentConversation?.Conversation.Id == branch.Id) CurrentConversation.Status = status;
     }
 
     // The store has already moved a replaced model ID's conversations; keep the listed and open ones in step.

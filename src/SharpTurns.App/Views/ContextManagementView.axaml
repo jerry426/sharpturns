@@ -78,6 +78,11 @@
       <Setter Property="BorderBrush" Value="#19A8FF" />
       <Setter Property="Foreground" Value="#19A8FF" />
     </Style>
+    <Style Selector="Button.branch:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#15293A" />
+      <Setter Property="BorderBrush" Value="#46C2FF" />
+      <Setter Property="Foreground" Value="#9FD4FF" />
+    </Style>
     <!-- After the colors, so a disabled button looks disabled whatever its color. -->
     <Style Selector="Button.contextAction:disabled /template/ ContentPresenter#PART_ContentPresenter">
       <Setter Property="Background" Value="#171B24" />
@@ -145,11 +150,12 @@
               <Button Classes="secondaryActionButton contextAction delete" Content="{Binding DeleteSelectedTurnsLabel}"
                       Command="{Binding DeleteSelectedTurnsCommand}"
                       ToolTip.Tip="Permanently delete the selected turns and everything saved with them, after confirming" />
-              <!-- Placeholders until branching (phase 4). -->
-              <Button Classes="secondaryActionButton contextAction branch" Content="{Binding BranchRangeLabel}" IsEnabled="False"
-                      ToolTip.ShowOnDisabled="True" ToolTip.Tip="Branching isn't available yet" />
-              <Button Classes="secondaryActionButton contextAction branch" Content="{Binding BranchThroughLabel}" IsEnabled="False"
-                      ToolTip.ShowOnDisabled="True" ToolTip.Tip="Branching isn't available yet" />
+              <Button Classes="secondaryActionButton contextAction branch" Content="{Binding BranchRangeLabel}"
+                      Command="{Binding BranchSelectedRangeCommand}"
+                      ToolTip.Tip="Copy the selected contiguous range of turns into a new branched conversation." />
+              <Button Classes="secondaryActionButton contextAction branch" Content="{Binding BranchThroughLabel}"
+                      Command="{Binding BranchThroughSelectedTurnCommand}"
+                      ToolTip.Tip="Copy every turn from the start of this conversation through the single selected turn into a new branched conversation." />
             </WrapPanel>
           </Grid>
 

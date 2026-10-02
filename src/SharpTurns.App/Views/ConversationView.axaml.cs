@@ -66,6 +66,7 @@ public sealed partial class ConversationView : UserControl
         _viewModel.ShowQuestionAsync = ShowQuestionAsync;
         _viewModel.ShowPermissionAsync = ShowPermissionAsync;
         _viewModel.ConfirmAsync = ConfirmAsync;
+        _viewModel.ConfirmBranchAsync = ConfirmBranchAsync;
         _viewModel.CopyTextAsync = CopyTextAsync;
         _viewModel.ShowReplayImagesAsync = ShowReplayImagesAsync;
         _viewModel.ShowUserMessageHistoryAsync = ShowUserMessageHistoryAsync;
@@ -188,6 +189,9 @@ public sealed partial class ConversationView : UserControl
     private async Task<bool> ConfirmAsync(string title, string message) =>
         TopLevel.GetTopLevel(this) is Window owner
         && await new PromptDialog(title, message, null, "Delete", destructive: true).ShowDialog<string?>(owner) is not null;
+
+    private async Task<bool> ConfirmBranchAsync(BranchConfirmation confirmation) =>
+        TopLevel.GetTopLevel(this) is Window owner && await new BranchConfirmationDialog(confirmation).ShowDialog<bool>(owner);
 
     private async Task ShowReplayImagesAsync(ImagesBeingReplayedDialogViewModel images)
     {

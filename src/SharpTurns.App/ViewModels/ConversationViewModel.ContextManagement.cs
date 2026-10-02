@@ -39,7 +39,6 @@ public sealed partial class ConversationViewModel
 
     public string DeleteSelectedTurnsLabel => string.Create(CultureInfo.CurrentCulture, $"Delete ({SelectedTurnCount:N0})");
 
-    // Placeholders until branching (phase 4).
     public string BranchRangeLabel => string.Create(CultureInfo.CurrentCulture, $"Branch Range ({SelectedTurnCount:N0})");
 
     public string BranchThroughLabel => string.Create(CultureInfo.CurrentCulture, $"Branch Through ({SelectedTurnCount:N0})");
@@ -159,14 +158,16 @@ public sealed partial class ConversationViewModel
     }
 
     // "turn 4" or "turns 3, 4, 5", listing at most a dozen numbers as the Workbench does.
-    private static string TurnsLabel(IReadOnlyList<TurnViewModel> turns)
+    private static string TurnsLabel(IReadOnlyList<TurnViewModel> turns) =>
+        (turns.Count == 1 ? "turn " : "turns ") + LimitedList(turns.Select(t => t.Record!.TurnNumber.ToString(CultureInfo.InvariantCulture)));
+
+    private static string LimitedList(IEnumerable<string> values)
     {
-        var numbers = turns.Select(t => t.Record!.TurnNumber.ToString(CultureInfo.InvariantCulture)).ToArray();
-        if (numbers.Length == 1) return "turn " + numbers[0];
-        var listed = string.Join(", ", numbers.Take(MaxListedTurns));
-        return numbers.Length <= MaxListedTurns
-            ? "turns " + listed
-            : string.Create(CultureInfo.CurrentCulture, $"turns {listed}, … +{numbers.Length - MaxListedTurns:N0} more");
+        var items = values.ToArray();
+        var listed = string.Join(", ", items.Take(MaxListedTurns));
+        return items.Length <= MaxListedTurns
+            ? listed
+            : string.Create(CultureInfo.CurrentCulture, $"{listed}, … +{items.Length - MaxListedTurns:N0} more");
     }
 
     private void OnTurnPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -186,6 +187,8 @@ public sealed partial class ConversationViewModel
         ShowSelectedTurnsCommand.NotifyCanExecuteChanged();
         HideSelectedTurnsCommand.NotifyCanExecuteChanged();
         DeleteSelectedTurnsCommand.NotifyCanExecuteChanged();
+        BranchSelectedRangeCommand.NotifyCanExecuteChanged();
+        BranchThroughSelectedTurnCommand.NotifyCanExecuteChanged();
     }
 
     // After the turns or their context state change. A turn the Show picker leaves out is deselected, so a bulk action

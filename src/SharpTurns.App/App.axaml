@@ -182,6 +182,22 @@
       <Setter Property="BorderBrush" Value="#007D99" />
     </Style>
 
+    <Style Selector="Button.railButton.branch">
+      <Setter Property="Background" Value="#2A2410" />
+      <Setter Property="BorderBrush" Value="#DAAE00" />
+      <Setter Property="Foreground" Value="#DAAE00" />
+    </Style>
+    <Style Selector="Button.railButton.branch:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#3D3414" />
+      <Setter Property="BorderBrush" Value="#FFD92E" />
+      <Setter Property="Foreground" Value="#FFD92E" />
+    </Style>
+    <Style Selector="Button.railButton.branch:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#1E1A0B" />
+      <Setter Property="BorderBrush" Value="#CCA300" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+    </Style>
+
     <!-- Compress, Hide, and Delete share one row of small buttons. -->
     <Style Selector="Button.railButton.small">
       <Setter Property="FontSize" Value="10" />

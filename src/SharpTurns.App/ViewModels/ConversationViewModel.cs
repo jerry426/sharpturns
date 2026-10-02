@@ -23,6 +23,7 @@ public sealed partial class ConversationViewModel : ObservableObject
     private readonly TurnSummarizer _summarizer;
     private readonly Action<ClaudeCliRateLimitSnapshot> _rateLimitsChanged;
     private readonly Action<Conversation> _conversationUpdated;
+    private readonly Action<Conversation, string> _conversationBranched;
     private CancellationTokenSource? _turnLifetime;
     private ClaudeCliInputQueue? _queue;
 
@@ -56,6 +57,9 @@ public sealed partial class ConversationViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(HideSelectedTurnsCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedTurnsCommand))]
     [NotifyCanExecuteChangedFor(nameof(KeepRecentTurnsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleBranchEndpointCommand))]
+    [NotifyCanExecuteChangedFor(nameof(BranchSelectedRangeCommand))]
+    [NotifyCanExecuteChangedFor(nameof(BranchThroughSelectedTurnCommand))]
     [NotifyPropertyChangedFor(nameof(SendLabel))]
     private bool _isRunning;
 
@@ -71,6 +75,9 @@ public sealed partial class ConversationViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(HideSelectedTurnsCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedTurnsCommand))]
     [NotifyCanExecuteChangedFor(nameof(KeepRecentTurnsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleBranchEndpointCommand))]
+    [NotifyCanExecuteChangedFor(nameof(BranchSelectedRangeCommand))]
+    [NotifyCanExecuteChangedFor(nameof(BranchThroughSelectedTurnCommand))]
     private bool _isCompressing;
 
     [ObservableProperty]
@@ -98,10 +105,14 @@ public sealed partial class ConversationViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(NotesToolTip))]
     private int _notesCount;
 
-    /// <summary>conversationUpdated receives the conversation when a turn starts and moves its updated time.</summary>
+    /// <summary>
+    /// conversationUpdated receives the conversation when a turn starts and moves its updated time. conversationBranched
+    /// receives a new branch of this conversation and the status line to show in it.
+    /// </summary>
     internal ConversationViewModel(Conversation conversation, Project project, ConversationStore store, ClaudeTurnRunner runner,
         TurnSummarizer summarizer, ConversationDisplayViewModel display, ApplicationPreferencesViewModel preferences,
-        Action<ClaudeCliRateLimitSnapshot> rateLimitsChanged, Action<Conversation> conversationUpdated)
+        Action<ClaudeCliRateLimitSnapshot> rateLimitsChanged, Action<Conversation> conversationUpdated,
+        Action<Conversation, string> conversationBranched)
     {
         Conversation = conversation;
         Project = project;
@@ -112,6 +123,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         Preferences = preferences;
         _rateLimitsChanged = rateLimitsChanged;
         _conversationUpdated = conversationUpdated;
+        _conversationBranched = conversationBranched;
         _title = conversation.Title;
         _selectedModel = conversation.Model;
         _selectedEffort = conversation.Effort ?? DefaultEffort;
@@ -119,8 +131,9 @@ public sealed partial class ConversationViewModel : ObservableObject
         _autoSummarize = conversation.AutoSummarize;
         Turns.CollectionChanged += (_, e) =>
         {
-            // Removed turns are gone for good, so only new ones need the selection hook.
+            // Removed turns are gone for good, so only new ones need the selection hook; a deleted endpoint is dropped.
             foreach (var turn in e.NewItems?.OfType<TurnViewModel>() ?? []) turn.PropertyChanged += OnTurnPropertyChanged;
+            foreach (var turn in e.OldItems?.OfType<TurnViewModel>() ?? []) _branchEndpoints.Remove(turn);
             OnPropertyChanged(nameof(TurnCount));
             OnPropertyChanged(nameof(LastTurn));
             NotifyContextChanged();
