@@ -293,6 +293,59 @@ public sealed class ConversationStore
                 cancellationToken, ("$id", id), ("$new", newId), ("$key", key)).ConfigureAwait(false);
     }
 
+    /// <summary>The MCP server definitions by name, as in the Workbench.</summary>
+    public async Task<IReadOnlyList<McpServer>> ListMcpServersAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = Command(connection, null, $"SELECT {McpServerColumns} FROM mcp_servers ORDER BY name");
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        var servers = new List<McpServer>();
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            servers.Add(ReadMcpServer(reader));
+        return servers;
+    }
+
+    /// <summary>The name is unique, ignoring case.</summary>
+    public async Task<McpServer> CreateMcpServerAsync(string name, string displayName, string? description, string commandJson,
+        string? envJson, string? workingDirectory, bool enabled, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(commandJson);
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        return await ReadSingleMcpServerAsync(connection, $"""
+            INSERT INTO mcp_servers (name, display_name, description, command, env, working_directory, enabled, created_at, updated_at)
+            VALUES ($name, $display, $description, $command, $env, $directory, $enabled, $now, $now)
+            RETURNING {McpServerColumns}
+            """, cancellationToken, ("$name", name), ("$display", displayName), ("$description", description),
+            ("$command", commandJson), ("$env", envJson), ("$directory", workingDirectory), ("$enabled", enabled),
+            ("$now", Now())).ConfigureAwait(false);
+    }
+
+    /// <summary>As in the Workbench, the name can't change after creation.</summary>
+    public async Task<McpServer> UpdateMcpServerAsync(long serverId, string displayName, string? description, string commandJson,
+        string? envJson, string? workingDirectory, bool enabled, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(commandJson);
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        return await ReadSingleMcpServerAsync(connection, $"""
+            UPDATE mcp_servers SET display_name = $display, description = $description, command = $command, env = $env,
+                working_directory = $directory, enabled = $enabled, updated_at = $now
+            WHERE id = $id
+            RETURNING {McpServerColumns}
+            """, cancellationToken, ("$id", serverId), ("$display", displayName), ("$description", description),
+            ("$command", commandJson), ("$env", envJson), ("$directory", workingDirectory), ("$enabled", enabled),
+            ("$now", Now())).ConfigureAwait(false);
+    }
+
+    public async Task DeleteMcpServerAsync(long serverId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await ExecuteSingleAsync(connection, null, "DELETE FROM mcp_servers WHERE id = $id", "MCP server",
+            cancellationToken, ("$id", serverId)).ConfigureAwait(false);
+    }
+
     public async Task<IReadOnlyList<ConversationTurn>> LoadTurnsAsync(long conversationId, CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -543,6 +596,24 @@ public sealed class ConversationStore
         return await reader.ReadAsync(cancellationToken).ConfigureAwait(false)
             ? ReadNote(reader)
             : throw new InvalidOperationException("Note no longer exists.");
+    }
+
+    private const string McpServerColumns =
+        "id, name, display_name, description, command, env, working_directory, enabled, created_at, updated_at";
+
+    private static McpServer ReadMcpServer(SqliteDataReader reader) =>
+        new(reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetString(3),
+            reader.GetString(4), reader.IsDBNull(5) ? null : reader.GetString(5), reader.IsDBNull(6) ? null : reader.GetString(6),
+            reader.GetBoolean(7), ParseTime(reader.GetString(8)), ParseTime(reader.GetString(9)));
+
+    private static async Task<McpServer> ReadSingleMcpServerAsync(SqliteConnection connection, string sql,
+        CancellationToken cancellationToken, params (string Name, object? Value)[] parameters)
+    {
+        await using var command = Command(connection, null, sql, parameters);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        return await reader.ReadAsync(cancellationToken).ConfigureAwait(false)
+            ? ReadMcpServer(reader)
+            : throw new InvalidOperationException("MCP server no longer exists.");
     }
 
     private static string Now() => DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);

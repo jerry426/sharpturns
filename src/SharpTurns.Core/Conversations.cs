@@ -31,6 +31,13 @@ public sealed record Conversation(long Id, long ProjectId, string Title, string?
 public sealed record ConversationNote(long Id, long ConversationId, string Title, string Content, DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
+/// <summary>
+/// An MCP server definition from the Config tab, as in the Workbench. CommandJson is a JSON array of argv strings and
+/// EnvJson an optional JSON object of environment variables. Turns don't use them until v2.
+/// </summary>
+public sealed record McpServer(long Id, string Name, string DisplayName, string? Description, string CommandJson,
+    string? EnvJson, string? WorkingDirectory, bool Enabled, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
+
 public enum TurnStatus { Running, Completed, Stopped, Failed }
 
 /// <summary>

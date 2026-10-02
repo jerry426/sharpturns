@@ -24,7 +24,7 @@ public sealed class ConversationStoreTests : IDisposable
         await _store.InitializeAsync();
         await _store.InitializeAsync();
 
-        Assert.Equal(9L, Scalar("PRAGMA user_version"));
+        Assert.Equal(10L, Scalar("PRAGMA user_version"));
         Assert.Equal("wal", Scalar("PRAGMA journal_mode"));
     }
 
@@ -192,13 +192,14 @@ public sealed class ConversationStoreTests : IDisposable
         Scalar("ALTER TABLE conversations DROP COLUMN auto_summarize");
         Scalar("DROP TABLE conversation_user_notes");
         Scalar("DROP TABLE models");
+        Scalar("DROP TABLE mcp_servers");
         Scalar("PRAGMA user_version = 1");
         // Pooled connections cache the schema this test just changed behind the store's back.
         SqliteConnection.ClearAllPools();
 
         await _store.InitializeAsync();
 
-        Assert.Equal(9L, Scalar("PRAGMA user_version"));
+        Assert.Equal(10L, Scalar("PRAGMA user_version"));
         Assert.Equal(ProjectColor.Default, Assert.Single(await _store.ListProjectsAsync()).Color);
         var conversations = await _store.ListConversationsAsync(project.Id);
         var upgraded = Assert.Single(conversations, c => c.Id == conversation.Id);
@@ -209,6 +210,7 @@ public sealed class ConversationStoreTests : IDisposable
         Assert.Equal("claude-haiku-4-5-20251001", upgraded.Model);
         Assert.Equal("claude-opus-5-5", await _store.GetSettingAsync("default_model"));
         Assert.Equal("claude-opus-5-5", Assert.Single(conversations, c => c.Id == withoutModel.Id).Model);
+        Assert.Empty(await _store.ListMcpServersAsync());
         var loaded = Assert.Single(await _store.LoadTurnsAsync(conversation.Id));
         Assert.Equal(["prompt", "answer"], loaded.Parts.Select(p => p.Content));
         Assert.Null(loaded.Usage);

@@ -123,5 +123,19 @@ internal static class Migrations
             (SELECT id FROM models ORDER BY position LIMIT 1))
         WHERE model IS NULL;
         """,
+        """
+        CREATE TABLE mcp_servers (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+            display_name TEXT NOT NULL,
+            description TEXT,
+            command TEXT NOT NULL,
+            env TEXT,
+            working_directory TEXT,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        """,
     ];
 }

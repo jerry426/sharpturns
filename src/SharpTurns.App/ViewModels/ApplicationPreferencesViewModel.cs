@@ -11,7 +11,7 @@ namespace SharpTurns.App.ViewModels;
 /// The Config tab's Preferences. As in the Workbench: restoring the last session at startup, the startup, Notes, and
 /// Markdown Viewer window sizes, and the DOCX export defaults. SharpTurns adds the claude path, the model and effort for
 /// new conversations, the summarizer model, and the system prompt. Each is saved in the settings table when it changes.
-/// The Models subtab's list, which the model pickers offer, and the Sounds and API Keys subtabs live here too.
+/// The Models subtab's list, which the model pickers offer, and the MCP Servers, Sounds, and API Keys subtabs live here too.
 /// </summary>
 public sealed partial class ApplicationPreferencesViewModel : ObservableObject
 {
@@ -71,6 +71,7 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
         Models = new(store);
         Sounds = new(store, soundPlayer ?? AppSoundPlayerFactory.CreateDefault());
         ApiKeys = new(store);
+        McpServers = new(store);
         Models.ModelsChanged += (_, _) => _ = ReloadModelSettingsAsync();
         StartupWindow = new(store, "startup_window_size", "startup window size", new(1400, 860), new(820, 560));
         NotesWindow = new(store, "notes_window_size", "Notes window size", new(980, 660), new(820, 520));
@@ -87,6 +88,9 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
 
     /// <summary>The Config tab's API Keys subtab.</summary>
     public ApiKeysConfigViewModel ApiKeys { get; }
+
+    /// <summary>The Config tab's MCP Servers subtab.</summary>
+    public McpServersConfigViewModel McpServers { get; }
 
     public WindowSizePreferenceViewModel StartupWindow { get; }
 
@@ -127,6 +131,7 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
             await Models.LoadAsync();
             await Sounds.LoadAsync();
             await ApiKeys.LoadAsync();
+            await McpServers.LoadAsync();
             RestoreLastSession = await _store.GetSettingAsync(RestoreLastSessionSetting) != "false";
             DocxExportSettings = DocxExportSettings.Parse(await _store.GetSettingAsync(DocxExportSetting));
             await StartupWindow.LoadAsync();

@@ -58,10 +58,63 @@
       <Setter Property="Padding" Value="10,6" />
       <Setter Property="CornerRadius" Value="4" />
     </Style>
-    <Style Selector="TextBlock.comingSoon">
+    <Style Selector="ListBox.serverList">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+    </Style>
+    <Style Selector="ListBox.serverList ListBoxItem">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Margin" Value="0,0,0,8" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="ListBox.serverList ListBoxItem /template/ ContentPresenter#PART_ContentPresenter, ListBox.serverList ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter, ListBox.serverList ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+    <Style Selector="Border.serverCard">
+      <Setter Property="Background" Value="#10232B" />
+      <Setter Property="BorderBrush" Value="#008AD8" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="11" />
+      <Setter Property="Padding" Value="12" />
+    </Style>
+    <Style Selector="ListBox.serverList ListBoxItem:selected Border.serverCard">
+      <Setter Property="BorderBrush" Value="#20E6FF" />
+      <Setter Property="BorderThickness" Value="2" />
+    </Style>
+    <Style Selector="TextBlock.editorLabel">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="TextBlock.editorHelp">
       <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
-      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontSize" Value="11" />
       <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <!-- A list's status line, framed in the tab accent so a refusal or result isn't missed. -->
+    <Style Selector="Border.statusBanner">
+      <Setter Property="Background" Value="#2A2410" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ProminentTabAccentBrush}" />
+      <Setter Property="BorderThickness" Value="2" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="12,10" />
+    </Style>
+    <Style Selector="Border.statusBanner TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <!-- The Workbench's green Add Server button. -->
+    <Style Selector="Button.primaryActionButton.addServer">
+      <Setter Property="Background" Value="#2A6B3F" />
+      <Setter Property="BorderBrush" Value="#3E8A55" />
+    </Style>
+    <Style Selector="Button.primaryActionButton.addServer:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#358552" />
+      <Setter Property="BorderBrush" Value="#4FA56A" />
     </Style>
   </UserControl.Styles>
 
@@ -120,10 +173,130 @@
             </ScrollViewer>
           </TabItem>
 
+          <!-- The Workbench's list and editor without Test Connection, since turns don't use the servers until v2. -->
           <TabItem Header="MCP Servers" FontSize="13">
-            <Border Classes="preferenceSection">
-              <TextBlock Classes="comingSoon" Text="The MCP server list arrives in a later step." />
-            </Border>
+            <Grid RowDefinitions="Auto,*" RowSpacing="12" Margin="0,0,12,0">
+              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <StackPanel Spacing="4">
+                  <TextBlock Classes="sectionTitle" Text="{Binding Preferences.McpServers.HeaderLabel}" />
+                  <TextBlock Text="Configure Model Context Protocol servers (stdio). Saved in SharpTurns' local database. Turns don't use them yet: passing them to the CLI arrives in v2, and until then turns can't call MCP tools."
+                             Foreground="{DynamicResource TextSubtleBrush}" FontSize="12" TextWrapping="Wrap" />
+                </StackPanel>
+                <Button Grid.Column="1" Classes="primaryActionButton addServer preferenceButton" Content="Add Server"
+                        Command="{Binding Preferences.McpServers.AddServerCommand}" VerticalAlignment="Top" />
+                <Button Grid.Column="2" Classes="secondaryActionButton preferenceButton" Content="Reload"
+                        Command="{Binding Preferences.McpServers.LoadCommand}" VerticalAlignment="Top"
+                        ToolTip.Tip="Bring back the saved servers" />
+              </Grid>
+
+              <Grid Grid.Row="1" ColumnDefinitions="390,*" ColumnSpacing="16">
+                <Border Background="#171A22" BorderBrush="#2D3548" BorderThickness="1" CornerRadius="12" Padding="12">
+                  <Grid RowDefinitions="*,Auto" RowSpacing="10">
+                    <TextBlock Text="No MCP servers configured. Click Add Server to define one." Classes="sectionText"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
+                               IsVisible="{Binding !Preferences.McpServers.HasServers}" />
+                    <ListBox Classes="serverList" ItemsSource="{Binding Preferences.McpServers.Servers}"
+                             SelectedItem="{Binding Preferences.McpServers.SelectedServer, Mode=TwoWay}"
+                             IsVisible="{Binding Preferences.McpServers.HasServers}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                      <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:McpServerRowViewModel">
+                          <Border Classes="serverCard">
+                            <StackPanel Spacing="6">
+                              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <TextBlock Text="{Binding DisplayName}" Foreground="{DynamicResource TextStrongBrush}" FontWeight="SemiBold"
+                                           FontSize="13" TextTrimming="CharacterEllipsis" />
+                                <Border Grid.Column="1" Background="#253047" BorderBrush="#4D608B" BorderThickness="1" CornerRadius="4"
+                                        Padding="6,2" VerticalAlignment="Center">
+                                  <TextBlock Text="{Binding StatusLabel}" Foreground="#A8C7FA" FontSize="10" />
+                                </Border>
+                              </Grid>
+                              <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextSubtleBrush}" FontSize="11"
+                                         FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" TextTrimming="CharacterEllipsis" />
+                              <TextBlock Text="{Binding Description}" Foreground="{DynamicResource TextSubtleBrush}" FontSize="11"
+                                         TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"
+                                         IsVisible="{Binding HasDescription}" />
+                              <TextBlock Text="{Binding UpdatedLabel}" Foreground="{DynamicResource TextMutedBrush}" FontSize="10" />
+                            </StackPanel>
+                          </Border>
+                        </DataTemplate>
+                      </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <Border Grid.Row="1" Classes="statusBanner"
+                            IsVisible="{Binding Preferences.McpServers.Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                      <TextBlock Text="{Binding Preferences.McpServers.Status}" />
+                    </Border>
+                  </Grid>
+                </Border>
+
+                <Border Grid.Column="1" Background="#121620" BorderBrush="#2D3548" BorderThickness="1" CornerRadius="10" Padding="16">
+                  <Panel>
+                    <TextBlock Text="Select a server to edit it, or click Add Server to create one." Classes="sectionText"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
+                               IsVisible="{Binding Preferences.McpServers.Editor, Converter={x:Static ObjectConverters.IsNull}}" />
+                    <ScrollViewer IsVisible="{Binding Preferences.McpServers.Editor, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                      <StackPanel Spacing="12" Margin="0,0,12,0">
+                        <StackPanel Spacing="12" DataContext="{Binding Preferences.McpServers.Editor}" x:DataType="vm:McpServerEditViewModel">
+                          <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="16"
+                                     TextTrimming="CharacterEllipsis" />
+
+                          <StackPanel Spacing="4">
+                            <TextBlock Classes="editorLabel" Text="Name (Slug) *" />
+                            <TextBox Text="{Binding Name}" PlaceholderText="e.g., chrome-devtools" IsReadOnly="{Binding IsExisting}"
+                                     FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12" MinHeight="30" />
+                            <TextBlock Classes="editorHelp" Text="Unique identifier (no spaces). Can't be changed after creation." />
+                          </StackPanel>
+
+                          <StackPanel Spacing="4">
+                            <TextBlock Classes="editorLabel" Text="Display Name *" />
+                            <TextBox Text="{Binding DisplayName}" PlaceholderText="e.g., Chrome DevTools" FontSize="12" MinHeight="30" />
+                          </StackPanel>
+
+                          <StackPanel Spacing="4">
+                            <TextBlock Classes="editorLabel" Text="Description" />
+                            <TextBox Text="{Binding Description}" PlaceholderText="What does this server do?" FontSize="12" MinHeight="30" />
+                          </StackPanel>
+
+                          <StackPanel Spacing="4">
+                            <TextBlock Classes="editorLabel" Text="Command (JSON Array) *" />
+                            <TextBox Text="{Binding CommandJson}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60"
+                                     FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12" />
+                            <TextBlock Classes="editorHelp"
+                                       Text='Command to start the server in stdio mode, e.g. ["npx", "-y", "@modelcontextprotocol/server-filesystem", "/tmp"].' />
+                          </StackPanel>
+
+                          <StackPanel Spacing="4">
+                            <TextBlock Classes="editorLabel" Text="Environment Variables (JSON Object)" />
+                            <TextBox Text="{Binding EnvJson}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60"
+                                     FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12" />
+                            <TextBlock Classes="editorHelp" Text='Optional, e.g. {"NODE_ENV": "production"}. Stored in plain text, like the rest of the database.' />
+                          </StackPanel>
+
+                          <StackPanel Spacing="4">
+                            <TextBlock Classes="editorLabel" Text="Working Directory" />
+                            <TextBox Text="{Binding WorkingDirectory}" PlaceholderText="Optional absolute path" FontSize="12" MinHeight="30" />
+                          </StackPanel>
+
+                          <CheckBox Content="Enabled" IsChecked="{Binding Enabled}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="13" />
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                          <Button Classes="dangerActionButton preferenceButton" Content="Delete"
+                                  Command="{Binding Preferences.McpServers.DeleteCommand}"
+                                  IsVisible="{Binding Preferences.McpServers.Editor.IsExisting, FallbackValue=False}" />
+                          <Button Classes="secondaryActionButton preferenceButton" Content="Cancel"
+                                  Command="{Binding Preferences.McpServers.CancelCommand}" />
+                          <Button Classes="primaryActionButton preferenceButton" Content="Save"
+                                  Command="{Binding Preferences.McpServers.SaveCommand}" />
+                        </StackPanel>
+                      </StackPanel>
+                    </ScrollViewer>
+                  </Panel>
+                </Border>
+              </Grid>
+            </Grid>
           </TabItem>
 
           <TabItem Header="Sounds" FontSize="13">
@@ -425,8 +598,10 @@
                       </StackPanel>
                     </Border>
 
-                    <TextBlock Grid.Row="2" Text="{Binding Preferences.ApiKeys.Status}" Foreground="{DynamicResource TextSubtleBrush}"
-                               FontSize="11" TextWrapping="Wrap" />
+                    <Border Grid.Row="2" Classes="statusBanner"
+                            IsVisible="{Binding Preferences.ApiKeys.Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                      <TextBlock Text="{Binding Preferences.ApiKeys.Status}" />
+                    </Border>
                   </Grid>
                 </Border>
 
