@@ -92,10 +92,18 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, Func<string?> ex
             foreach (var change in activity.TakeChanges())
             {
                 var tool = new ToolCallRecord(change.ToolUseId, change.Name, change.Input, change.Result, change.Status, change.IsError);
-                if (!tools.TryGetValue(tool.Id, out var item))
+                if (tools.TryGetValue(tool.Id, out var item))
+                {
+                    var previous = (ToolCallRecord)item.Value!;
+                    tool = tool with { RequestInputTokens = previous.RequestInputTokens, RequestCachedTokens = previous.RequestCachedTokens };
+                }
+                else
                 {
                     tools[tool.Id] = item = new("assistant", TurnParts.Tool);
                     items.Add(item);
+                    // A call first appears while the request that made it streams, so the latest request is its own.
+                    var request = usage.Current;
+                    tool = tool with { RequestInputTokens = request.ContextTokens, RequestCachedTokens = request.ContextCachedTokens };
                 }
                 item.Value = tool;
                 callbacks.ToolChanged(tool);

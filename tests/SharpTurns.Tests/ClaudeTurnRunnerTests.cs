@@ -82,6 +82,30 @@ public sealed class ClaudeTurnRunnerTests : IDisposable
     }
 
     [Fact]
+    public async Task EachToolKeepsTheCacheUsageOfTheRequestThatMadeIt()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        var runner = new ClaudeTurnRunner(_store, CreateFakeCli(Handshake + Lines(
+            """{"type":"stream_event","session_id":"S","event":{"type":"message_start","message":{"id":"m1","usage":{"input_tokens":100,"cache_read_input_tokens":700,"cache_creation_input_tokens":200}}}}""",
+            """{"type":"assistant","session_id":"S","message":{"id":"m1","content":[{"type":"tool_use","id":"toolu_1","name":"Bash","input":{"command":"ls"}},{"type":"tool_use","id":"toolu_2","name":"Read","input":{"file_path":"/a.txt"}}]}}""",
+            """{"type":"user","session_id":"S","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"a.txt"},{"type":"tool_result","tool_use_id":"toolu_2","content":"text"}]}}""",
+            """{"type":"stream_event","session_id":"S","event":{"type":"message_start","message":{"id":"m2","usage":{"input_tokens":10,"cache_read_input_tokens":990}}}}""",
+            """{"type":"assistant","session_id":"S","message":{"id":"m2","content":[{"type":"tool_use","id":"toolu_3","name":"Bash","input":{"command":"pwd"}}]}}""",
+            """{"type":"user","session_id":"S","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_3","content":"/"}]}}""",
+            $$"""{"type":"result","session_id":"{{Session}}","is_error":false,"result":"Done."}""")
+            + "cat > remaining-input.txt\n").Replace("\"S\"", $"\"{Session}\""));
+        var (project, conversation) = await CreateConversationAsync();
+
+        var result = await RunAsync(runner, project, conversation, Callbacks());
+
+        var tools = result.Turn.Parts.Where(p => p.PartType == TurnParts.Tool).Select(TurnParts.ReadTool).ToArray();
+        Assert.Equal([("toolu_1", 1000L, 700L), ("toolu_2", 1000L, 700L), ("toolu_3", 1000L, 990L)],
+            tools.Select(t => (t.Id, t.RequestInputTokens!.Value, t.RequestCachedTokens!.Value)));
+        Assert.Equal($"Cache {70.0:0.0}%", new App.ViewModels.ToolItemViewModel(tools[0]).CacheUsageBadge);
+        Assert.False(new App.ViewModels.ToolItemViewModel(tools[0] with { RequestInputTokens = null }).HasCacheUsage);
+    }
+
+    [Fact]
     public async Task QueuedMessagesAreSavedWhereTheCliAcceptedThem()
     {
         if (OperatingSystem.IsWindows()) return;

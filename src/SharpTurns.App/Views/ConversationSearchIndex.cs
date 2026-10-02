@@ -67,8 +67,8 @@ internal sealed class ConversationSearchIndex
                         sources.Add(new(question, ConversationSearchSegmentKind.Answer, question.AnswerText, IsMarkdown: false));
                         break;
                     case ToolItemViewModel { IsExpanded: true } tool:
-                        sources.Add(new(tool, ConversationSearchSegmentKind.ToolInput, tool.InputText, IsMarkdown: false));
-                        if (tool.HasResult) sources.Add(new(tool, ConversationSearchSegmentKind.ToolResult, tool.ResultText, IsMarkdown: false));
+                        sources.Add(new(tool, ConversationSearchSegmentKind.ToolInput, tool.InputDisplayText, IsMarkdown: false));
+                        if (tool.HasResult) sources.Add(new(tool, ConversationSearchSegmentKind.ToolResult, tool.ResultDisplayText, IsMarkdown: false));
                         break;
                 }
             }

@@ -25,6 +25,10 @@
       <SolidColorBrush x:Key="TextBlueSoftBrush" Color="#66B3FF" />
       <SolidColorBrush x:Key="TextBlueMetricBrush" Color="#60A5FA" />
       <SolidColorBrush x:Key="TextGreenBrush" Color="#8FD19E" />
+      <!-- The Workbench's tool card greens. -->
+      <SolidColorBrush x:Key="TextGreenAccentBrush" Color="#42E38F" />
+      <SolidColorBrush x:Key="TextGreenLightBrush" Color="#D9FBE7" />
+      <SolidColorBrush x:Key="TextGreenPreviewBrush" Color="#86D8AF" />
       <SolidColorBrush x:Key="TextPurpleBrush" Color="#C9B8FF" />
       <SolidColorBrush x:Key="TextYellowBrush" Color="#E5C07B" />
       <SolidColorBrush x:Key="TextDangerBrush" Color="#FFB8C0" />
@@ -493,6 +497,13 @@
     </Style>
     <Style Selector="ToggleButton.cardHeader:pressed /template/ ContentPresenter#PART_ContentPresenter">
       <Setter Property="Background" Value="#151B27" />
+    </Style>
+    <!-- Tool cards are green, as in the Workbench, so their header hovers in green. -->
+    <Style Selector="ToggleButton.cardHeader.toolHeader:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#0F4232" />
+    </Style>
+    <Style Selector="ToggleButton.cardHeader.toolHeader:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#0A2E23" />
     </Style>
 
     <Style Selector="TextBlock.chevron">

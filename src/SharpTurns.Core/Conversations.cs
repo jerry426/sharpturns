@@ -76,8 +76,14 @@ public sealed record TurnPart(int Sequence, string Role, string PartType, string
 public sealed record TurnUsage(long InputTokens, long CachedInputTokens, long OutputTokens, long? ContextTokens,
     int? Requests = null, long? FirstRequestInputTokens = null, long? FirstRequestCachedTokens = null);
 
-/// <summary>A native tool call the CLI ran, saved for display only; never replayed.</summary>
-public sealed record ToolCallRecord(string Id, string Name, string? Input, string? Result, string Status, bool IsError);
+/// <summary>
+/// A native tool call the CLI ran, saved for display only; never replayed. RequestInputTokens and RequestCachedTokens
+/// measure the main-agent model request that made the call, as in the Workbench; calls from one request share them.
+/// They are null for calls saved before they were recorded.
+/// </summary>
+public sealed record ToolCallRecord(string Id, string Name, string? Input, string? Result, string Status, bool IsError,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? RequestInputTokens = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? RequestCachedTokens = null);
 
 /// <summary>An AskUserQuestion question as shown (Markdown) and the user's answer; null when declined.</summary>
 public sealed record QuestionRecord(string Question, string? Answer);

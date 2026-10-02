@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -54,22 +55,53 @@ public sealed partial class ToolItemViewModel : TurnItemViewModel
 {
     private const int MaxSummaryChars = 160;
 
+    // The expanded card shows this many lines of the input and the result until Show Full, as in the Workbench.
+    private const int DisplayLineLimit = 20;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Summary))]
     [NotifyPropertyChangedFor(nameof(InputText))]
     [NotifyPropertyChangedFor(nameof(ResultText))]
+    [NotifyPropertyChangedFor(nameof(InputDisplayText))]
+    [NotifyPropertyChangedFor(nameof(ResultDisplayText))]
+    [NotifyPropertyChangedFor(nameof(HasTruncatedInput))]
+    [NotifyPropertyChangedFor(nameof(HasTruncatedResult))]
     [NotifyPropertyChangedFor(nameof(HasResult))]
     [NotifyPropertyChangedFor(nameof(IsWaiting))]
     [NotifyPropertyChangedFor(nameof(IsRunning))]
     [NotifyPropertyChangedFor(nameof(IsSucceeded))]
+    [NotifyPropertyChangedFor(nameof(HasCacheUsage))]
+    [NotifyPropertyChangedFor(nameof(CacheUsageBadge))]
+    [NotifyPropertyChangedFor(nameof(CacheUsageToolTip))]
     private ToolCallRecord _tool;
 
     [ObservableProperty]
     private bool _isExpanded;
 
-    public ToolItemViewModel(ToolCallRecord tool) => _tool = tool;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(InputDisplayText))]
+    [NotifyPropertyChangedFor(nameof(InputToggleLabel))]
+    private bool _showFullInput;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ResultDisplayText))]
+    [NotifyPropertyChangedFor(nameof(ResultToggleLabel))]
+    private bool _showFullResult;
+
+    public ToolItemViewModel(ToolCallRecord tool, int number = 0)
+    {
+        _tool = tool;
+        Number = number;
+    }
 
     public string Id => Tool.Id;
+
+    /// <summary>The call's 1-based position among the turn's tool cards, as in the Workbench; 0 when unnumbered.</summary>
+    public int Number { get; }
+
+    public bool HasNumber => Number > 0;
+
+    public string NumberLabel => HasNumber ? $"{Number.ToString(CultureInfo.CurrentCulture)}." : "";
 
     public string Summary => Summarize(Tool);
 
@@ -79,11 +111,35 @@ public sealed partial class ToolItemViewModel : TurnItemViewModel
 
     public bool HasResult => !string.IsNullOrEmpty(Tool.Result);
 
+    public string InputDisplayText => ShowFullInput ? InputText : FirstLines(InputText);
+
+    public string ResultDisplayText => ShowFullResult ? ResultText : FirstLines(ResultText);
+
+    public bool HasTruncatedInput => HasMoreThanLineLimit(InputText);
+
+    public bool HasTruncatedResult => HasMoreThanLineLimit(ResultText);
+
+    public string InputToggleLabel => ShowFullInput ? "Show Less" : "Show Full...";
+
+    public string ResultToggleLabel => ShowFullResult ? "Show Less" : "Show Full...";
+
     public bool IsWaiting => Tool.Status.StartsWith("Waiting", StringComparison.Ordinal);
 
     public bool IsRunning => !IsWaiting && Tool.Status is "Running" or "Approved";
 
     public bool IsSucceeded => !Tool.IsError && !IsWaiting && !IsRunning;
+
+    // The cache hit rate of the model request that made the call, as in the Workbench.
+    public bool HasCacheUsage => Tool is { RequestInputTokens: > 0, RequestCachedTokens: not null };
+
+    public string CacheUsageBadge => Tool is { RequestInputTokens: > 0 and var input, RequestCachedTokens: { } cached }
+        ? string.Create(CultureInfo.CurrentCulture, $"Cache {100d * cached / input:0.0}%")
+        : "";
+
+    public string CacheUsageToolTip => Tool is { RequestInputTokens: > 0 and var input, RequestCachedTokens: { } cached }
+        ? string.Create(CultureInfo.CurrentCulture,
+            $"The model request that made this call: cached {cached:N0} / {input:N0} input tokens. Calls made by the same request share it.")
+        : "";
 
     private static string Summarize(ToolCallRecord tool)
     {
@@ -118,6 +174,18 @@ public sealed partial class ToolItemViewModel : TurnItemViewModel
             else text.Append(' ').Append(property.Value.GetRawText());
         }
         return text.ToString();
+    }
+
+    private static string FirstLines(string text) => HasMoreThanLineLimit(text)
+        ? string.Join('\n', text.ReplaceLineEndings("\n").Split('\n').Take(DisplayLineLimit))
+        : text;
+
+    private static bool HasMoreThanLineLimit(string text)
+    {
+        var lines = 1;
+        foreach (var character in text)
+            if (character == '\n' && ++lines > DisplayLineLimit) return true;
+        return false;
     }
 
     private static JsonElement? TryParseObject(string? json)

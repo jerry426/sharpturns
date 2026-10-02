@@ -61,7 +61,7 @@ public sealed class ClaudeCliActivityTests
         Assert.False(usage.Observe(Event("""{"type":"stream_event","parent_tool_use_id":"toolu_1","event":{"type":"message_start","message":{"usage":{"input_tokens":99}}}}""")));
         Assert.False(usage.Observe(Event("""{"type":"result","usage":{"output_tokens":"bad"}}""")));
 
-        Assert.Equal(new ClaudeCliUsage(2003, 1800, 42, 1110, 2, 1000, 900), usage.Current);
+        Assert.Equal(new ClaudeCliUsage(2003, 1800, 42, 1110, 2, 1000, 900, 1100), usage.Current);
     }
 
     [Fact]

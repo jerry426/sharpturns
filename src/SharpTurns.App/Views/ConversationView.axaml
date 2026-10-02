@@ -311,33 +311,59 @@
                           </DataTemplate>
 
                           <DataTemplate DataType="vm:ToolItemViewModel" x:DataType="vm:ToolItemViewModel">
-                            <Border Background="#121722" BorderBrush="#2A3346" BorderThickness="1" CornerRadius="8">
+                            <!-- The Workbench's tool card greens: header, border, and the expanded detail panel. -->
+                            <Border Background="#0B3528" BorderBrush="#1C7A55" BorderThickness="1" CornerRadius="8">
                               <StackPanel>
-                                <ToggleButton Classes="cardHeader" IsChecked="{Binding IsExpanded}">
-                                  <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
-                                    <TextBlock Classes="chevron" Classes.expanded="{Binding IsExpanded}" />
-                                    <TextBlock Grid.Column="1" Text="{Binding Tool.Name}" Foreground="{DynamicResource TextBlueMutedBrush}"
+                                <ToggleButton Classes="cardHeader toolHeader" IsChecked="{Binding IsExpanded}">
+                                  <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="8">
+                                    <TextBlock Text="{Binding NumberLabel}" IsVisible="{Binding HasNumber}"
+                                               Foreground="{DynamicResource TextGreenAccentBrush}" FontSize="13" FontWeight="SemiBold"
+                                               MinWidth="22" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Classes="chevron" Classes.expanded="{Binding IsExpanded}"
+                                               Foreground="{DynamicResource TextGreenLightBrush}" />
+                                    <TextBlock Grid.Column="2" Text="{Binding Tool.Name}" Foreground="{DynamicResource TextGreenAccentBrush}"
                                                FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="2" Text="{Binding Summary}" Foreground="{DynamicResource TextMutedBrush}"
+                                    <TextBlock Grid.Column="3" Text="{Binding Summary}" Foreground="{DynamicResource TextGreenPreviewBrush}"
                                                FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12"
                                                TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="3" Classes="toolStatus" Text="{Binding Tool.Status}"
-                                               Classes.running="{Binding IsRunning}" Classes.waiting="{Binding IsWaiting}"
-                                               Classes.succeeded="{Binding IsSucceeded}" Classes.failed="{Binding Tool.IsError}" />
+                                    <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="12">
+                                      <TextBlock Classes="toolStatus" Text="{Binding Tool.Status}"
+                                                 Classes.running="{Binding IsRunning}" Classes.waiting="{Binding IsWaiting}"
+                                                 Classes.succeeded="{Binding IsSucceeded}" Classes.failed="{Binding Tool.IsError}" />
+                                      <TextBlock Text="{Binding CacheUsageBadge}" IsVisible="{Binding HasCacheUsage}"
+                                                 ToolTip.Tip="{Binding CacheUsageToolTip}" Foreground="{DynamicResource TextGreenPreviewBrush}"
+                                                 FontSize="11" VerticalAlignment="Center" />
+                                    </StackPanel>
                                   </Grid>
                                 </ToggleButton>
-                                <StackPanel IsVisible="{Binding IsExpanded}" Margin="28,2,12,10" Spacing="6">
-                                  <TextBlock Classes="detailLabel" Text="Input" />
-                                  <markdown:HighlightableTextBlock Classes="plainText searchToolInput" Text="{Binding InputText, Mode=OneWay}"
-                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                                                   FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}"
-                                                                   FontSize="{DynamicResource ConversationCodeFontSize}" />
-                                  <TextBlock Classes="detailLabel" Text="Result" IsVisible="{Binding HasResult}" Margin="0,4,0,0" />
-                                  <markdown:HighlightableTextBlock Classes="plainText searchToolResult" Text="{Binding ResultText, Mode=OneWay}"
-                                                                   IsVisible="{Binding HasResult}" Foreground="{DynamicResource TextSecondaryBrush}"
-                                                                   FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}"
-                                                                   FontSize="{DynamicResource ConversationCodeFontSize}" />
-                                </StackPanel>
+                                <Border IsVisible="{Binding IsExpanded}" Background="#0C1E18" BorderBrush="#1C7A55" BorderThickness="0,1,0,0"
+                                        CornerRadius="0,0,7,7" Padding="28,8,12,10">
+                                  <StackPanel Spacing="6">
+                                    <!-- As in the Workbench: Input's Show Full sits beside its label, Result's at the right. -->
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                      <TextBlock Classes="detailLabel" Text="Input" Foreground="{DynamicResource TextGreenAccentBrush}"
+                                                 VerticalAlignment="Center" />
+                                      <ToggleButton Classes="headerToggle" Content="{Binding InputToggleLabel}"
+                                                    IsChecked="{Binding ShowFullInput}" IsVisible="{Binding HasTruncatedInput}"
+                                                    MinHeight="22" Padding="8,2" FontSize="10" />
+                                    </StackPanel>
+                                    <markdown:HighlightableTextBlock Classes="plainText searchToolInput" Text="{Binding InputDisplayText, Mode=OneWay}"
+                                                                     Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                     FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}"
+                                                                     FontSize="{DynamicResource ConversationCodeFontSize}" />
+                                    <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding HasResult}" Margin="0,4,0,0">
+                                      <TextBlock Classes="detailLabel" Text="Result" Foreground="{DynamicResource TextGreenAccentBrush}"
+                                                 VerticalAlignment="Center" />
+                                      <ToggleButton Grid.Column="2" Classes="headerToggle" Content="{Binding ResultToggleLabel}"
+                                                    IsChecked="{Binding ShowFullResult}" IsVisible="{Binding HasTruncatedResult}"
+                                                    MinHeight="22" Padding="8,2" FontSize="10" />
+                                    </Grid>
+                                    <markdown:HighlightableTextBlock Classes="plainText searchToolResult" Text="{Binding ResultDisplayText, Mode=OneWay}"
+                                                                     IsVisible="{Binding HasResult}" Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                     FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}"
+                                                                     FontSize="{DynamicResource ConversationCodeFontSize}" />
+                                  </StackPanel>
+                                </Border>
                               </StackPanel>
                             </Border>
                           </DataTemplate>

@@ -207,7 +207,7 @@ public sealed partial class TurnViewModel : ObservableObject
             existing.Tool = tool;
             return;
         }
-        Add(new ToolItemViewModel(tool));
+        Add(new ToolItemViewModel(tool, Items.OfType<ToolItemViewModel>().Count() + 1));
     }
 
     public void UpdateQuestion(string key, QuestionRecord question, bool isWaiting)
@@ -278,6 +278,7 @@ public sealed partial class TurnViewModel : ObservableObject
         var summaryView = turn.IsCompressed && !IsViewingFullContent;
         var parts = turn.Parts.OrderBy(p => p.Sequence).ToArray();
         var prompt = Prompt(parts);
+        var toolNumber = 0;
         Items.Clear();
         foreach (var part in parts.Where(p => p != prompt))
         {
@@ -290,7 +291,7 @@ public sealed partial class TurnViewModel : ObservableObject
                     Items.Add(new UserMessageItemViewModel(part.Content));
                     break;
                 case { PartType: TurnParts.Tool } when !summaryView:
-                    Items.Add(new ToolItemViewModel(TurnParts.ReadTool(part)));
+                    Items.Add(new ToolItemViewModel(TurnParts.ReadTool(part), ++toolNumber));
                     break;
                 case { PartType: TurnParts.Question }:
                     Items.Add(new QuestionItemViewModel(TurnParts.ReadQuestion(part), isWaiting: false));

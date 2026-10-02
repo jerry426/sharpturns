@@ -90,13 +90,17 @@ public sealed class TurnViewModelTests
             TurnParts.FromQuestion(6, new("Which?", null)),
             new(7, "user", TurnParts.Text, "also this"),
             new(8, "assistant", TurnParts.Text, "Second."),
+            TurnParts.FromTool(9, new("toolu_2", "Bash", """{"command":"ls"}""", "a.txt", "Completed", false)),
         ]));
 
         Assert.Equal("prompt", turn.UserText);
         Assert.Equal([image], turn.Images.Select(i => i.Preview.Attachment));
         Assert.Equal([typeof(TextItemViewModel), typeof(ToolItemViewModel), typeof(QuestionItemViewModel),
-            typeof(UserMessageItemViewModel), typeof(TextItemViewModel)], turn.Items.Select(i => i.GetType()));
+            typeof(UserMessageItemViewModel), typeof(TextItemViewModel), typeof(ToolItemViewModel)], turn.Items.Select(i => i.GetType()));
         Assert.Equal("/a/b.txt", ((ToolItemViewModel)turn.Items[1]).Summary);
+        // Tool cards are numbered in order; a call that arrives later continues the count.
+        turn.UpdateTool(new("toolu_3", "Bash", null, null, "Running", false));
+        Assert.Equal(["1.", "2.", "3."], turn.Items.OfType<ToolItemViewModel>().Select(t => t.NumberLabel));
         Assert.Equal("No answer; the question was declined.", ((QuestionItemViewModel)turn.Items[2]).AnswerText);
         Assert.False(turn.IsRunning);
         Assert.False(turn.HasTokenUsage);
@@ -135,6 +139,26 @@ public sealed class TurnViewModelTests
         Assert.Equal("a.cs", tool.Summary);
         Assert.Equal("file_path: a.cs\nold_string:\nx\ny\nreplace_all: false", tool.InputText);
         Assert.Equal((true, false, false), (tool.IsWaiting, tool.IsRunning, tool.IsSucceeded));
+    }
+
+    [Fact]
+    public void ToolResultShowsTwentyLinesUntilShowFull()
+    {
+        var lines = Enumerable.Range(1, 25).Select(i => $"line {i}").ToArray();
+        var tool = new ToolItemViewModel(new("toolu_1", "Read", """{"file_path":"a.cs"}""",
+            string.Join("\r\n", lines), "Completed", false));
+
+        Assert.Equal((false, true), (tool.HasTruncatedInput, tool.HasTruncatedResult));
+        Assert.Equal(tool.InputText, tool.InputDisplayText);
+        Assert.Equal(string.Join('\n', lines[..20]), tool.ResultDisplayText);
+        Assert.Equal("Show Full...", tool.ResultToggleLabel);
+
+        tool.ShowFullResult = true;
+        Assert.Equal(tool.ResultText, tool.ResultDisplayText);
+        Assert.Equal("Show Less", tool.ResultToggleLabel);
+
+        tool.Tool = tool.Tool with { Result = string.Join('\n', lines[..20]) };
+        Assert.False(tool.HasTruncatedResult);
     }
 
     [Fact]
