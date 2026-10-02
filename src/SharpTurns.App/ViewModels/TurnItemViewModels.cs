@@ -11,20 +11,61 @@ public abstract class TurnItemViewModel : ObservableObject;
 
 /// <summary>
 /// Assistant text: plain while it streams, rendered as Markdown once complete. A compressed turn's summary is one
-/// text item whose Work Summary and response headings are highlighted.
+/// text item: as in the Workbench, its Work Summary section is a collapsible card above the rest. The Final
+/// Response heading is hidden; a Partial Response heading stays and is highlighted.
 /// </summary>
 public sealed partial class TextItemViewModel(string text, bool isStreaming, bool isSummary = false) : TurnItemViewModel
 {
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasWorkSummary), nameof(WorkSummaryHeaderLabel), nameof(WorkSummaryText), nameof(PrimaryText))]
     private string _text = text;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsRendered))]
     private bool _isStreaming = isStreaming;
 
+    /// <summary>Whether the Work Summary card is open; collapsed by default, as in the Workbench.</summary>
+    [ObservableProperty]
+    private bool _isExpanded;
+
     public bool IsRendered => !IsStreaming;
 
     public bool IsSummary { get; } = isSummary;
+
+    public bool HasWorkSummary => TrySplitWorkSummary(out _, out _, out _);
+
+    /// <summary>The Work Summary heading without its "## ", including the tool call count and reduction.</summary>
+    public string WorkSummaryHeaderLabel => TrySplitWorkSummary(out var header, out _, out _) ? header : "";
+
+    public string WorkSummaryText => TrySplitWorkSummary(out _, out var body, out _) ? body : "";
+
+    /// <summary>The text shown outside the Work Summary card: all of it, or a summary's response section.</summary>
+    public string PrimaryText => TrySplitWorkSummary(out _, out _, out var remainder) ? remainder : Text;
+
+    // A summary leads with its Work Summary section, which runs to the response heading, as in the Workbench.
+    private bool TrySplitWorkSummary(out string header, out string body, out string remainder)
+    {
+        const string heading = TurnCompression.WorkSummaryHeading;
+        header = body = "";
+        remainder = Text;
+        if (!IsSummary || !Text.StartsWith(heading, StringComparison.Ordinal)) return false;
+        var headerEnd = Text.IndexOf('\n');
+        var headerLine = (headerEnd < 0 ? Text : Text[..headerEnd]).TrimEnd('\r');
+        if (headerLine.Length > heading.Length && !headerLine.StartsWith(heading + " (", StringComparison.Ordinal)) return false;
+        var bodyStart = headerEnd < 0 ? Text.Length : headerEnd + 1;
+        var boundary = new[] { TurnCompression.FinalResponseHeading, TurnCompression.PartialResponseHeading }
+            .Select(response => Text.IndexOf("\n" + response, bodyStart, StringComparison.Ordinal))
+            .Where(index => index >= 0)
+            .DefaultIfEmpty(Text.Length)
+            .Min();
+        header = headerLine[3..];
+        body = Text[bodyStart..boundary].Trim();
+        remainder = Text[boundary..].TrimStart();
+        // The Final heading stays in the stored and replayed summary but is hidden here; the Partial heading stays visible.
+        if (remainder.StartsWith(TurnCompression.FinalResponseHeading, StringComparison.Ordinal))
+            remainder = remainder[TurnCompression.FinalResponseHeading.Length..].TrimStart();
+        return true;
+    }
 }
 
 /// <summary>A message the user sent while the turn ran.</summary>

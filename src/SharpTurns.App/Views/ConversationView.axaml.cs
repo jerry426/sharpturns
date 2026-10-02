@@ -297,12 +297,15 @@ public sealed partial class ConversationView : UserControl
                 or nameof(ConversationDisplayViewModel.IsMonospaceFontEnabled)
                 or nameof(ConversationDisplayViewModel.FontSizeOffset)
                 or nameof(ConversationDisplayViewModel.BackgroundIntensity)
-                or nameof(ConversationDisplayViewModel.TextIntensity):
+                or nameof(ConversationDisplayViewModel.TextIntensity)
+                or nameof(ConversationDisplayViewModel.IsWorkSummaryExpanded):
                 if (display is { IsAutoScrollEnabled: true, IsSearchActive: false })
                     Dispatcher.UIThread.Post(TurnsScroller.ScrollToEnd, DispatcherPriority.Background);
-                // Switching between rendered Markdown and its source changes the text searched. The other
-                // changes rebuild the rendered Markdown, which drops its highlights, so they're applied again.
-                if (e.PropertyName == nameof(ConversationDisplayViewModel.IsMarkdownRenderingEnabled)) RefreshSearch();
+                // Switching between rendered Markdown and its source, or opening or closing the Work Summary cards,
+                // changes the text searched. The other changes rebuild the rendered Markdown, which drops its
+                // highlights, so they're applied again.
+                if (e.PropertyName is nameof(ConversationDisplayViewModel.IsMarkdownRenderingEnabled)
+                    or nameof(ConversationDisplayViewModel.IsWorkSummaryExpanded)) RefreshSearch();
                 else ScheduleSearchHighlight();
                 break;
         }
@@ -514,6 +517,7 @@ public sealed partial class ConversationView : UserControl
             {
                 var c when c.Contains("searchPrompt") => ConversationSearchSegmentKind.Prompt,
                 var c when c.Contains("searchText") => ConversationSearchSegmentKind.Text,
+                var c when c.Contains("searchWorkSummary") => ConversationSearchSegmentKind.WorkSummary,
                 var c when c.Contains("searchQuestion") => ConversationSearchSegmentKind.Question,
                 var c when c.Contains("searchAnswer") => ConversationSearchSegmentKind.Answer,
                 var c when c.Contains("searchToolInput") => ConversationSearchSegmentKind.ToolInput,

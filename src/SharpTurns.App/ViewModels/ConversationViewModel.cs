@@ -129,6 +129,10 @@ public sealed partial class ConversationViewModel : ObservableObject
         display.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(ConversationDisplayViewModel.TurnFilterIndex)) RefreshShownTurns();
+            else if (e.PropertyName == nameof(ConversationDisplayViewModel.IsWorkSummaryExpanded))
+            {
+                foreach (var turn in Turns) turn.IsWorkSummaryExpanded = display.IsWorkSummaryExpanded;
+            }
         };
         Attachments.CollectionChanged += (_, _) =>
         {
@@ -258,7 +262,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         {
             var turns = await _store.LoadTurnsAsync(Conversation.Id);
             Turns.Clear();
-            foreach (var turn in turns) Turns.Add(new TurnViewModel(turn));
+            foreach (var turn in turns) Turns.Add(new TurnViewModel(turn) { IsWorkSummaryExpanded = Display.IsWorkSummaryExpanded });
             TurnContentChanged?.Invoke(this, EventArgs.Empty);
             NotesCount = await _store.CountNotesAsync(Conversation.Id);
         }
@@ -317,7 +321,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         var images = Attachments.Select(a => a.Attachment).ToArray();
         ComposerText = "";
         Attachments.Clear();
-        var turn = new TurnViewModel(prompt, images);
+        var turn = new TurnViewModel(prompt, images) { IsWorkSummaryExpanded = Display.IsWorkSummaryExpanded };
         Turns.Add(turn);
         TurnContentChanged?.Invoke(this, EventArgs.Empty);
         IsRunning = true;

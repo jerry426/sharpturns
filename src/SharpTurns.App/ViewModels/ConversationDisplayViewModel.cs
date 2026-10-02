@@ -32,6 +32,10 @@ public sealed partial class ConversationDisplayViewModel : ObservableObject
     [ObservableProperty]
     private bool _isMonospaceFontEnabled;
 
+    /// <summary>Opens or closes every compressed card's Work Summary, as in the Workbench; closed by default.</summary>
+    [ObservableProperty]
+    private bool _isWorkSummaryExpanded;
+
     /// <summary>Keeps the conversation scrolled to the bottom as turns stream; off, the reader controls the scroll.</summary>
     [ObservableProperty]
     private bool _isAutoScrollEnabled = true;
@@ -141,6 +145,7 @@ public sealed partial class ConversationDisplayViewModel : ObservableObject
     {
         IsMarkdownRenderingEnabled = true;
         IsMonospaceFontEnabled = false;
+        IsWorkSummaryExpanded = false;
         FontSizeOffset = 0;
         BackgroundIntensity = DefaultBackgroundIntensity;
         TextIntensity = DefaultTextIntensity;

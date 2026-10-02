@@ -12,6 +12,7 @@ namespace SharpTurns.App.ViewModels;
 public sealed partial class TurnViewModel : ObservableObject
 {
     private readonly Dictionary<string, QuestionItemViewModel> _questions = [];
+    private bool _isWorkSummaryExpanded;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasOutcome))]
@@ -76,6 +77,20 @@ public sealed partial class TurnViewModel : ObservableObject
     public ObservableCollection<TurnItemViewModel> Items { get; } = [];
 
     public bool HasOutcome => Outcome is not null;
+
+    /// <summary>
+    /// Whether a compressed card's Work Summary is open. The header's Work Summary toggle sets it on every turn, opening
+    /// or closing each card; a card's own header still toggles just that card.
+    /// </summary>
+    public bool IsWorkSummaryExpanded
+    {
+        get => _isWorkSummaryExpanded;
+        set
+        {
+            _isWorkSummaryExpanded = value;
+            foreach (var item in Items.OfType<TextItemViewModel>().Where(item => item.HasWorkSummary)) item.IsExpanded = value;
+        }
+    }
 
     public string TurnLabel => Record is { } turn ? $"Turn - {turn.TurnNumber.ToString(CultureInfo.InvariantCulture)}" : "Turn";
 
@@ -298,7 +313,8 @@ public sealed partial class TurnViewModel : ObservableObject
                     break;
             }
         }
-        if (summaryView) Items.Add(new TextItemViewModel(DisplaySummary(turn), isStreaming: false, isSummary: true));
+        if (summaryView)
+            Items.Add(new TextItemViewModel(DisplaySummary(turn), isStreaming: false, isSummary: true) { IsExpanded = IsWorkSummaryExpanded });
     }
 
     private static TurnPart? Prompt(IEnumerable<TurnPart> parts) => parts.FirstOrDefault(p => p is { Role: "user", PartType: TurnParts.Text });

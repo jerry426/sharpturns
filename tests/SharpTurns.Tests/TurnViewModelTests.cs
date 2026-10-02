@@ -131,6 +131,41 @@ public sealed class TurnViewModelTests
     }
 
     [Fact]
+    public void CompressedCardSplitsItsWorkSummaryIntoACollapsedCard()
+    {
+        var turn = new TurnViewModel(new ConversationTurn(1, 1, 1, TurnStatus.Completed, null, DateTimeOffset.UnixEpoch, null,
+        [
+            new(1, "user", TurnParts.Text, "prompt"),
+            TurnParts.FromTool(2, new("toolu_1", "Bash", null, null, "Completed", false)),
+            new(3, "assistant", TurnParts.Text, "Done."),
+        ])
+        {
+            Summary = "## Work Summary\n\n- Ran the tests.\n\n## Final Assistant Response — Verbatim\n\nDone.",
+        });
+
+        var summary = Assert.IsType<TextItemViewModel>(Assert.Single(turn.Items));
+        Assert.True(summary.HasWorkSummary);
+        Assert.False(summary.IsExpanded);
+        Assert.StartsWith("Work Summary (1 tool call", summary.WorkSummaryHeaderLabel);
+        Assert.Equal("- Ran the tests.", summary.WorkSummaryText);
+        // The Final heading is hidden on screen but kept in the stored text the replay sends; Partial stays visible.
+        Assert.Equal("Done.", summary.PrimaryText);
+        Assert.Contains(TurnCompression.FinalResponseHeading, summary.Text);
+        var partial = new TextItemViewModel("## Work Summary\n\n- Ran.\n\n## Partial Assistant Response — Verbatim\n\nHalf.",
+            isStreaming: false, isSummary: true);
+        Assert.Equal("## Partial Assistant Response — Verbatim\n\nHalf.", partial.PrimaryText);
+
+        // The header's toggle opens and closes the card; plain response text is never split.
+        turn.IsWorkSummaryExpanded = true;
+        Assert.True(summary.IsExpanded);
+        turn.ViewFullContentCommand.Execute(null);
+        var response = Assert.IsType<TextItemViewModel>(turn.Items.Last());
+        Assert.Equal((false, "Done."), (response.HasWorkSummary, response.PrimaryText));
+        turn.RestoreCompressedViewCommand.Execute(null);
+        Assert.True(((TextItemViewModel)turn.Items.Single()).IsExpanded);
+    }
+
+    [Fact]
     public void ToolInputShowsOneFieldPerLineWithMultilineValuesIntact()
     {
         var tool = new ToolItemViewModel(new("toolu_1", "Edit",

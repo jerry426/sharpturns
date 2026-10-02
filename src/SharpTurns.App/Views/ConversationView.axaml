@@ -49,6 +49,8 @@
                       Margin="0,0,6,0" ToolTip.Tip="Render responses as Markdown; off, show their Markdown source" />
         <ToggleButton Classes="headerToggle" Content="{}{} Mono" IsChecked="{Binding Display.IsMonospaceFontEnabled, Mode=TwoWay}"
                       Margin="0,0,6,0" ToolTip.Tip="Show prompts and responses in a monospace font" />
+        <ToggleButton Classes="headerToggle" Content="📋 Work Summary" IsChecked="{Binding Display.IsWorkSummaryExpanded, Mode=TwoWay}"
+                      Margin="0,0,6,0" ToolTip.Tip="Open or close the Work Summary on every compressed turn" />
         <ToggleButton Classes="headerToggle" Content="Auto-scroll" IsChecked="{Binding Display.IsAutoScrollEnabled, Mode=TwoWay}"
                       Margin="0,0,6,0"
                       ToolTip.Tip="Keep the conversation scrolled to the bottom while a turn runs; off, the scroll stays where you leave it" />
@@ -225,7 +227,7 @@
                                   ToolTip.Tip="Return this card to its compressed view without changing what's saved" />
                         </Grid>
                       </Border>
-                      <TextBlock Text="USER:" Foreground="{DynamicResource TextYellowBrush}" FontSize="12" FontWeight="SemiBold" />
+                      <TextBlock Text="USER:" Foreground="{DynamicResource TextYellowBrush}" FontSize="15" FontWeight="SemiBold" />
                       <!-- As in the Workbench, each image is a card above the prompt with its thumbnail, details, and replay choice. -->
                       <ItemsControl ItemsSource="{Binding Images}" IsVisible="{Binding HasImages}">
                         <ItemsControl.ItemsPanel>
@@ -265,7 +267,7 @@
                                                        FontSize="{DynamicResource ConversationFontSize}"
                                                        LineHeight="{DynamicResource ConversationLineHeight}" />
                       <Border Height="4" Background="{DynamicResource TextYellowBrush}" Margin="0,10,0,8" />
-                      <TextBlock Text="ASSISTANT:" Foreground="#61AFEF" FontSize="12" FontWeight="SemiBold" />
+                      <TextBlock Text="ASSISTANT:" Foreground="#61AFEF" FontSize="15" FontWeight="SemiBold" />
 
                       <ItemsControl ItemsSource="{Binding Items}">
                         <ItemsControl.ItemsPanel>
@@ -275,39 +277,77 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.DataTemplates>
                           <DataTemplate DataType="vm:TextItemViewModel" x:DataType="vm:TextItemViewModel">
-                            <Panel>
-                              <markdown:MarkdownDocumentBlock Classes="conversationMarkdown searchText" Markdown="{Binding Text}"
-                                                              HighlightHybridCompressionSectionLabels="{Binding IsSummary}"
-                                                              HybridCompressionSectionLabelForeground="#00FFFF"
-                                                              ContentForeground="{DynamicResource TextSecondaryBrush}"
-                                                              ContentFontFamily="{DynamicResource ConversationFontFamily}"
-                                                              ContentFontSize="{DynamicResource ConversationFontSize}"
-                                                              ContentLineHeight="{DynamicResource ConversationLineHeight}"
-                                                              CodeFontSize="{DynamicResource ConversationCodeFontSize}"
-                                                              TextIntensity="{DynamicResource ConversationTextIntensity}"
-                                                              CodeBlockColorTheme="DarkPlus">
-                                <markdown:MarkdownDocumentBlock.IsVisible>
-                                  <MultiBinding Converter="{x:Static BoolConverters.And}">
-                                    <Binding Path="IsRendered" />
-                                    <Binding Path="$parent[UserControl].((vm:ConversationViewModel)DataContext).Display.IsMarkdownRenderingEnabled" />
-                                  </MultiBinding>
-                                </markdown:MarkdownDocumentBlock.IsVisible>
-                              </markdown:MarkdownDocumentBlock>
-                              <!-- Streaming text stays plain so each delta doesn't rebuild the rendered document. With the
-                                   Markdown toggle off, every response shows its Markdown source this way. -->
-                              <markdown:HighlightableTextBlock Classes="plainText searchText" Text="{Binding Text, Mode=OneWay}"
-                                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                                               FontFamily="{DynamicResource ConversationFontFamily}"
-                                                               FontSize="{DynamicResource ConversationFontSize}"
-                                                               LineHeight="{DynamicResource ConversationLineHeight}">
-                                <markdown:HighlightableTextBlock.IsVisible>
-                                  <MultiBinding Converter="{x:Static BoolConverters.Or}">
-                                    <Binding Path="IsStreaming" />
-                                    <Binding Path="$parent[UserControl].((vm:ConversationViewModel)DataContext).Display.IsMarkdownSourceShown" />
-                                  </MultiBinding>
-                                </markdown:HighlightableTextBlock.IsVisible>
-                              </markdown:HighlightableTextBlock>
-                            </Panel>
+                            <StackPanel Spacing="10">
+                              <!-- As in the Workbench, a compressed card's Work Summary is a collapsible card above the
+                                   response; the header's Work Summary toggle opens or closes them all. -->
+                              <Border IsVisible="{Binding HasWorkSummary}" Background="#010D1D" BorderBrush="#9CA1A8" BorderThickness="1"
+                                      CornerRadius="10">
+                                <StackPanel>
+                                  <ToggleButton Classes="cardHeader" IsChecked="{Binding IsExpanded}" CornerRadius="10" Padding="10,3"
+                                                MinHeight="28">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                      <TextBlock Text="📋" FontSize="12" VerticalAlignment="Center" />
+                                      <TextBlock Grid.Column="1" Text="{Binding WorkSummaryHeaderLabel}" Foreground="#00CCCC" FontSize="12"
+                                                 FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                      <TextBlock Grid.Column="2" Classes="chevron" Classes.expanded="{Binding IsExpanded}" Foreground="#FFFFFF" />
+                                    </Grid>
+                                  </ToggleButton>
+                                  <Border IsVisible="{Binding IsExpanded}" BorderBrush="#9CA1A8" BorderThickness="0,1,0,0" CornerRadius="0,0,9,9"
+                                          Padding="12">
+                                    <Panel>
+                                      <markdown:MarkdownDocumentBlock Classes="conversationMarkdown searchWorkSummary" Markdown="{Binding WorkSummaryText}"
+                                                                      IsVisible="{Binding $parent[UserControl].((vm:ConversationViewModel)DataContext).Display.IsMarkdownRenderingEnabled}"
+                                                                      ContentForeground="{DynamicResource TextSecondaryBrush}"
+                                                                      ContentFontFamily="{DynamicResource ConversationFontFamily}"
+                                                                      ContentFontSize="{DynamicResource ConversationFontSize}"
+                                                                      ContentLineHeight="{DynamicResource ConversationLineHeight}"
+                                                                      CodeFontSize="{DynamicResource ConversationCodeFontSize}"
+                                                                      TextIntensity="{DynamicResource ConversationTextIntensity}"
+                                                                      CodeBlockColorTheme="DarkPlus" />
+                                      <markdown:HighlightableTextBlock Classes="plainText searchWorkSummary" Text="{Binding WorkSummaryText, Mode=OneWay}"
+                                                                       IsVisible="{Binding $parent[UserControl].((vm:ConversationViewModel)DataContext).Display.IsMarkdownSourceShown}"
+                                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                       FontFamily="{DynamicResource ConversationFontFamily}"
+                                                                       FontSize="{DynamicResource ConversationFontSize}"
+                                                                       LineHeight="{DynamicResource ConversationLineHeight}" />
+                                    </Panel>
+                                  </Border>
+                                </StackPanel>
+                              </Border>
+                              <Panel>
+                                <markdown:MarkdownDocumentBlock Classes="conversationMarkdown searchText" Markdown="{Binding PrimaryText}"
+                                                                HighlightHybridCompressionSectionLabels="{Binding IsSummary}"
+                                                                HybridCompressionSectionLabelForeground="#00CCCC"
+                                                                ContentForeground="{DynamicResource TextSecondaryBrush}"
+                                                                ContentFontFamily="{DynamicResource ConversationFontFamily}"
+                                                                ContentFontSize="{DynamicResource ConversationFontSize}"
+                                                                ContentLineHeight="{DynamicResource ConversationLineHeight}"
+                                                                CodeFontSize="{DynamicResource ConversationCodeFontSize}"
+                                                                TextIntensity="{DynamicResource ConversationTextIntensity}"
+                                                                CodeBlockColorTheme="DarkPlus">
+                                  <markdown:MarkdownDocumentBlock.IsVisible>
+                                    <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                      <Binding Path="IsRendered" />
+                                      <Binding Path="$parent[UserControl].((vm:ConversationViewModel)DataContext).Display.IsMarkdownRenderingEnabled" />
+                                    </MultiBinding>
+                                  </markdown:MarkdownDocumentBlock.IsVisible>
+                                </markdown:MarkdownDocumentBlock>
+                                <!-- Streaming text stays plain so each delta doesn't rebuild the rendered document. With the
+                                     Markdown toggle off, every response shows its Markdown source this way. -->
+                                <markdown:HighlightableTextBlock Classes="plainText searchText" Text="{Binding PrimaryText, Mode=OneWay}"
+                                                                 Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                 FontFamily="{DynamicResource ConversationFontFamily}"
+                                                                 FontSize="{DynamicResource ConversationFontSize}"
+                                                                 LineHeight="{DynamicResource ConversationLineHeight}">
+                                  <markdown:HighlightableTextBlock.IsVisible>
+                                    <MultiBinding Converter="{x:Static BoolConverters.Or}">
+                                      <Binding Path="IsStreaming" />
+                                      <Binding Path="$parent[UserControl].((vm:ConversationViewModel)DataContext).Display.IsMarkdownSourceShown" />
+                                    </MultiBinding>
+                                  </markdown:HighlightableTextBlock.IsVisible>
+                                </markdown:HighlightableTextBlock>
+                              </Panel>
+                            </StackPanel>
                           </DataTemplate>
 
                           <DataTemplate DataType="vm:ToolItemViewModel" x:DataType="vm:ToolItemViewModel">
@@ -390,7 +430,7 @@
                           <DataTemplate DataType="vm:UserMessageItemViewModel" x:DataType="vm:UserMessageItemViewModel">
                             <Border BorderBrush="{DynamicResource TextYellowBrush}" BorderThickness="3,0,0,0" Padding="12,2,0,2">
                               <StackPanel Spacing="6">
-                                <TextBlock Text="USER (sent during the turn):" Foreground="{DynamicResource TextYellowBrush}" FontSize="12"
+                                <TextBlock Text="USER (sent during the turn):" Foreground="{DynamicResource TextYellowBrush}" FontSize="15"
                                            FontWeight="SemiBold" />
                                 <markdown:HighlightableTextBlock Classes="plainText searchText" Text="{Binding Text, Mode=OneWay}"
                                                                  Foreground="{DynamicResource TextPrimaryBrush}"

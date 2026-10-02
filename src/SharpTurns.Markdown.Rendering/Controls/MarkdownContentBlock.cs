@@ -851,10 +851,6 @@ public sealed class MarkdownContentBlock : MarkdownRenderer
         var foreground = hybridSectionLabelKind != HybridCompressionSectionLabelKinds.None
             ? HybridCompressionSectionLabelForeground
             : ContentForeground;
-        ApplyHybridCompressionSectionLabelDelineator(
-            textBlock,
-            hybridSectionLabelKind,
-            HybridCompressionSectionLabelForeground);
         if (UseBrightHeadingColors)
         {
             foreground = GetBrightHeadingForeground(textBlock, foreground, TextIntensity);
@@ -1043,28 +1039,6 @@ public sealed class MarkdownContentBlock : MarkdownRenderer
 
         highlightedHybridSectionLabels |= kind;
         return kind;
-    }
-
-    internal static void ApplyHybridCompressionSectionLabelDelineator(
-        MarkdownTextBlock textBlock,
-        HybridCompressionSectionLabelKinds kind,
-        IBrush sectionLabelForeground)
-    {
-        if (kind != HybridCompressionSectionLabelKinds.FinalAssistantResponse)
-        {
-            return;
-        }
-
-        foreach (var ancestor in textBlock.GetVisualAncestors())
-        {
-            if (ancestor is Border { Classes: var classes } heading &&
-                classes.Contains("Heading2Block"))
-            {
-                heading.BorderBrush = sectionLabelForeground;
-                heading.BorderThickness = new Thickness(0, 6, 0, 0);
-                return;
-            }
-        }
     }
 
     internal static bool IsHybridCompressionSectionLabel(string text) =>

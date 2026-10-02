@@ -9,6 +9,7 @@ internal enum ConversationSearchSegmentKind
 {
     Prompt,
     Text,
+    WorkSummary,
     Question,
     Answer,
     ToolInput,
@@ -44,7 +45,7 @@ internal sealed class ConversationSearchIndex
 
     /// <summary>
     /// The text the shown turns display, in order: each prompt, then its items. As in the Workbench, a collapsed tool card
-    /// is left out. Response text is Markdown only when it renders as Markdown.
+    /// or Work Summary card is left out. Response text is Markdown only when it renders as Markdown.
     /// </summary>
     public static IReadOnlyList<ConversationSearchSource> CaptureSources(IEnumerable<TurnViewModel> turns, bool renderMarkdown)
     {
@@ -57,7 +58,9 @@ internal sealed class ConversationSearchIndex
                 switch (item)
                 {
                     case TextItemViewModel text:
-                        sources.Add(new(text, ConversationSearchSegmentKind.Text, text.Text, renderMarkdown && text.IsRendered));
+                        if (text is { HasWorkSummary: true, IsExpanded: true })
+                            sources.Add(new(text, ConversationSearchSegmentKind.WorkSummary, text.WorkSummaryText, renderMarkdown));
+                        sources.Add(new(text, ConversationSearchSegmentKind.Text, text.PrimaryText, renderMarkdown && text.IsRendered));
                         break;
                     case UserMessageItemViewModel message:
                         sources.Add(new(message, ConversationSearchSegmentKind.Text, message.Text, IsMarkdown: false));
