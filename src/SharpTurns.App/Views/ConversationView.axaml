@@ -23,6 +23,19 @@
     <Style Selector="Border.turnCard.compressed">
       <Setter Property="Background" Value="{DynamicResource CompressedTurnBackgroundBrush}" />
     </Style>
+    <!-- The cards' read-only text boxes look like text when hovered or focused, without the theme's input box size. -->
+    <Style Selector="TextBox.plainText">
+      <Setter Property="MinHeight" Value="0" />
+    </Style>
+    <Style Selector="TextBox.plainText /template/ Border#PART_BorderElement, TextBox.plainText:pointerover /template/ Border#PART_BorderElement, TextBox.plainText:focus /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Button.searchButton">
+      <Setter Property="Width" Value="26" />
+      <Setter Property="MinHeight" Value="26" />
+      <Setter Property="Padding" Value="0" />
+    </Style>
   </UserControl.Styles>
 
   <Grid RowDefinitions="Auto,Auto,*,Auto">
@@ -44,7 +57,30 @@
                  TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Status}" />
       <Button Grid.Column="2" Classes="headerButton viewer" Content="📖 Markdown Viewer" Command="{Binding OpenMarkdownViewerCommand}"
               ToolTip.Tip="Open the Markdown Viewer on this project's documentation" />
-      <WrapPanel Grid.Row="1" Grid.ColumnSpan="3" HorizontalAlignment="Right">
+      <!-- Search in turns, as in the Workbench. The search and the active match are shared by every conversation. -->
+      <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <PathIcon Width="13" Height="13" Data="{StaticResource SearchIconGeometry}" Foreground="{DynamicResource TextMutedBrush}"
+                  VerticalAlignment="Center" Margin="0,0,2,0" />
+        <TextBox x:Name="SearchBox" Text="{Binding Display.SearchQuery}" PlaceholderText="Search in turns..." Width="220"
+                 MinHeight="26" FontSize="12" KeyDown="SearchBox_KeyDown"
+                 ToolTip.Tip="Search the shown turns, including open tool cards. Enter = next match, Shift+Enter = previous match." />
+        <Button Classes="secondaryActionButton searchButton" Command="{Binding Display.PreviousSearchMatchCommand}"
+                IsVisible="{Binding Display.IsSearchActive}" ToolTip.Tip="Previous match (Shift+Enter)">
+          <PathIcon Width="10" Height="8" Data="{StaticResource UpTriangleIconGeometry}" />
+        </Button>
+        <Button Classes="secondaryActionButton searchButton" Command="{Binding Display.NextSearchMatchCommand}"
+                IsVisible="{Binding Display.IsSearchActive}" ToolTip.Tip="Next match (Enter)">
+          <PathIcon Width="10" Height="8" Data="{StaticResource DownTriangleIconGeometry}" />
+        </Button>
+        <Button Classes="secondaryActionButton searchButton" Command="{Binding Display.ClearSearchCommand}"
+                IsVisible="{Binding Display.IsSearchActive}" ToolTip.Tip="Clear search">
+          <PathIcon Width="12" Height="12" Data="{StaticResource CloseIconGeometry}" />
+        </Button>
+        <TextBlock Text="{Binding Display.SearchMatchStatusLabel}" IsVisible="{Binding Display.IsSearchActive}"
+                   Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" MinWidth="60"
+                   Margin="4,0,0,0" />
+      </StackPanel>
+      <WrapPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" HorizontalAlignment="Right">
         <Button Classes="headerButton history" Content="💬 User Message History" Command="{Binding OpenUserMessageHistoryCommand}"
                 ToolTip.Tip="Browse the user messages in Claude's context" />
         <Button Classes="headerButton notes" Content="{Binding NotesLabel}" Command="{Binding OpenNotesCommand}"
@@ -209,10 +245,13 @@
                         </DataTemplate>
                       </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                    <SelectableTextBlock Text="{Binding UserText}" Foreground="{DynamicResource TextPrimaryBrush}"
-                                         FontFamily="{DynamicResource ConversationFontFamily}"
-                                         FontSize="{DynamicResource ConversationFontSize}"
-                                         LineHeight="{DynamicResource ConversationLineHeight}" TextWrapping="Wrap" />
+                    <!-- As in the Workbench, plain text is a read-only text box, so search can select its active match.
+                         Each searchable control has a search class naming what it shows. -->
+                    <markdown:HighlightableTextBlock Classes="plainText searchPrompt" Text="{Binding UserText, Mode=OneWay}"
+                                                     Foreground="{DynamicResource TextPrimaryBrush}"
+                                                     FontFamily="{DynamicResource ConversationFontFamily}"
+                                                     FontSize="{DynamicResource ConversationFontSize}"
+                                                     LineHeight="{DynamicResource ConversationLineHeight}" />
                     <Border Height="4" Background="{DynamicResource TextYellowBrush}" Margin="0,10,0,8" />
                     <TextBlock Text="ASSISTANT:" Foreground="#61AFEF" FontSize="12" FontWeight="SemiBold" />
 
@@ -225,7 +264,7 @@
                       <ItemsControl.DataTemplates>
                         <DataTemplate DataType="vm:TextItemViewModel" x:DataType="vm:TextItemViewModel">
                           <Panel>
-                            <markdown:MarkdownDocumentBlock Classes="conversationMarkdown" Markdown="{Binding Text}"
+                            <markdown:MarkdownDocumentBlock Classes="conversationMarkdown searchText" Markdown="{Binding Text}"
                                                             HighlightHybridCompressionSectionLabels="{Binding IsSummary}"
                                                             HybridCompressionSectionLabelForeground="#00FFFF"
                                                             ContentForeground="{DynamicResource TextSecondaryBrush}"
@@ -244,17 +283,18 @@
                             </markdown:MarkdownDocumentBlock>
                             <!-- Streaming text stays plain so each delta doesn't rebuild the rendered document. With the
                                  Markdown toggle off, every response shows its Markdown source this way. -->
-                            <SelectableTextBlock Text="{Binding Text}" Foreground="{DynamicResource TextSecondaryBrush}"
-                                                 FontFamily="{DynamicResource ConversationFontFamily}"
-                                                 FontSize="{DynamicResource ConversationFontSize}"
-                                                 LineHeight="{DynamicResource ConversationLineHeight}" TextWrapping="Wrap">
-                              <SelectableTextBlock.IsVisible>
+                            <markdown:HighlightableTextBlock Classes="plainText searchText" Text="{Binding Text, Mode=OneWay}"
+                                                             Foreground="{DynamicResource TextSecondaryBrush}"
+                                                             FontFamily="{DynamicResource ConversationFontFamily}"
+                                                             FontSize="{DynamicResource ConversationFontSize}"
+                                                             LineHeight="{DynamicResource ConversationLineHeight}">
+                              <markdown:HighlightableTextBlock.IsVisible>
                                 <MultiBinding Converter="{x:Static BoolConverters.Or}">
                                   <Binding Path="IsStreaming" />
                                   <Binding Path="$parent[UserControl].((vm:ConversationViewModel)DataContext).Display.IsMarkdownSourceShown" />
                                 </MultiBinding>
-                              </SelectableTextBlock.IsVisible>
-                            </SelectableTextBlock>
+                              </markdown:HighlightableTextBlock.IsVisible>
+                            </markdown:HighlightableTextBlock>
                           </Panel>
                         </DataTemplate>
 
@@ -276,14 +316,15 @@
                               </ToggleButton>
                               <StackPanel IsVisible="{Binding IsExpanded}" Margin="28,2,12,10" Spacing="6">
                                 <TextBlock Classes="detailLabel" Text="Input" />
-                                <SelectableTextBlock Text="{Binding InputText}" Foreground="{DynamicResource TextSecondaryBrush}"
-                                                     FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}"
-                                                     FontSize="{DynamicResource ConversationCodeFontSize}" TextWrapping="Wrap" />
+                                <markdown:HighlightableTextBlock Classes="plainText searchToolInput" Text="{Binding InputText, Mode=OneWay}"
+                                                                 Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                 FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}"
+                                                                 FontSize="{DynamicResource ConversationCodeFontSize}" />
                                 <TextBlock Classes="detailLabel" Text="Result" IsVisible="{Binding HasResult}" Margin="0,4,0,0" />
-                                <SelectableTextBlock Text="{Binding ResultText}" IsVisible="{Binding HasResult}"
-                                                     Foreground="{DynamicResource TextSecondaryBrush}"
-                                                     FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}"
-                                                     FontSize="{DynamicResource ConversationCodeFontSize}" TextWrapping="Wrap" />
+                                <markdown:HighlightableTextBlock Classes="plainText searchToolResult" Text="{Binding ResultText, Mode=OneWay}"
+                                                                 IsVisible="{Binding HasResult}" Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                 FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}"
+                                                                 FontSize="{DynamicResource ConversationCodeFontSize}" />
                               </StackPanel>
                             </StackPanel>
                           </Border>
@@ -293,7 +334,7 @@
                           <Border Background="#18142A" BorderBrush="#4A3E76" BorderThickness="1" CornerRadius="8" Padding="12,10">
                             <StackPanel Spacing="8">
                               <TextBlock Text="Question" Foreground="{DynamicResource TextPurpleBrush}" FontSize="12" FontWeight="SemiBold" />
-                              <markdown:MarkdownDocumentBlock Classes="conversationMarkdown" Markdown="{Binding Question.Question}"
+                              <markdown:MarkdownDocumentBlock Classes="conversationMarkdown searchQuestion" Markdown="{Binding Question.Question}"
                                                               ContentForeground="{DynamicResource TextPrimaryBrush}"
                                                               ContentFontFamily="{DynamicResource ConversationFontFamily}"
                                                               ContentFontSize="{DynamicResource ConversationFontSize}"
@@ -301,8 +342,8 @@
                                                               CodeFontSize="{DynamicResource ConversationCodeFontSize}"
                                                               TextIntensity="{DynamicResource ConversationTextIntensity}" />
                               <Border Background="#231C3D" CornerRadius="6" Padding="10,6">
-                                <SelectableTextBlock Text="{Binding AnswerText}" TextWrapping="Wrap"
-                                                     Foreground="{DynamicResource TextStrongBrush}" />
+                                <markdown:HighlightableTextBlock Classes="plainText searchAnswer" Text="{Binding AnswerText, Mode=OneWay}"
+                                                                 Foreground="{DynamicResource TextStrongBrush}" />
                               </Border>
                             </StackPanel>
                           </Border>
@@ -313,10 +354,11 @@
                             <StackPanel Spacing="6">
                               <TextBlock Text="USER (sent during the turn):" Foreground="{DynamicResource TextYellowBrush}" FontSize="12"
                                          FontWeight="SemiBold" />
-                              <SelectableTextBlock Text="{Binding Text}" Foreground="{DynamicResource TextPrimaryBrush}"
-                                                   FontFamily="{DynamicResource ConversationFontFamily}"
-                                                   FontSize="{DynamicResource ConversationFontSize}"
-                                                   LineHeight="{DynamicResource ConversationLineHeight}" TextWrapping="Wrap" />
+                              <markdown:HighlightableTextBlock Classes="plainText searchText" Text="{Binding Text, Mode=OneWay}"
+                                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                                               FontFamily="{DynamicResource ConversationFontFamily}"
+                                                               FontSize="{DynamicResource ConversationFontSize}"
+                                                               LineHeight="{DynamicResource ConversationLineHeight}" />
                             </StackPanel>
                           </Border>
                         </DataTemplate>

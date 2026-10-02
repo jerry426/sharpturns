@@ -4,6 +4,7 @@ using Avalonia.Controls.Documents;
 using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.TextFormatting;
 using SharpTurns.Markdown.Rendering.Styling;
 
 namespace SharpTurns.Markdown.Rendering;
@@ -295,29 +296,41 @@ internal sealed class MarkdownTableCellTextBlock : SelectableTextBlock
             Foreground = SolidColorBrush.Parse("#0A0A0A"),
             FontFamily = FontFamily,
             FontSize = FontSize,
-            FontWeight = active ? FontWeight.Bold : FontWeight,
+            FontWeight = FontWeight,
             FontStyle = FontStyle,
         };
 
+        var border = new Border
+        {
+            Background = SolidColorBrush.Parse(active ? "#FF9900" : "#FFEB3B"),
+            CornerRadius = new CornerRadius(2),
+            Padding = new Thickness(1, 0),
+            Child = new TextBlock
+            {
+                Text = run.Text,
+                Foreground = run.Foreground,
+                FontFamily = run.FontFamily,
+                FontSize = run.FontSize,
+                FontWeight = run.FontWeight,
+                FontStyle = run.FontStyle,
+                LineHeight = LineHeight,
+                TextWrapping = TextWrapping.NoWrap,
+            },
+        };
+
+        // Report the match's baseline so it sits on the cell's text line.
+        using var layout = new TextLayout(
+            text,
+            new Typeface(FontFamily, FontStyle, FontWeight),
+            FontSize,
+            null,
+            lineHeight: LineHeight);
+        TextBlock.SetBaselineOffset(border, layout.Baseline);
+
         return new InlineUIContainer
         {
-            BaselineAlignment = BaselineAlignment.Center,
-            Child = new Border
-            {
-                Background = SolidColorBrush.Parse(active ? "#FF9900" : "#FFEB3B"),
-                CornerRadius = new CornerRadius(2),
-                Padding = new Thickness(1, 0),
-                Child = new TextBlock
-                {
-                    Text = run.Text,
-                    Foreground = run.Foreground,
-                    FontFamily = run.FontFamily,
-                    FontSize = run.FontSize,
-                    FontWeight = run.FontWeight,
-                    FontStyle = run.FontStyle,
-                    TextWrapping = TextWrapping.NoWrap,
-                },
-            },
+            BaselineAlignment = BaselineAlignment.Baseline,
+            Child = border,
         };
     }
 

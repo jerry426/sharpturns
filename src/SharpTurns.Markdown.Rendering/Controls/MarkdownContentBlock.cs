@@ -6,6 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Logging;
 using Avalonia.Media;
+using Avalonia.Media.TextFormatting;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using SharpTurns.Markdown.Rendering.Styling;
@@ -1477,7 +1478,7 @@ public sealed class MarkdownContentBlock : MarkdownRenderer
                     var active = localIdx == blockActive;
                     var matchText = info.Text[match.Start..(match.Start + match.Length)];
                     var container = MakeMarkdownHighlightInline(
-                        matchText, info, active);
+                        matchText, info, active, block.LineHeight);
                     inlines.Insert(inlineIndex++, container);
 
                     if (active)
@@ -1639,7 +1640,8 @@ public sealed class MarkdownContentBlock : MarkdownRenderer
     private static InlineUIContainer MakeMarkdownHighlightInline(
         string text,
         MarkdownRunInfo info,
-        bool active)
+        bool active,
+        double lineHeight)
     {
         var border = new Border
         {
@@ -1653,11 +1655,22 @@ public sealed class MarkdownContentBlock : MarkdownRenderer
                 Foreground = SearchMatchForegroundBrush,
                 FontFamily = info.FontFamily,
                 FontSize = info.FontSize,
-                FontWeight = active ? FontWeight.Bold : info.FontWeight,
+                FontWeight = info.FontWeight,
                 FontStyle = info.FontStyle,
                 TextDecorations = info.TextDecorations,
+                LineHeight = lineHeight,
             },
         };
+
+        // An embedded control sits with its bottom on the line's baseline unless it
+        // reports its own, which would lift the match above the surrounding text.
+        using var layout = new TextLayout(
+            text,
+            new Typeface(info.FontFamily, info.FontStyle, info.FontWeight),
+            info.FontSize,
+            null,
+            lineHeight: lineHeight);
+        TextBlock.SetBaselineOffset(border, layout.Baseline);
 
         return new InlineUIContainer
         {

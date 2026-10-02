@@ -8,9 +8,9 @@ using SharpTurns.Markdown.Rendering.Styling;
 namespace SharpTurns.App.ViewModels;
 
 /// <summary>
-/// The conversation display controls, shared by every conversation, with the Workbench's ranges and defaults. As in the
-/// Workbench, they last until the app closes. Font, background, and text changes update application resources that the
-/// views use through DynamicResource.
+/// The conversation display controls and search, shared by every conversation, with the Workbench's ranges and defaults.
+/// As in the Workbench, they last until the app closes. Font, background, and text changes update application resources
+/// that the views use through DynamicResource.
 /// </summary>
 public sealed partial class ConversationDisplayViewModel : ObservableObject
 {
@@ -55,6 +55,23 @@ public sealed partial class ConversationDisplayViewModel : ObservableObject
     [ObservableProperty]
     private int _turnFilterIndex = VisibleTurns;
 
+    /// <summary>Search in turns, as in the Workbench. A new query clears the active match.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSearchActive), nameof(SearchMatchStatusLabel))]
+    [NotifyCanExecuteChangedFor(nameof(ClearSearchCommand))]
+    private string _searchQuery = "";
+
+    /// <summary>The match navigated to, across the shown turns; -1 until the user moves to one.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SearchMatchStatusLabel))]
+    private int _currentMatchIndex = -1;
+
+    /// <summary>Set by the view once it has counted the matches in the shown turns.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SearchMatchStatusLabel))]
+    [NotifyCanExecuteChangedFor(nameof(NextSearchMatchCommand), nameof(PreviousSearchMatchCommand))]
+    private int _totalSearchMatches;
+
     public ConversationDisplayViewModel()
     {
         if (Application.Current?.Resources is { } resources)
@@ -89,6 +106,35 @@ public sealed partial class ConversationDisplayViewModel : ObservableObject
         HiddenTurns => !turn.IsHydrated,
         _ => true,
     };
+
+    public bool IsSearchActive => !string.IsNullOrWhiteSpace(SearchQuery);
+
+    /// <summary>"3 of 12", "12 matches", or "0 matches"; empty without a query.</summary>
+    public string SearchMatchStatusLabel => !IsSearchActive ? ""
+        : TotalSearchMatches == 0 ? "0 matches"
+        : CurrentMatchIndex >= 0 ? string.Create(CultureInfo.CurrentCulture, $"{CurrentMatchIndex + 1:N0} of {TotalSearchMatches:N0}")
+        : string.Create(CultureInfo.CurrentCulture, $"{TotalSearchMatches:N0} match{(TotalSearchMatches == 1 ? "" : "es")}");
+
+    partial void OnSearchQueryChanged(string value) => CurrentMatchIndex = -1;
+
+    /// <summary>Keeps the active match in range when the matches shrink.</summary>
+    public void SetSearchTotalMatches(int count)
+    {
+        TotalSearchMatches = count;
+        if (CurrentMatchIndex >= count) CurrentMatchIndex = count - 1;
+    }
+
+    private bool CanNavigateSearchMatch() => TotalSearchMatches > 0;
+
+    // Both directions wrap around, as in the Workbench.
+    [RelayCommand(CanExecute = nameof(CanNavigateSearchMatch))]
+    private void NextSearchMatch() => CurrentMatchIndex = CurrentMatchIndex + 1 >= TotalSearchMatches ? 0 : CurrentMatchIndex + 1;
+
+    [RelayCommand(CanExecute = nameof(CanNavigateSearchMatch))]
+    private void PreviousSearchMatch() => CurrentMatchIndex = CurrentMatchIndex <= 0 ? TotalSearchMatches - 1 : CurrentMatchIndex - 1;
+
+    [RelayCommand(CanExecute = nameof(IsSearchActive))]
+    private void ClearSearch() => SearchQuery = "";
 
     [RelayCommand]
     private void Reset()
