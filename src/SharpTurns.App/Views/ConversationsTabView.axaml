@@ -89,12 +89,29 @@
           </StackPanel>
         </Border>
 
-        <Border Grid.Row="3" IsVisible="{Binding HasPlanUsage}" ToolTip.Tip="{Binding PlanUsageToolTip}"
-                Background="#10230B" BorderBrush="#345B2A" BorderThickness="1" CornerRadius="10" Padding="10,8">
-          <StackPanel Spacing="3">
-            <TextBlock Text="Plan Usage" Foreground="{DynamicResource TextCyanBrush}" FontSize="12" FontWeight="SemiBold" />
-            <TextBlock Text="{Binding PlanUsageText}" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" TextWrapping="Wrap" />
-          </StackPanel>
+        <Border Grid.Row="3" ToolTip.Tip="{Binding PlanUsageToolTip}"
+                Background="#10230B" BorderBrush="#46536C" BorderThickness="1" CornerRadius="4">
+          <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto">
+            <Border Grid.ColumnSpan="2" Padding="6,3">
+              <TextBlock Text="Subscription Limits Remaining" Foreground="{DynamicResource TextCyanBrush}" FontSize="11"
+                         HorizontalAlignment="Center" />
+            </Border>
+            <TextBlock Grid.Row="1" Grid.ColumnSpan="2" IsVisible="{Binding IsWaitingForPlanUsage}"
+                       Text="waiting for usage from Claude" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"
+                       Margin="6,3" HorizontalAlignment="Center" />
+            <Border Grid.Row="1" IsVisible="{Binding HasPlanUsage}" BorderBrush="#46536C" BorderThickness="0,1,1,0" Padding="6,3">
+              <TextBlock Text="5-hour" Foreground="{DynamicResource TextCyanBrush}" FontSize="11" />
+            </Border>
+            <Border Grid.Row="1" Grid.Column="1" IsVisible="{Binding HasPlanUsage}" BorderBrush="#46536C" BorderThickness="0,1,0,0" Padding="6,3">
+              <TextBlock Text="{Binding FiveHourLimitLabel}" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" TextWrapping="Wrap" />
+            </Border>
+            <Border Grid.Row="2" IsVisible="{Binding HasPlanUsage}" BorderBrush="#46536C" BorderThickness="0,1,1,0" Padding="6,3">
+              <TextBlock Text="Weekly" Foreground="{DynamicResource TextCyanBrush}" FontSize="11" />
+            </Border>
+            <Border Grid.Row="2" Grid.Column="1" IsVisible="{Binding HasPlanUsage}" BorderBrush="#46536C" BorderThickness="0,1,0,0" Padding="6,3">
+              <TextBlock Text="{Binding WeeklyLimitLabel}" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" TextWrapping="Wrap" />
+            </Border>
+          </Grid>
         </Border>
 
         <TextBlock Grid.Row="4" Text="{Binding OtherConversationsLabel}" Foreground="{DynamicResource TextSubtleBrush}" FontSize="11"

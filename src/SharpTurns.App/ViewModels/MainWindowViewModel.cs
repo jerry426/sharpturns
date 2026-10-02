@@ -51,9 +51,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private string? _errorMessage;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PlanUsageText))]
+    [NotifyPropertyChangedFor(nameof(FiveHourLimitLabel))]
+    [NotifyPropertyChangedFor(nameof(WeeklyLimitLabel))]
     [NotifyPropertyChangedFor(nameof(PlanUsageToolTip))]
     [NotifyPropertyChangedFor(nameof(HasPlanUsage))]
+    [NotifyPropertyChangedFor(nameof(IsWaitingForPlanUsage))]
     private ClaudeCliRateLimitSnapshot? _planUsage;
 
     internal MainWindowViewModel(ConversationStore store, ClaudeTurnRunner runner, TurnSummarizer summarizer,
@@ -115,13 +117,15 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     public bool HasPlanUsage => PlanUsage is not null;
 
-    public string PlanUsageText => PlanUsage is { } usage
-        ? $"5-hour: {FormatWindow(usage.FiveHour)}\n7-day: {FormatWindow(usage.SevenDay)}" : "";
+    public bool IsWaitingForPlanUsage => PlanUsage is null;
 
-    public string PlanUsageToolTip => PlanUsage is { } usage
-        ? "Your subscription's shared usage limits, as last reported by the CLI during a turn. Not this conversation's tokens.\n"
-          + $"Reported at {usage.CapturedAt.ToLocalTime():t}."
-        : "";
+    public string FiveHourLimitLabel => FormatWindow(PlanUsage?.FiveHour);
+
+    public string WeeklyLimitLabel => FormatWindow(PlanUsage?.SevenDay);
+
+    public string PlanUsageToolTip =>
+        "Shared Claude subscription limits, not this conversation's token usage. Updated when the CLI reports usage during normal turns; no background polling. Reset times are local."
+        + (PlanUsage is { } usage ? $"\nLast reported: {usage.CapturedAt.ToLocalTime():g}" : "");
 
     public Func<ProjectDialogViewModel, Task<bool>>? ShowProjectDialogAsync { get; set; }
 
@@ -386,11 +390,13 @@ public sealed partial class MainWindowViewModel : ObservableObject
         return index;
     }
 
-    // Absolute reset times stay true when the window sits idle past a reset.
+    // Shows the share remaining, as in the Workbench. Absolute reset times stay true when the window sits idle past a reset.
     private static string FormatWindow(ClaudeCliRateLimitWindow? window)
     {
-        var used = window?.Utilization is { } fraction ? $"{Math.Round(Math.Clamp(fraction, 0, 1) * 100)}% used" : "not reported";
-        return window?.ResetsAt is { } reset ? $"{used}, resets {reset.ToLocalTime():g}" : used;
+        var remaining = window?.Utilization is { } fraction
+            ? $"{Math.Max(0, (int)Math.Round(100 - Math.Clamp(fraction, 0, 1) * 100, MidpointRounding.AwayFromZero))}%"
+            : "not reported";
+        return window?.ResetsAt is { } reset ? $"{remaining} (resets at {reset.ToLocalTime():g})" : remaining;
     }
 
     private static string CountLabel(int count, string noun) =>
