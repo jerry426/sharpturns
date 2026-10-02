@@ -93,8 +93,8 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     /// <summary>conversationUpdated receives the conversation when a turn starts and moves its updated time.</summary>
     internal ConversationViewModel(Conversation conversation, Project project, ConversationStore store, ClaudeTurnRunner runner,
-        TurnSummarizer summarizer, ConversationDisplayViewModel display, Action<ClaudeCliRateLimitSnapshot> rateLimitsChanged,
-        Action<Conversation> conversationUpdated)
+        TurnSummarizer summarizer, ConversationDisplayViewModel display, ApplicationPreferencesViewModel preferences,
+        Action<ClaudeCliRateLimitSnapshot> rateLimitsChanged, Action<Conversation> conversationUpdated)
     {
         Conversation = conversation;
         Project = project;
@@ -102,6 +102,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         _runner = runner;
         _summarizer = summarizer;
         Display = display;
+        Preferences = preferences;
         _rateLimitsChanged = rateLimitsChanged;
         _conversationUpdated = conversationUpdated;
         _title = conversation.Title;
@@ -138,6 +139,9 @@ public sealed partial class ConversationViewModel : ObservableObject
     public Project Project { get; set; }
 
     public ConversationDisplayViewModel Display { get; }
+
+    /// <summary>Shared by every conversation: the Notes and Markdown Viewer window sizes and the DOCX export defaults.</summary>
+    public ApplicationPreferencesViewModel Preferences { get; }
 
     public ObservableCollection<TurnViewModel> Turns { get; } = [];
 
@@ -598,7 +602,7 @@ public sealed partial class ConversationViewModel : ObservableObject
     {
         if (ShowExportAsync is null) return;
         await ShowExportAsync(TurnExportDialogViewModel.ForConversation(
-            Turns.Select(t => t.Record).OfType<ConversationTurn>().ToArray(), Conversation, Project));
+            Turns.Select(t => t.Record).OfType<ConversationTurn>().ToArray(), Conversation, Project, Preferences.DocxExportSettings));
     }
 
     // The viewer is a separate app that only reads the project's files, so it's always available.
@@ -607,7 +611,7 @@ public sealed partial class ConversationViewModel : ObservableObject
     {
         try
         {
-            MarkdownViewerLauncher.Launch(Project.WorkingDirectory, GetScreenPoint?.Invoke());
+            MarkdownViewerLauncher.Launch(Project.WorkingDirectory, Preferences.MarkdownViewerWindow.Size, GetScreenPoint?.Invoke());
             Status = "Opened the Markdown Viewer.";
         }
         catch (Exception e)
@@ -622,7 +626,8 @@ public sealed partial class ConversationViewModel : ObservableObject
     private async Task ExportTurnAsync(TurnViewModel turn)
     {
         if (ShowExportAsync is null) return;
-        await ShowExportAsync(TurnExportDialogViewModel.ForTurn(turn.Record!, Conversation, Project, turn.IsViewingFullCompressedContent));
+        await ShowExportAsync(TurnExportDialogViewModel.ForTurn(turn.Record!, Conversation, Project, Preferences.DocxExportSettings,
+            turn.IsViewingFullCompressedContent));
     }
 
     // After the turns or their context state change: the header buttons, the metrics row, and the Show picker's turns.

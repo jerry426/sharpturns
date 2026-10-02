@@ -13,6 +13,7 @@ public sealed partial class TurnExportDialogViewModel : ObservableObject
     private readonly IReadOnlyList<ConversationTurn> _turns;
     private readonly Conversation _conversation;
     private readonly Project _project;
+    private readonly DocxExportSettings _docxSettings;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsMarkdown), nameof(IsText), nameof(IsDocx), nameof(CanOpenInMacDown), nameof(CanCopyToClipboard),
@@ -43,20 +44,22 @@ public sealed partial class TurnExportDialogViewModel : ObservableObject
     private string _status = "Choose export options, then copy, open in MacDown, or save to a file.";
 
     private TurnExportDialogViewModel(IReadOnlyList<ConversationTurn> turns, Conversation conversation, Project project,
-        bool isConversationExport)
+        DocxExportSettings docxSettings, bool isConversationExport)
     {
         _turns = turns;
         _conversation = conversation;
         _project = project;
+        _docxSettings = docxSettings;
         IsConversationExport = isConversationExport;
     }
 
     public static TurnExportDialogViewModel ForConversation(IReadOnlyList<ConversationTurn> turns, Conversation conversation,
-        Project project) => new(turns, conversation, project, isConversationExport: true);
+        Project project, DocxExportSettings docxSettings) => new(turns, conversation, project, docxSettings, isConversationExport: true);
 
     /// <summary>fullContent starts a compressed turn's export in full, as when its card shows the full turn.</summary>
     public static TurnExportDialogViewModel ForTurn(ConversationTurn turn, Conversation conversation, Project project,
-        bool fullContent) => new([turn], conversation, project, isConversationExport: false) { FullContent = fullContent };
+        DocxExportSettings docxSettings, bool fullContent) =>
+        new([turn], conversation, project, docxSettings, isConversationExport: false) { FullContent = fullContent };
 
     public bool IsConversationExport { get; }
 
@@ -126,7 +129,7 @@ public sealed partial class TurnExportDialogViewModel : ObservableObject
     {
         try
         {
-            if (Format == TurnExportFormat.Docx) TurnExportDocxWriter.Save(GenerateMarkdown(), path);
+            if (Format == TurnExportFormat.Docx) TurnExportDocxWriter.Save(GenerateMarkdown(), path, _docxSettings);
             else await File.WriteAllTextAsync(path, GenerateContent());
             Status = $"Saved the export to {path}";
         }

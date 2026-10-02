@@ -51,7 +51,7 @@ public sealed class TurnExportFormatterTests
     public void AConversationExportLeavesHiddenTurnsOutUnlessIncludedAndConvertsToTextAndDocx()
     {
         var turns = new[] { Turn(1, "ok"), Turn(2, "ok") with { IsHydrated = false } };
-        var export = TurnExportDialogViewModel.ForConversation(turns, Conversation, Project);
+        var export = TurnExportDialogViewModel.ForConversation(turns, Conversation, Project, DocxExportSettings.Default);
 
         var shown = export.GenerateContent();
         export.IncludeHiddenTurns = true;
@@ -70,7 +70,7 @@ public sealed class TurnExportFormatterTests
         var path = Path.Combine(Path.GetTempPath(), $"sharpturns-export-{Guid.NewGuid():N}.docx");
         try
         {
-            TurnExportDocxWriter.Save("# Title <&>\n\n- item\n\n```\ncode\n```", path);
+            TurnExportDocxWriter.Save("# Title <&>\n\n- item\n\n```\ncode\n```", path, DocxExportSettings.Default);
             using var archive = ZipFile.OpenRead(path);
             using var reader = new StreamReader(archive.GetEntry("word/document.xml")!.Open());
             var document = reader.ReadToEnd();
@@ -80,6 +80,34 @@ public sealed class TurnExportFormatterTests
             Assert.NotNull(archive.GetEntry("word/styles.xml"));
         }
         finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void TheDocxFollowsTheExportDefaults()
+    {
+        var markdown = "# Export\n\n" + new string('▪', 70) + "\n\n## 🔹 Turn 1\n\ntext\n\n" + new string('▪', 70) + "\n\n## 🔹 Turn 2";
+        var defaults = TurnExportDocxWriter.CreateDocumentXml(markdown, DocxExportSettings.Default);
+        var settings = DocxExportSettings.Default with
+        {
+            Orientation = "landscape", IncludeTurnSeparators = false, IncludeEmojiHeadings = false, StartEachTurnOnNewPage = true,
+        };
+        var custom = TurnExportDocxWriter.CreateDocumentXml(markdown, settings);
+
+        Assert.Contains("🔹 Turn 1", defaults);
+        Assert.Contains("─", defaults);
+        Assert.DoesNotContain("pageBreakBefore", defaults);
+        Assert.Contains("<w:pgSz w:w=\"12240\" w:h=\"15840\"/>", defaults);
+        Assert.DoesNotContain("🔹", custom);
+        Assert.DoesNotContain("─", custom);
+        Assert.Equal(2, custom.Split("<w:pageBreakBefore/>").Length - 1);
+        Assert.Contains("<w:pgSz w:w=\"15840\" w:h=\"12240\" w:orient=\"landscape\"/>", custom);
+
+        // Saved as JSON; anything out of range or unknown falls back or is clamped.
+        var parsed = DocxExportSettings.Parse(DocxExportSettings.ToJson(settings with { NormalFontFamily = "Georgia" }));
+        Assert.Equal(settings with { NormalFontFamily = "Georgia" }, parsed);
+        Assert.Equal(DocxExportSettings.Default with { NormalFontSizePt = 14, PageSize = "letter" },
+            DocxExportSettings.Parse("{\"normalFontSizePt\": 40, \"pageSize\": \"tabloid\"}"));
+        Assert.Equal(DocxExportSettings.Default, DocxExportSettings.Parse("not json"));
     }
 
     private static ConversationTurn Turn(int number, string toolResult) => new(100 + number, Conversation.Id, number, TurnStatus.Completed,

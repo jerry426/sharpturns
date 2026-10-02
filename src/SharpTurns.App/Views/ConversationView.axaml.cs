@@ -211,14 +211,15 @@ public sealed partial class ConversationView : UserControl
     // One Notes window per conversation; each stays with the conversation it was opened for.
     private void ShowNotes(NotesDialogViewModel notes)
     {
-        if (TopLevel.GetTopLevel(this) is not Window owner) return;
+        if (TopLevel.GetTopLevel(this) is not Window owner || _viewModel is null) return;
         if (owner.OwnedWindows.OfType<NotesDialog>()
                 .FirstOrDefault(w => (w.DataContext as NotesDialogViewModel)?.ConversationId == notes.ConversationId) is { } open)
         {
             open.Activate();
             return;
         }
-        new NotesDialog { DataContext = notes }.Show(owner);
+        var size = _viewModel.Preferences.NotesWindow.Size;
+        new NotesDialog { DataContext = notes, Width = size.Width, Height = size.Height }.Show(owner);
     }
 
     // As in the Workbench, the center of the screen showing the main window.

@@ -1,0 +1,102 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SharpTurns.App.ViewModels"
+        x:Class="SharpTurns.App.Views.DocxExportDefaultsDialog"
+        x:DataType="vm:DocxExportDefaultsDialogViewModel"
+        Title="DOCX Export Defaults"
+        Width="760"
+        Height="820"
+        MinWidth="620"
+        MinHeight="620"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource CardBackgroundBrush}">
+  <!-- Laid out like the Workbench's DOCX Export Defaults dialog. -->
+  <Grid RowDefinitions="Auto,*,Auto" RowSpacing="16" Margin="18">
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+      <StackPanel>
+        <TextBlock Text="DOCX Export Defaults" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="20" />
+        <TextBlock Text="These settings apply to future Word .docx exports from the export dialog."
+                   Foreground="{DynamicResource TextSubtleBrush}" FontSize="13" TextWrapping="Wrap" Margin="0,12,0,0" />
+      </StackPanel>
+      <Button Grid.Column="1" Classes="secondaryActionButton" Click="Cancel_Click" Width="34" Height="34" Padding="0"
+              VerticalAlignment="Top" ToolTip.Tip="Close" AutomationProperties.Name="Close">
+        <PathIcon Width="12" Height="12" Data="{StaticResource CloseIconGeometry}" />
+      </Button>
+    </Grid>
+
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,12,0">
+      <Grid ColumnDefinitions="240,260" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+            RowSpacing="14" ColumnSpacing="24">
+        <Grid.Styles>
+          <Style Selector="Grid > TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+          </Style>
+          <Style Selector="ComboBox, NumericUpDown">
+            <Setter Property="MinHeight" Value="32" />
+          </Style>
+          <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Grid.ColumnSpan" Value="2" />
+          </Style>
+        </Grid.Styles>
+
+        <TextBlock Text="Page size" />
+        <ComboBox Grid.Column="1" ItemsSource="{Binding PageSizeOptions}" SelectedItem="{Binding PageSize}" />
+
+        <TextBlock Grid.Row="1" Text="Orientation" />
+        <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding OrientationOptions}" SelectedItem="{Binding Orientation}" />
+
+        <TextBlock Grid.Row="2" Text="Top margin (in)" />
+        <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding MarginOptions}" SelectedItem="{Binding MarginTopInches}" />
+
+        <TextBlock Grid.Row="3" Text="Right margin (in)" />
+        <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding MarginOptions}" SelectedItem="{Binding MarginRightInches}" />
+
+        <TextBlock Grid.Row="4" Text="Bottom margin (in)" />
+        <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding MarginOptions}" SelectedItem="{Binding MarginBottomInches}" />
+
+        <TextBlock Grid.Row="5" Text="Left margin (in)" />
+        <ComboBox Grid.Row="5" Grid.Column="1" ItemsSource="{Binding MarginOptions}" SelectedItem="{Binding MarginLeftInches}" />
+
+        <TextBlock Grid.Row="6" Text="Normal font" />
+        <ComboBox Grid.Row="6" Grid.Column="1" ItemsSource="{Binding NormalFontOptions}" SelectedItem="{Binding NormalFontFamily}" />
+
+        <TextBlock Grid.Row="7" Text="Normal font size (pt)" />
+        <NumericUpDown Grid.Row="7" Grid.Column="1" Value="{Binding NormalFontSizePt}" Minimum="9" Maximum="14" Increment="1"
+                       FormatString="0" />
+
+        <TextBlock Grid.Row="8" Text="Paragraph spacing after (pt)" />
+        <NumericUpDown Grid.Row="8" Grid.Column="1" Value="{Binding ParagraphSpacingAfterPt}" Minimum="0" Maximum="18" Increment="1"
+                       FormatString="0" />
+
+        <TextBlock Grid.Row="9" Text="Line spacing" />
+        <ComboBox Grid.Row="9" Grid.Column="1" ItemsSource="{Binding LineSpacingOptions}" SelectedItem="{Binding LineSpacing}" />
+
+        <TextBlock Grid.Row="10" Text="Heading scale" />
+        <ComboBox Grid.Row="10" Grid.Column="1" ItemsSource="{Binding HeadingScaleOptions}" SelectedItem="{Binding HeadingScale}" />
+
+        <TextBlock Grid.Row="11" Text="Code font" />
+        <ComboBox Grid.Row="11" Grid.Column="1" ItemsSource="{Binding CodeFontOptions}" SelectedItem="{Binding CodeFontFamily}" />
+
+        <TextBlock Grid.Row="12" Text="Code font size (pt)" />
+        <NumericUpDown Grid.Row="12" Grid.Column="1" Value="{Binding CodeFontSizePt}" Minimum="8" Maximum="12" Increment="1"
+                       FormatString="0" />
+
+        <CheckBox Grid.Row="13" Content="Use light gray code block background" IsChecked="{Binding CodeBlockShading}" />
+        <CheckBox Grid.Row="14" Content="Include turn separator lines" IsChecked="{Binding IncludeTurnSeparators}" />
+        <CheckBox Grid.Row="15" Content="Keep emoji in headings" IsChecked="{Binding IncludeEmojiHeadings}" />
+        <CheckBox Grid.Row="16" Content="Start each turn on a new page" IsChecked="{Binding StartEachTurnOnNewPage}" />
+      </Grid>
+    </ScrollViewer>
+
+    <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
+      <Button Classes="secondaryActionButton" Content="Reset to Defaults" Command="{Binding ResetToDefaultsCommand}" MinWidth="140" />
+      <Button Grid.Column="2" Classes="secondaryActionButton" Content="Cancel" Click="Cancel_Click" MinWidth="100" IsCancel="True" />
+      <Button Grid.Column="3" Classes="primaryActionButton" Content="Save" Click="Save_Click" IsEnabled="{Binding CanSave}"
+              MinWidth="90" />
+    </Grid>
+  </Grid>
+</Window>

@@ -1,0 +1,223 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:SharpTurns.App.ViewModels"
+             x:Class="SharpTurns.App.Views.ConfigTabView"
+             x:DataType="vm:MainWindowViewModel">
+  <!-- Laid out like the Workbench's Config tab, with the subtabs SharpTurns uses, in the Workbench's order. -->
+  <UserControl.Styles>
+    <Style Selector="Border.preferenceSection">
+      <Setter Property="Background" Value="#151A22" />
+      <Setter Property="BorderBrush" Value="#3A3F46" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="22" />
+    </Style>
+    <Style Selector="Border.preferenceInset">
+      <Setter Property="Background" Value="#101824" />
+      <Setter Property="BorderBrush" Value="#2D3548" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="14" />
+    </Style>
+    <Style Selector="TextBlock.sectionTitle">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="FontSize" Value="16" />
+    </Style>
+    <Style Selector="TextBlock.sectionText">
+      <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="TextBlock.fieldLabel">
+      <Setter Property="Foreground" Value="{DynamicResource TextSubtleBrush}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBox.dimension">
+      <Setter Property="MinHeight" Value="30" />
+      <Setter Property="HorizontalContentAlignment" Value="Right" />
+    </Style>
+    <Style Selector="Button.preferenceButton">
+      <Setter Property="MinHeight" Value="30" />
+      <Setter Property="Padding" Value="12,5" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="TextBlock.comingSoon">
+      <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+  </UserControl.Styles>
+
+  <Border Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+          CornerRadius="12" Padding="16">
+    <Grid RowDefinitions="Auto,*" RowSpacing="12">
+      <StackPanel>
+        <TextBlock Text="Config" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="18" />
+        <TextBlock Text="Configure MCP servers, sounds, preferences, and API keys. Settings are saved in SharpTurns' local database."
+                   Foreground="{DynamicResource TextSubtleBrush}" FontSize="12" TextWrapping="Wrap" />
+      </StackPanel>
+
+      <Grid Grid.Row="1" RowDefinitions="2,*">
+        <Border Background="{StaticResource ProminentTabAccentBrush}" />
+
+        <TabControl Grid.Row="1" Classes="mainTabs" SelectedIndex="2">
+          <TabItem Header="MCP Servers" FontSize="13">
+            <Border Classes="preferenceSection">
+              <TextBlock Classes="comingSoon" Text="The MCP server list arrives in a later step." />
+            </Border>
+          </TabItem>
+
+          <TabItem Header="Sounds" FontSize="13">
+            <Border Classes="preferenceSection">
+              <TextBlock Classes="comingSoon" Text="Notification sounds arrive in a later step." />
+            </Border>
+          </TabItem>
+
+          <TabItem Header="Preferences" FontSize="13">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+              <StackPanel Spacing="22" Margin="0,0,12,0">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
+                  <TextBlock Text="Application Preferences" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"
+                             FontSize="20" />
+                  <TextBlock Grid.Column="1" Text="{Binding Preferences.Status}" Foreground="{DynamicResource TextSubtleBrush}"
+                             FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" />
+                </Grid>
+
+                <Border Classes="preferenceSection">
+                  <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="16">
+                    <TextBlock Classes="sectionTitle" Text="Startup Behavior" />
+
+                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="20">
+                      <StackPanel Spacing="4">
+                        <TextBlock Text="Restore last project and conversation on startup" Foreground="{DynamicResource TextPrimaryBrush}"
+                                   FontSize="14" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding Preferences.RestoreLastSessionDescription}" Foreground="{DynamicResource TextMutedBrush}"
+                                   FontSize="12" TextWrapping="Wrap" />
+                      </StackPanel>
+                      <ToggleSwitch Grid.Column="1" IsChecked="{Binding Preferences.RestoreLastSession}" VerticalAlignment="Center"
+                                    ToolTip.Tip="Saved as soon as it changes" />
+                    </Grid>
+
+                    <Border Grid.Row="2" Classes="preferenceInset">
+                      <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="18" RowSpacing="12">
+                        <StackPanel Spacing="4">
+                          <TextBlock Text="Startup window size" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="14" />
+                          <TextBlock Foreground="{DynamicResource TextMutedBrush}" FontSize="12" TextWrapping="Wrap">
+                            <Run Text="Override the built-in" />
+                            <Run Text="{Binding Preferences.StartupWindow.Default.Label}" />
+                            <Run Text="startup size. Applies the next time SharpTurns starts." />
+                          </TextBlock>
+                        </StackPanel>
+
+                        <Grid Grid.Row="1" ColumnDefinitions="Auto,120,Auto,120" ColumnSpacing="8" VerticalAlignment="Center">
+                          <TextBlock Classes="fieldLabel" Text="Width" />
+                          <TextBox Grid.Column="1" Classes="dimension" Text="{Binding Preferences.StartupWindow.WidthText}"
+                                   PlaceholderText="{Binding Preferences.StartupWindow.DefaultWidthText}" />
+                          <TextBlock Grid.Column="2" Classes="fieldLabel" Text="Height" />
+                          <TextBox Grid.Column="3" Classes="dimension" Text="{Binding Preferences.StartupWindow.HeightText}"
+                                   PlaceholderText="{Binding Preferences.StartupWindow.DefaultHeightText}" />
+                        </Grid>
+
+                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                          <Button Classes="secondaryActionButton preferenceButton" Content="Save Window Size"
+                                  Command="{Binding Preferences.StartupWindow.SaveCommand}" />
+                          <Button Classes="secondaryActionButton preferenceButton" Content="Reset"
+                                  Command="{Binding Preferences.StartupWindow.ResetCommand}" />
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Classes="fieldLabel" Text="{Binding Preferences.StartupWindow.Message}"
+                                   TextWrapping="Wrap" />
+                      </Grid>
+                    </Border>
+                  </Grid>
+                </Border>
+
+                <Border Classes="preferenceSection">
+                  <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="16">
+                    <TextBlock Classes="sectionTitle" Text="Notes Dialog Defaults" />
+                    <TextBlock Grid.Row="1" Classes="sectionText"
+                               Text="Set the default size for the non-modal Notes window. Applies the next time a Notes window opens." />
+
+                    <Border Grid.Row="2" Classes="preferenceInset">
+                      <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="18" RowSpacing="12">
+                        <Grid ColumnDefinitions="Auto,120,Auto,120" ColumnSpacing="8" VerticalAlignment="Center">
+                          <TextBlock Classes="fieldLabel" Text="Width" />
+                          <TextBox Grid.Column="1" Classes="dimension" Text="{Binding Preferences.NotesWindow.WidthText}"
+                                   PlaceholderText="{Binding Preferences.NotesWindow.DefaultWidthText}" />
+                          <TextBlock Grid.Column="2" Classes="fieldLabel" Text="Height" />
+                          <TextBox Grid.Column="3" Classes="dimension" Text="{Binding Preferences.NotesWindow.HeightText}"
+                                   PlaceholderText="{Binding Preferences.NotesWindow.DefaultHeightText}" />
+                        </Grid>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                          <Button Classes="secondaryActionButton preferenceButton" Content="Save Notes Size"
+                                  Command="{Binding Preferences.NotesWindow.SaveCommand}" />
+                          <Button Classes="secondaryActionButton preferenceButton" Content="Reset"
+                                  Command="{Binding Preferences.NotesWindow.ResetCommand}" />
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Classes="fieldLabel" Text="{Binding Preferences.NotesWindow.Message}"
+                                   TextWrapping="Wrap" />
+                      </Grid>
+                    </Border>
+                  </Grid>
+                </Border>
+
+                <Border Classes="preferenceSection">
+                  <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="16">
+                    <TextBlock Classes="sectionTitle" Text="Markdown Viewer Defaults" />
+                    <TextBlock Grid.Row="1" Classes="sectionText"
+                               Text="Set the default size for the standalone Markdown Viewer window. Applies the next time the Markdown Viewer opens." />
+
+                    <Border Grid.Row="2" Classes="preferenceInset">
+                      <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="18" RowSpacing="12">
+                        <Grid ColumnDefinitions="Auto,120,Auto,120" ColumnSpacing="8" VerticalAlignment="Center">
+                          <TextBlock Classes="fieldLabel" Text="Width" />
+                          <TextBox Grid.Column="1" Classes="dimension" Text="{Binding Preferences.MarkdownViewerWindow.WidthText}"
+                                   PlaceholderText="{Binding Preferences.MarkdownViewerWindow.DefaultWidthText}" />
+                          <TextBlock Grid.Column="2" Classes="fieldLabel" Text="Height" />
+                          <TextBox Grid.Column="3" Classes="dimension" Text="{Binding Preferences.MarkdownViewerWindow.HeightText}"
+                                   PlaceholderText="{Binding Preferences.MarkdownViewerWindow.DefaultHeightText}" />
+                        </Grid>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                          <Button Classes="secondaryActionButton preferenceButton" Content="Save Markdown Viewer Size"
+                                  Command="{Binding Preferences.MarkdownViewerWindow.SaveCommand}" />
+                          <Button Classes="secondaryActionButton preferenceButton" Content="Reset"
+                                  Command="{Binding Preferences.MarkdownViewerWindow.ResetCommand}" />
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Classes="fieldLabel"
+                                   Text="{Binding Preferences.MarkdownViewerWindow.Message}" TextWrapping="Wrap" />
+                      </Grid>
+                    </Border>
+                  </Grid>
+                </Border>
+
+                <Border Classes="preferenceSection">
+                  <Grid ColumnDefinitions="*,380" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="24" RowSpacing="14">
+                    <TextBlock Classes="sectionTitle" Text="DOCX Export Defaults" />
+                    <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Classes="sectionText"
+                               Text="Configure default page layout, typography, and formatting for Word .docx exports." />
+                    <TextBlock Grid.Row="2" Text="{Binding Preferences.DocxExportSettingsSummary}" Foreground="{DynamicResource TextPrimaryBrush}"
+                               FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center" />
+                    <Button Grid.Row="2" Grid.Column="1" Classes="primaryActionButton" Content="Configure DOCX Export…"
+                            Command="{Binding Preferences.ConfigureDocxExportCommand}" HorizontalAlignment="Stretch" MinHeight="36" />
+                  </Grid>
+                </Border>
+              </StackPanel>
+            </ScrollViewer>
+          </TabItem>
+
+          <TabItem Header="API Keys" FontSize="13">
+            <Border Classes="preferenceSection">
+              <TextBlock Classes="comingSoon" Text="The Deepgram API key arrives in a later step." />
+            </Border>
+          </TabItem>
+        </TabControl>
+      </Grid>
+    </Grid>
+  </Border>
+</UserControl>

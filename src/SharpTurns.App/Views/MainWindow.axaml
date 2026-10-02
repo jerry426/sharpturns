@@ -5,8 +5,6 @@
         x:Class="SharpTurns.App.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="{Binding WindowTitle}"
-        Width="1400"
-        Height="860"
         MinWidth="820"
         MinHeight="560"
         WindowStartupLocation="CenterScreen"
@@ -29,6 +27,9 @@
       </TabItem>
       <TabItem Header="Conversations" FontSize="14">
         <views:ConversationsTabView />
+      </TabItem>
+      <TabItem Header="Config" FontSize="14">
+        <views:ConfigTabView />
       </TabItem>
     </TabControl>
 

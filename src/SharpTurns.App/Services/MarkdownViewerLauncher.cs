@@ -14,16 +14,17 @@ internal static class MarkdownViewerLauncher
     internal const string ViewerAssemblyName = "SharpTurns.MarkdownViewer.App";
 
     /// <summary>
-    /// Starts the viewer and returns without waiting for it. <paramref name="screenPoint"/> picks the monitor the
-    /// viewer opens on.
+    /// Starts the viewer at <paramref name="size"/> and returns without waiting for it. <paramref name="screenPoint"/>
+    /// picks the monitor the viewer opens on.
     /// </summary>
-    public static void Launch(string workspaceDirectory, PixelPoint? screenPoint)
+    public static void Launch(string workspaceDirectory, WindowSize size, PixelPoint? screenPoint)
     {
-        using var process = Process.Start(CreateStartInfo(AppContext.BaseDirectory, workspaceDirectory, screenPoint))
+        using var process = Process.Start(CreateStartInfo(AppContext.BaseDirectory, workspaceDirectory, size, screenPoint))
             ?? throw new InvalidOperationException("The operating system did not start the Markdown Viewer.");
     }
 
-    internal static ProcessStartInfo CreateStartInfo(string appBaseDirectory, string workspaceDirectory, PixelPoint? screenPoint)
+    internal static ProcessStartInfo CreateStartInfo(string appBaseDirectory, string workspaceDirectory, WindowSize size,
+        PixelPoint? screenPoint)
     {
         var workspace = Path.GetFullPath(workspaceDirectory);
         if (!Directory.Exists(workspace))
@@ -54,6 +55,10 @@ internal static class MarkdownViewerLauncher
 
         startInfo.ArgumentList.Add("--workspace");
         startInfo.ArgumentList.Add(workspace);
+        startInfo.ArgumentList.Add("--window-width");
+        startInfo.ArgumentList.Add(WindowSize.FormatDimension(size.Width));
+        startInfo.ArgumentList.Add("--window-height");
+        startInfo.ArgumentList.Add(WindowSize.FormatDimension(size.Height));
         if (screenPoint is { } point)
         {
             startInfo.ArgumentList.Add("--screen-point");

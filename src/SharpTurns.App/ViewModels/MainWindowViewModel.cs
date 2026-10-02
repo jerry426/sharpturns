@@ -34,7 +34,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(DeleteConversationCommand))]
     private Conversation? _selectedConversation;
 
-    /// <summary>0 is Projects, 1 is Conversations.</summary>
+    /// <summary>0 is Projects, 1 is Conversations, 2 is Config.</summary>
     [ObservableProperty]
     private int _selectedTabIndex = 1;
 
@@ -61,6 +61,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _store = store;
         _runner = runner;
         _summarizer = summarizer;
+        Preferences = new ApplicationPreferencesViewModel(store);
         Projects.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(OtherProjects));
@@ -79,6 +80,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     /// <summary>The display controls; every conversation shares them.</summary>
     public ConversationDisplayViewModel Display { get; } = new();
+
+    /// <summary>The Config tab's Preferences; loaded by <see cref="InitializeAsync"/>.</summary>
+    public ApplicationPreferencesViewModel Preferences { get; }
 
     /// <summary>The selected project is pinned above these.</summary>
     public IReadOnlyList<Project> OtherProjects => Projects.Where(p => p != SelectedProject).ToArray();
@@ -130,9 +134,15 @@ public sealed partial class MainWindowViewModel : ObservableObject
         try
         {
             await _store.InitializeAsync();
+            await Preferences.LoadAsync();
             foreach (var project in await _store.ListProjectsAsync()) Projects.Add(project);
-            var lastProject = ParseId(await _store.GetSettingAsync(LastProjectSetting));
-            _conversationToRestore = ParseId(await _store.GetSettingAsync(LastConversationSetting));
+            // The selection is saved either way, so turning restore back on picks up the latest one.
+            long? lastProject = null;
+            if (Preferences.RestoreLastSession)
+            {
+                lastProject = ParseId(await _store.GetSettingAsync(LastProjectSetting));
+                _conversationToRestore = ParseId(await _store.GetSettingAsync(LastConversationSetting));
+            }
             SelectedProject = Projects.FirstOrDefault(p => p.Id == lastProject) ?? Projects.FirstOrDefault();
             if (SelectedProject is null) SelectedTabIndex = 0;
         }
@@ -167,7 +177,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         }
         if (!_openConversations.TryGetValue(value.Id, out var conversation))
         {
-            conversation = new ConversationViewModel(value, SelectedProject, _store, _runner, _summarizer, Display,
+            conversation = new ConversationViewModel(value, SelectedProject, _store, _runner, _summarizer, Display, Preferences,
                 limits => PlanUsage = limits, OnConversationUpdated);
             _openConversations[value.Id] = conversation;
             _ = conversation.LoadAsync();

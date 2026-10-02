@@ -50,12 +50,21 @@ public sealed partial class App : Application
 
             var store = new ConversationStore(Path.Combine(dataDirectory, "sharpturns.db"));
             var viewModel = new MainWindowViewModel(store, new ClaudeTurnRunner(store), new TurnSummarizer(store));
-            desktop.MainWindow = new MainWindow { DataContext = viewModel };
             desktop.Exit += (_, _) => _instanceLock?.Dispose();
-            // InitializeAsync reports its own failures in the window.
-            _ = viewModel.InitializeAsync();
+            _ = ShowMainWindowAsync(desktop, viewModel);
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    // The window opens once the preferences load, at the saved startup size. InitializeAsync reports its own failures
+    // in the window.
+    private static async Task ShowMainWindowAsync(IClassicDesktopStyleApplicationLifetime desktop, MainWindowViewModel viewModel)
+    {
+        await viewModel.InitializeAsync();
+        var size = viewModel.Preferences.StartupWindow.Size;
+        var window = new MainWindow { DataContext = viewModel, Width = size.Width, Height = size.Height };
+        desktop.MainWindow = window;
+        window.Show();
     }
 }

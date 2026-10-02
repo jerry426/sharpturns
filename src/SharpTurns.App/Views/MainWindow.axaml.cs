@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using SharpTurns.App.Services;
 using SharpTurns.App.ViewModels;
 
 namespace SharpTurns.App.Views;
@@ -16,6 +17,8 @@ public sealed partial class MainWindow : Window
             new PromptDialog(title, message, text, "OK", destructive: false).ShowDialog<string?>(this);
         viewModel.ConfirmAsync = async (title, message) =>
             await new PromptDialog(title, message, null, "Delete", destructive: true).ShowDialog<string?>(this) is not null;
+        viewModel.Preferences.ShowDocxExportDefaultsDialogAsync = dialog =>
+            new DocxExportDefaultsDialog { DataContext = dialog }.ShowDialog<DocxExportSettings?>(this);
     }
 
     protected override void OnClosing(WindowClosingEventArgs e)
