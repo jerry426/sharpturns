@@ -104,15 +104,15 @@ public sealed class ConversationStore
         return conversations;
     }
 
-    /// <summary>A null model or effort leaves the choice to the CLI's own default.</summary>
+    /// <summary>A null model or effort leaves the choice to the CLI's own default. New conversations start with Auto-Summarize on.</summary>
     public async Task<Conversation> CreateConversationAsync(long projectId, string title, string? model = null, string? effort = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var command = Command(connection, null, """
-            INSERT INTO conversations (project_id, title, model, effort, created_at, updated_at)
-            VALUES ($project, $title, $model, $effort, $now, $now)
+            INSERT INTO conversations (project_id, title, model, effort, created_at, updated_at, auto_summarize)
+            VALUES ($project, $title, $model, $effort, $now, $now, 1)
             RETURNING id, project_id, title, model, effort, updated_at, output_style, auto_summarize
             """, ("$project", projectId), ("$title", title), ("$model", model), ("$effort", effort), ("$now", Now()));
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);

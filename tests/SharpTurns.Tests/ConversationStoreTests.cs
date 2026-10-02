@@ -49,7 +49,7 @@ public sealed class ConversationStoreTests : IDisposable
         await _store.RenameConversationAsync(older.Id, "Renamed");
         await _store.SetConversationModelAsync(older.Id, "sonnet", "high");
         await _store.SetConversationOutputStyleAsync(older.Id, "Concise");
-        await _store.SetConversationAutoSummarizeAsync(older.Id, true);
+        await _store.SetConversationAutoSummarizeAsync(older.Id, false);
         await _store.StartTurnAsync(older.Id, "hello");
 
         Assert.Equal(["alpha", "Beta"], (await _store.ListProjectsAsync()).Select(p => p.Name));
@@ -62,9 +62,10 @@ public sealed class ConversationStoreTests : IDisposable
         var conversations = await _store.ListConversationsAsync(project.Id);
         // The conversation with the latest turn sorts first.
         Assert.Equal([older.Id, newer.Id], conversations.Select(c => c.Id));
-        Assert.Equal(("Renamed", "sonnet", "high", "Concise", true), (conversations[0].Title, conversations[0].Model,
+        Assert.Equal(("Renamed", "sonnet", "high", "Concise", false), (conversations[0].Title, conversations[0].Model,
             conversations[0].Effort, conversations[0].OutputStyle, conversations[0].AutoSummarize));
-        Assert.Equal((null, false), (conversations[1].OutputStyle, conversations[1].AutoSummarize));
+        // New conversations start with Auto-Summarize on.
+        Assert.Equal((null, true), (conversations[1].OutputStyle, conversations[1].AutoSummarize));
 
         await _store.DeleteProjectAsync(project.Id);
 
