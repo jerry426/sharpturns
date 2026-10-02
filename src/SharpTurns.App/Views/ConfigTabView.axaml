@@ -4,7 +4,8 @@
              xmlns:fonts="using:SharpTurns.Markdown.Rendering.Styling"
              x:Class="SharpTurns.App.Views.ConfigTabView"
              x:DataType="vm:MainWindowViewModel">
-  <!-- Laid out like the Workbench's Config tab, with the subtabs SharpTurns uses, in the Workbench's order. -->
+  <!-- Laid out like the Workbench's Config tab, with the subtabs SharpTurns uses, in the Workbench's order; Models takes the
+       place of its Providers/Models. -->
   <UserControl.Styles>
     <Style Selector="Border.preferenceSection">
       <Setter Property="Background" Value="#151A22" />
@@ -44,6 +45,19 @@
       <Setter Property="Padding" Value="12,5" />
       <Setter Property="FontSize" Value="12" />
     </Style>
+    <Style Selector="ListBox.modelList">
+      <Setter Property="Background" Value="#101824" />
+      <Setter Property="BorderBrush" Value="#2D3548" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="4" />
+    </Style>
+    <Style Selector="ListBox.modelList ListBoxItem">
+      <Setter Property="FontFamily" Value="{x:Static fonts:MarkdownFontFamilies.Mono}" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Padding" Value="10,6" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
     <Style Selector="TextBlock.comingSoon">
       <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
       <Setter Property="FontSize" Value="13" />
@@ -56,14 +70,56 @@
     <Grid RowDefinitions="Auto,*" RowSpacing="12">
       <StackPanel>
         <TextBlock Text="Config" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="18" />
-        <TextBlock Text="Configure MCP servers, sounds, preferences, and API keys. Settings are saved in SharpTurns' local database."
+        <TextBlock Text="Configure models, MCP servers, sounds, preferences, and API keys. Settings are saved in SharpTurns' local database."
                    Foreground="{DynamicResource TextSubtleBrush}" FontSize="12" TextWrapping="Wrap" />
       </StackPanel>
 
       <Grid Grid.Row="1" RowDefinitions="2,*">
         <Border Background="{StaticResource ProminentTabAccentBrush}" />
 
-        <TabControl Grid.Row="1" Classes="mainTabs" SelectedIndex="2">
+        <TabControl Grid.Row="1" Classes="mainTabs" SelectedIndex="3">
+          <TabItem Header="Models" FontSize="13">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+              <Border Classes="preferenceSection" Margin="0,0,12,0">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="16">
+                  <TextBlock Classes="sectionTitle" Text="Models" />
+                  <TextBlock Grid.Row="1" Classes="sectionText"
+                             Text="The model IDs the model pickers offer, in this order. Renaming or deleting an ID moves the conversations and settings that use it." />
+
+                  <Grid Grid.Row="2" ColumnDefinitions="420,*" ColumnSpacing="18">
+                    <ListBox Classes="modelList" ItemsSource="{Binding Preferences.Models.Models}"
+                             SelectedItem="{Binding Preferences.Models.SelectedModel, Mode=TwoWay}" MinHeight="320" />
+
+                    <StackPanel Grid.Column="1" Spacing="10">
+                      <TextBlock Classes="fieldLabel" Text="Model ID" />
+                      <TextBox Text="{Binding Preferences.Models.ModelIdText}" PlaceholderText="claude-sonnet-5-5" MinHeight="30" MaxWidth="520"
+                               HorizontalAlignment="Left" Width="520"
+                               FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="13" />
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Classes="primaryActionButton preferenceButton" Content="Add"
+                                Command="{Binding Preferences.Models.AddModelCommand}" ToolTip.Tip="Add the ID to the end of the list" />
+                        <Button Classes="secondaryActionButton preferenceButton" Content="Rename"
+                                Command="{Binding Preferences.Models.RenameModelCommand}"
+                                ToolTip.Tip="Change the selected ID to the one in the box, everywhere it's used" />
+                        <Button Classes="dangerActionButton preferenceButton" Content="Delete"
+                                Command="{Binding Preferences.Models.DeleteModelCommand}"
+                                ToolTip.Tip="Delete the selected ID; if it's in use, you choose the model that replaces it" />
+                      </StackPanel>
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Classes="secondaryActionButton preferenceButton" Content="Move Up"
+                                Command="{Binding Preferences.Models.MoveModelUpCommand}" />
+                        <Button Classes="secondaryActionButton preferenceButton" Content="Move Down"
+                                Command="{Binding Preferences.Models.MoveModelDownCommand}" />
+                      </StackPanel>
+                    </StackPanel>
+                  </Grid>
+
+                  <TextBlock Grid.Row="3" Classes="fieldLabel" Text="{Binding Preferences.Models.Message}" TextWrapping="Wrap" />
+                </Grid>
+              </Border>
+            </ScrollViewer>
+          </TabItem>
+
           <TabItem Header="MCP Servers" FontSize="13">
             <Border Classes="preferenceSection">
               <TextBlock Classes="comingSoon" Text="The MCP server list arrives in a later step." />
@@ -111,7 +167,7 @@
                       </Grid>
                     </Border>
 
-                    <Grid Grid.Row="3" ColumnDefinitions="Auto,180,Auto,180,Auto,180" RowDefinitions="Auto,Auto" ColumnSpacing="10"
+                    <Grid Grid.Row="3" ColumnDefinitions="Auto,260,Auto,180,Auto,260" RowDefinitions="Auto,Auto" ColumnSpacing="10"
                           RowSpacing="12">
                       <TextBlock Classes="fieldLabel" Text="New conversation model" />
                       <ComboBox Grid.Column="1" ItemsSource="{Binding Preferences.ModelOptions}"
@@ -122,7 +178,7 @@
                                 SelectedItem="{Binding Preferences.NewConversationEffort}" HorizontalAlignment="Stretch" MinHeight="30"
                                 ToolTip.Tip="The effort new conversations start with; each conversation's own picker changes it" />
                       <TextBlock Grid.Column="4" Classes="fieldLabel" Text="Summarizer model" Margin="10,0,0,0" />
-                      <ComboBox Grid.Column="5" ItemsSource="{Binding Preferences.SummarizerModelOptions}"
+                      <ComboBox Grid.Column="5" ItemsSource="{Binding Preferences.ModelOptions}"
                                 SelectedItem="{Binding Preferences.SummarizerModel}" HorizontalAlignment="Stretch" MinHeight="30"
                                 ToolTip.Tip="Writes the Work Summary when a turn is compressed or auto-summarized" />
                       <TextBlock Grid.Row="1" Grid.ColumnSpan="6" Classes="fieldLabel" Text="{Binding Preferences.ClaudeCliMessage}"

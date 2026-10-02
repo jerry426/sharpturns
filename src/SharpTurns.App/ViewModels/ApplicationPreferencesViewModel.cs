@@ -11,13 +11,14 @@ namespace SharpTurns.App.ViewModels;
 /// The Config tab's Preferences. As in the Workbench: restoring the last session at startup, the startup, Notes, and
 /// Markdown Viewer window sizes, and the DOCX export defaults. SharpTurns adds the claude path, the model and effort for
 /// new conversations, the summarizer model, and the system prompt. Each is saved in the settings table when it changes.
+/// The Models subtab's list, which the model pickers offer, lives here too.
 /// </summary>
 public sealed partial class ApplicationPreferencesViewModel : ObservableObject
 {
     private const string RestoreLastSessionSetting = "restore_last_session";
     private const string DocxExportSetting = "docx_export_settings";
     private const string ClaudePathSetting = "claude_path";
-    private const string NewConversationModelSetting = "default_model";
+    internal const string NewConversationModelSetting = "default_model";
     private const string NewConversationEffortSetting = "default_effort";
     private const string SystemPromptSetting = "system_prompt";
     private readonly ConversationStore _store;
@@ -27,8 +28,9 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
     [ObservableProperty]
     private string _claudePathText = "";
 
+    /// <summary>The saved model, or the first listed one; null only before the list loads.</summary>
     [ObservableProperty]
-    private string _newConversationModel = ConversationViewModel.DefaultModel;
+    private string? _newConversationModel;
 
     [ObservableProperty]
     private string _newConversationEffort = ConversationViewModel.DefaultEffort;
@@ -65,12 +67,17 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
     internal ApplicationPreferencesViewModel(ConversationStore store)
     {
         _store = store;
+        Models = new(store);
+        Models.ModelsChanged += (_, _) => _ = ReloadModelSettingsAsync();
         StartupWindow = new(store, "startup_window_size", "startup window size", new(1400, 860), new(820, 560));
         NotesWindow = new(store, "notes_window_size", "Notes window size", new(980, 660), new(820, 520));
         MarkdownViewerWindow = new(store, "markdown_viewer_window_size", "Markdown Viewer window size",
             new(MarkdownViewerWindowDefaults.DefaultWidth, MarkdownViewerWindowDefaults.DefaultHeight),
             new(MarkdownViewerWindowDefaults.MinWidth, MarkdownViewerWindowDefaults.MinHeight));
     }
+
+    /// <summary>The Config tab's Models subtab.</summary>
+    public ModelsConfigViewModel Models { get; }
 
     public WindowSizePreferenceViewModel StartupWindow { get; }
 
@@ -87,13 +94,10 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
     /// <summary>The saved claude executable; null runs claude from the PATH.</summary>
     public string? ClaudePath { get; private set; }
 
-    public IReadOnlyList<string> ModelOptions => ConversationViewModel.SharedModelOptions;
+    /// <summary>Every model picker's list; see <see cref="ModelsConfigViewModel.Models"/>.</summary>
+    public IReadOnlyList<string> ModelOptions => Models.Models;
 
     public IReadOnlyList<string> EffortOptions => ConversationViewModel.SharedEffortOptions;
-
-    public IReadOnlyList<string> SummarizerModelOptions { get; } = ["opus", "sonnet", "haiku"];
-
-    public string? NewConversationModelOrNull => NewConversationModel == ConversationViewModel.DefaultModel ? null : NewConversationModel;
 
     public string? NewConversationEffortOrNull => NewConversationEffort == ConversationViewModel.DefaultEffort ? null : NewConversationEffort;
 
@@ -111,6 +115,7 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
         _isLoading = true;
         try
         {
+            await Models.LoadAsync();
             RestoreLastSession = await _store.GetSettingAsync(RestoreLastSessionSetting) != "false";
             DocxExportSettings = DocxExportSettings.Parse(await _store.GetSettingAsync(DocxExportSetting));
             await StartupWindow.LoadAsync();
@@ -118,9 +123,9 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
             await MarkdownViewerWindow.LoadAsync();
             ApplyClaudePath(await _store.GetSettingAsync(ClaudePathSetting) is { Length: > 0 } path ? path : null);
             ClaudeCliMessage = UsingClaudePathLabel(ClaudePath);
-            NewConversationModel = Option(ModelOptions, await _store.GetSettingAsync(NewConversationModelSetting), ConversationViewModel.DefaultModel);
-            NewConversationEffort = Option(EffortOptions, await _store.GetSettingAsync(NewConversationEffortSetting), ConversationViewModel.DefaultEffort);
-            SummarizerModel = Option(SummarizerModelOptions, await _store.GetSettingAsync(TurnSummarizer.ModelSetting), TurnSummarizer.DefaultModel);
+            NewConversationModel = Option(ModelOptions, await _store.GetSettingAsync(NewConversationModelSetting)) ?? ModelOptions.FirstOrDefault();
+            NewConversationEffort = Option(EffortOptions, await _store.GetSettingAsync(NewConversationEffortSetting)) ?? ConversationViewModel.DefaultEffort;
+            SummarizerModel = Option(ModelOptions, await _store.GetSettingAsync(TurnSummarizer.ModelSetting)) ?? TurnSummarizer.DefaultModel;
             ApplySystemPrompt(await _store.GetSettingAsync(SystemPromptSetting) is { Length: > 0 } prompt
                 ? prompt : ClaudeCliCodingPolicy.DefaultSystemPrompt);
             SystemPromptMessage = SystemPromptLabel(SystemPrompt);
@@ -129,9 +134,35 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
         finally { _isLoading = false; }
     }
 
-    // A saved value no longer offered falls back to the default.
-    private static string Option(IReadOnlyList<string> options, string? value, string fallback) =>
-        value is not null && options.Contains(value) ? value : fallback;
+    // Null for a value not saved or no longer offered, so the caller's fallback applies.
+    private static string? Option(IReadOnlyList<string> options, string? value) =>
+        value is not null && options.Contains(value) ? value : null;
+
+    // Owns its errors so the list's event can fire and forget it. The store has already moved a replaced ID's settings;
+    // reading them back also restores a picker selection the list change cleared.
+    private async Task ReloadModelSettingsAsync()
+    {
+        try
+        {
+            var newConversationModel = await _store.GetSettingAsync(NewConversationModelSetting);
+            var summarizerModel = await _store.GetSettingAsync(TurnSummarizer.ModelSetting);
+            var before = (NewConversationModel, SummarizerModel);
+            _isLoading = true;
+            try
+            {
+                NewConversationModel = Option(ModelOptions, newConversationModel) ?? ModelOptions.FirstOrDefault();
+                SummarizerModel = Option(ModelOptions, summarizerModel) ?? TurnSummarizer.DefaultModel;
+            }
+            finally { _isLoading = false; }
+            OnPropertyChanged(nameof(NewConversationModel));
+            OnPropertyChanged(nameof(SummarizerModel));
+            // A renamed or deleted ID moved them, so the last save's message would name the old one.
+            if (before != (NewConversationModel, SummarizerModel))
+                ClaudeCliMessage = $"The Models list changed: new conversations will use {NewConversationModel}, "
+                    + $"and turns will be compressed with {SummarizerModel}.";
+        }
+        catch (Exception e) { ClaudeCliMessage = "Couldn't reload the model settings: " + e.Message; }
+    }
 
     [RelayCommand]
     private async Task SaveClaudePathAsync()
@@ -177,11 +208,11 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
         ? "Turns and summaries run claude from your PATH."
         : $"Turns and summaries run {path}.";
 
-    partial void OnNewConversationModelChanged(string value)
+    // A picker whose list changed passes null until its selection is restored.
+    partial void OnNewConversationModelChanged(string? value)
     {
-        if (!_isLoading)
-            _ = SaveCliSettingAsync(NewConversationModelSetting, NewConversationModelOrNull,
-                $"New conversations will use {NewConversationModelOrNull ?? "the CLI's default model"}.");
+        if (!_isLoading && value is not null)
+            _ = SaveCliSettingAsync(NewConversationModelSetting, value, $"New conversations will use {value}.");
     }
 
     partial void OnNewConversationEffortChanged(string value)
@@ -193,7 +224,7 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
 
     partial void OnSummarizerModelChanged(string value)
     {
-        if (!_isLoading)
+        if (!_isLoading && value is not null)
             _ = SaveCliSettingAsync(TurnSummarizer.ModelSetting, value == TurnSummarizer.DefaultModel ? null : value,
                 $"Turns will be compressed with {value}.");
     }

@@ -93,5 +93,35 @@ internal static class Migrations
 
         CREATE INDEX conversation_user_notes_conversation ON conversation_user_notes (conversation_id);
         """,
+        """
+        CREATE TABLE models (
+            id TEXT PRIMARY KEY,
+            position INTEGER NOT NULL
+        );
+
+        INSERT INTO models (id, position) VALUES
+            ('claude-sonnet-5-5', 1),
+            ('claude-opus-5-5', 2),
+            ('claude-fable-5-1', 3),
+            ('claude-opus-4-8', 4),
+            ('claude-opus-4-7', 5),
+            ('claude-sonnet-4-6', 6),
+            ('claude-opus-4-6', 7),
+            ('claude-haiku-4-5-20251001', 8);
+
+        -- Earlier builds saved CLI aliases; these are the IDs the CLI ran for them.
+        UPDATE conversations SET model = CASE model
+            WHEN 'opus' THEN 'claude-opus-5-5' WHEN 'sonnet' THEN 'claude-sonnet-5-5' ELSE 'claude-haiku-4-5-20251001' END
+        WHERE model IN ('opus', 'sonnet', 'haiku');
+        UPDATE settings SET value = CASE value
+            WHEN 'opus' THEN 'claude-opus-5-5' WHEN 'sonnet' THEN 'claude-sonnet-5-5' ELSE 'claude-haiku-4-5-20251001' END
+        WHERE key IN ('default_model', 'summarizer_model') AND value IN ('opus', 'sonnet', 'haiku');
+
+        -- Every conversation names its model: the new conversation model if listed, otherwise the first listed one.
+        UPDATE conversations SET model = COALESCE(
+            (SELECT s.value FROM settings s JOIN models m ON m.id = s.value WHERE s.key = 'default_model'),
+            (SELECT id FROM models ORDER BY position LIMIT 1))
+        WHERE model IS NULL;
+        """,
     ];
 }

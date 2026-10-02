@@ -84,11 +84,11 @@ public sealed class TurnCompressionTests : IDisposable
         var compressed = await summarizer.CompressAsync(turn);
 
         Assert.Equal("## Work Summary\n\n- Ran dotnet test.\n\n## Final Assistant Response — Verbatim\n\nAll tests pass.", compressed.Summary);
-        Assert.Equal("sonnet", compressed.SummaryModel);
+        Assert.Equal("claude-sonnet-5-5", compressed.SummaryModel);
         var saved = Assert.Single(await store.LoadTurnsAsync(turn.ConversationId));
-        Assert.Equal((compressed.Summary, "sonnet"), (saved.Summary, saved.SummaryModel));
+        Assert.Equal((compressed.Summary, "claude-sonnet-5-5"), (saved.Summary, saved.SummaryModel));
         var args = await File.ReadAllLinesAsync(Path.Combine(_directory, "args.txt"));
-        Assert.Contains("--model=sonnet", args);
+        Assert.Contains("--model=claude-sonnet-5-5", args);
         var user = await File.ReadAllTextAsync(Path.Combine(_directory, "user.json"));
         Assert.Contains("dotnet test", user);
         Assert.Contains("HYBRID COMPRESSION INSTRUCTION", user);

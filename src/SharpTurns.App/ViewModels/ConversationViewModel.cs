@@ -15,7 +15,6 @@ namespace SharpTurns.App.ViewModels;
 
 public sealed partial class ConversationViewModel : ObservableObject
 {
-    internal const string DefaultModel = "Default model";
     internal const string DefaultEffort = "Default effort";
     private const string DefaultOutputStyle = "Default";
     public const int MaxAttachments = 10;
@@ -74,7 +73,7 @@ public sealed partial class ConversationViewModel : ObservableObject
     private string? _status;
 
     [ObservableProperty]
-    private string _selectedModel;
+    private string? _selectedModel;
 
     [ObservableProperty]
     private string _selectedEffort;
@@ -106,7 +105,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         _rateLimitsChanged = rateLimitsChanged;
         _conversationUpdated = conversationUpdated;
         _title = conversation.Title;
-        _selectedModel = conversation.Model ?? DefaultModel;
+        _selectedModel = conversation.Model;
         _selectedEffort = conversation.Effort ?? DefaultEffort;
         _selectedOutputStyle = conversation.OutputStyle ?? DefaultOutputStyle;
         _autoSummarize = conversation.AutoSummarize;
@@ -202,13 +201,12 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     // Shared by every conversation so the sidebar's pickers keep the same ItemsSource when the conversation changes;
     // a new ItemsSource clears the selection, which would write back to the conversation.
-    // Preferences' defaults for new conversations use the same lists.
-    internal static readonly IReadOnlyList<string> SharedModelOptions = [DefaultModel, "opus", "sonnet", "haiku"];
+    // Preferences' defaults for new conversations use the same lists; the model list is the Config tab's Models.
     internal static readonly IReadOnlyList<string> SharedEffortOptions = [DefaultEffort, "low", "medium", "high", "xhigh", "max"];
     private static readonly IReadOnlyList<string> SharedOutputStyleOptions = [DefaultOutputStyle, .. ClaudeCliCodingPolicy.OutputStyles];
 
-    /// <summary>CLI model aliases; the default entry uses the CLI's own default.</summary>
-    public IReadOnlyList<string> ModelOptions => SharedModelOptions;
+    /// <summary>The Config tab's model IDs.</summary>
+    public IReadOnlyList<string> ModelOptions => Preferences.ModelOptions;
 
     public IReadOnlyList<string> EffortOptions => SharedEffortOptions;
 
@@ -681,19 +679,32 @@ public sealed partial class ConversationViewModel : ObservableObject
         CancelTurn();
     }
 
-    partial void OnSelectedModelChanged(string value) => _ = SaveModelAsync();
+    partial void OnSelectedModelChanged(string? value) => _ = SaveModelAsync();
 
     partial void OnSelectedEffortChanged(string value) => _ = SaveModelAsync();
 
     // Owns its errors so property-change callers can fire and forget it.
     private async Task SaveModelAsync()
     {
-        var model = SelectedModel == DefaultModel ? null : SelectedModel;
+        // A picker whose list changed passes null until ApplyModelsChanged restores it.
+        if (SelectedModel is null || SelectedEffort is null) return;
+        var model = SelectedModel;
         var effort = SelectedEffort == DefaultEffort ? null : SelectedEffort;
         if (model == Conversation.Model && effort == Conversation.Effort) return;
         Conversation = Conversation with { Model = model, Effort = effort };
         try { await _store.SetConversationModelAsync(Conversation.Id, model, effort); }
         catch (Exception e) { Status = "Couldn't save the model choice: " + e.Message; }
+    }
+
+    /// <summary>
+    /// The model list changed. The store has already moved a replaced ID's conversations to its replacement; this keeps
+    /// the loaded conversation in step and restores a picker selection the list change cleared.
+    /// </summary>
+    internal void ApplyModelsChanged(string? replaced, string? replacement)
+    {
+        if (replacement is not null && Conversation.Model == replaced) Conversation = Conversation with { Model = replacement };
+        SelectedModel = Conversation.Model;
+        OnPropertyChanged(nameof(SelectedModel));
     }
 
     partial void OnSelectedOutputStyleChanged(string value) => _ = SaveOutputStyleAsync();

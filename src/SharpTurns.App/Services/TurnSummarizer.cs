@@ -7,13 +7,13 @@ namespace SharpTurns.App.Services;
 
 /// <summary>
 /// Compresses turns with a disposable, tool-less one-shot CLI call that never touches the conversation's session.
-/// The summarizer model is the "summarizer_model" setting (chosen in Config → Preferences), Sonnet by default.
+/// The summarizer model is the "summarizer_model" setting (chosen in Config → Preferences), Sonnet 5.5 by default.
 /// executable returns the CLI to launch, as for <see cref="ClaudeTurnRunner"/>.
 /// </summary>
 internal sealed class TurnSummarizer(ConversationStore store, Func<string?> executable)
 {
     public const string ModelSetting = "summarizer_model";
-    public const string DefaultModel = "sonnet";
+    public const string DefaultModel = "claude-sonnet-5-5";
     private const int OutputTokenCap = 16_384;
 
     public TurnSummarizer(ConversationStore store, string? executable = null) : this(store, () => executable) { }

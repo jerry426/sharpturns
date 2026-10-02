@@ -63,6 +63,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _runner = runner;
         _summarizer = summarizer;
         Preferences = preferences;
+        preferences.Models.ModelsChanged += OnModelsChanged;
         Projects.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(OtherProjects));
@@ -198,6 +199,21 @@ public sealed partial class MainWindowViewModel : ObservableObject
         if (selected) SelectedConversation = conversation;
     }
 
+    // The store has already moved a replaced model ID's conversations; keep the listed and open ones in step.
+    private void OnModelsChanged(string? replaced, string? replacement)
+    {
+        if (replacement is not null)
+            for (var i = 0; i < Conversations.Count; i++)
+            {
+                if (Conversations[i].Model != replaced) continue;
+                var updated = Conversations[i] with { Model = replacement };
+                var selected = SelectedConversation?.Id == updated.Id;
+                Conversations[i] = updated;
+                if (selected) SelectedConversation = updated;
+            }
+        foreach (var conversation in _openConversations.Values) conversation.ApplyModelsChanged(replaced, replacement);
+    }
+
     // Owns its errors so property-change callers can fire and forget it.
     private async Task LoadConversationsAsync(Project? project)
     {
@@ -289,7 +305,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
             return;
         await RunAsync("create the conversation", async () =>
         {
-            var conversation = await _store.CreateConversationAsync(project.Id, title.Trim(), Preferences.NewConversationModelOrNull,
+            var conversation = await _store.CreateConversationAsync(project.Id, title.Trim(), Preferences.NewConversationModel,
                 Preferences.NewConversationEffortOrNull);
             if (SelectedProject != project) return;
             Conversations.Insert(0, conversation);

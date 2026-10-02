@@ -217,6 +217,82 @@ public sealed class ConversationStore
             cancellationToken, ("$id", noteId)).ConfigureAwait(false);
     }
 
+    /// <summary>The model IDs the model pickers offer, in the user's order.</summary>
+    public async Task<IReadOnlyList<string>> ListModelsAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = Command(connection, null, "SELECT id FROM models ORDER BY position");
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        var models = new List<string>();
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            models.Add(reader.GetString(0));
+        return models;
+    }
+
+    /// <summary>Adds the ID at the end of the list.</summary>
+    public async Task AddModelAsync(string id, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await ExecuteAsync(connection, null,
+            "INSERT INTO models (id, position) VALUES ($id, (SELECT COALESCE(MAX(position), 0) + 1 FROM models))",
+            cancellationToken, ("$id", id)).ConfigureAwait(false);
+    }
+
+    /// <summary>Saves the list's order; ids holds every listed ID.</summary>
+    public async Task SetModelOrderAsync(IReadOnlyList<string> ids, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = connection.BeginTransaction();
+        for (var i = 0; i < ids.Count; i++)
+            await ExecuteSingleAsync(connection, transaction, "UPDATE models SET position = $position WHERE id = $id", "Model",
+                cancellationToken, ("$id", ids[i]), ("$position", i + 1)).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<int> CountConversationsUsingModelAsync(string id, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        return Convert.ToInt32(await ScalarAsync(connection, null, "SELECT COUNT(*) FROM conversations WHERE model = $id",
+            cancellationToken, ("$id", id)).ConfigureAwait(false), CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>Renames the ID in place, along with the conversations and the given settings that use it.</summary>
+    public async Task RenameModelAsync(string id, string newId, IReadOnlyCollection<string> settingKeys,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(newId);
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = connection.BeginTransaction();
+        await ExecuteSingleAsync(connection, transaction, "UPDATE models SET id = $new WHERE id = $id", "Model",
+            cancellationToken, ("$id", id), ("$new", newId)).ConfigureAwait(false);
+        await ReplaceModelUsesAsync(connection, transaction, id, newId, settingKeys, cancellationToken).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Deletes the ID; the conversations and the given settings that use it move to the replacement, if given.</summary>
+    public async Task DeleteModelAsync(string id, string? replacement, IReadOnlyCollection<string> settingKeys,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = connection.BeginTransaction();
+        await ExecuteSingleAsync(connection, transaction, "DELETE FROM models WHERE id = $id", "Model",
+            cancellationToken, ("$id", id)).ConfigureAwait(false);
+        if (replacement is not null)
+            await ReplaceModelUsesAsync(connection, transaction, id, replacement, settingKeys, cancellationToken).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task ReplaceModelUsesAsync(SqliteConnection connection, SqliteTransaction transaction, string id,
+        string newId, IReadOnlyCollection<string> settingKeys, CancellationToken cancellationToken)
+    {
+        await ExecuteAsync(connection, transaction, "UPDATE conversations SET model = $new WHERE model = $id",
+            cancellationToken, ("$id", id), ("$new", newId)).ConfigureAwait(false);
+        foreach (var key in settingKeys)
+            await ExecuteAsync(connection, transaction, "UPDATE settings SET value = $new WHERE key = $key AND value = $id",
+                cancellationToken, ("$id", id), ("$new", newId), ("$key", key)).ConfigureAwait(false);
+    }
+
     public async Task<IReadOnlyList<ConversationTurn>> LoadTurnsAsync(long conversationId, CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);

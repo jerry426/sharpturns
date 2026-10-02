@@ -36,7 +36,7 @@ public enum TurnStatus { Running, Completed, Stopped, Failed }
 /// <summary>
 /// A hidden (not hydrated) turn stays out of the replayed context. A compressed turn replays its user inputs and
 /// Summary (a work summary plus the verbatim response; see TurnCompression) instead of its assistant text.
-/// SummaryModel is the model alias that wrote the summary; null when no model was needed.
+/// SummaryModel is the model that wrote the summary; null when no model was needed.
 /// </summary>
 public sealed record ConversationTurn(
     long Id,

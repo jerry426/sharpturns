@@ -88,13 +88,13 @@ public sealed class ApplicationPreferencesViewModelTests : IDisposable
         await preferences.SaveClaudePathCommand.ExecuteAsync(null);
         Assert.Equal(claude, preferences.ClaudePath);
 
-        preferences.NewConversationModel = "opus";
-        await WaitForSettingAsync(store, "default_model", "opus");
+        preferences.NewConversationModel = "claude-opus-5-5";
+        await WaitForSettingAsync(store, "default_model", "claude-opus-5-5");
         preferences.NewConversationEffort = "high";
         await WaitForSettingAsync(store, "default_effort", "high");
-        preferences.SummarizerModel = "haiku";
-        await WaitForSettingAsync(store, TurnSummarizer.ModelSetting, "haiku");
-        Assert.Equal("haiku", await new TurnSummarizer(store).GetModelAsync());
+        preferences.SummarizerModel = "claude-haiku-4-5-20251001";
+        await WaitForSettingAsync(store, TurnSummarizer.ModelSetting, "claude-haiku-4-5-20251001");
+        Assert.Equal("claude-haiku-4-5-20251001", await new TurnSummarizer(store).GetModelAsync());
 
         // A blank prompt is refused; Cancel brings back the saved one.
         preferences.SystemPromptText = "  \n ";
@@ -112,9 +112,9 @@ public sealed class ApplicationPreferencesViewModelTests : IDisposable
         await reloaded.LoadAsync();
         Assert.Equal(claude, reloaded.ClaudePath);
         Assert.Equal(claude, reloaded.ClaudePathText);
-        Assert.Equal("opus", reloaded.NewConversationModelOrNull);
+        Assert.Equal("claude-opus-5-5", reloaded.NewConversationModel);
         Assert.Equal("high", reloaded.NewConversationEffortOrNull);
-        Assert.Equal("haiku", reloaded.SummarizerModel);
+        Assert.Equal("claude-haiku-4-5-20251001", reloaded.SummarizerModel);
         Assert.Equal("Be brief.\nUse British spelling.", reloaded.SystemPrompt);
 
         // Reset fills the editor with the built-in prompt; saving it removes the setting.
@@ -129,9 +129,9 @@ public sealed class ApplicationPreferencesViewModelTests : IDisposable
         Assert.Equal("", reloaded.ClaudePathText);
 
         var project = await store.CreateProjectAsync("Project", _directory);
-        var conversation = await store.CreateConversationAsync(project.Id, "Conversation", reloaded.NewConversationModelOrNull,
+        var conversation = await store.CreateConversationAsync(project.Id, "Conversation", reloaded.NewConversationModel,
             reloaded.NewConversationEffortOrNull);
-        Assert.Equal(("opus", "high"), (conversation.Model, conversation.Effort));
+        Assert.Equal(("claude-opus-5-5", "high"), (conversation.Model, conversation.Effort));
         var other = await store.CreateConversationAsync(project.Id, "Other");
         Assert.Equal(((string?)null, (string?)null), (other.Model, other.Effort));
     }

@@ -17,6 +17,9 @@ public sealed partial class MainWindow : Window
             new PromptDialog(title, message, text, "OK", destructive: false).ShowDialog<string?>(this);
         viewModel.ConfirmAsync = async (title, message) =>
             await new PromptDialog(title, message, null, "Delete", destructive: true).ShowDialog<string?>(this) is not null;
+        viewModel.Preferences.Models.ConfirmAsync = viewModel.ConfirmAsync;
+        viewModel.Preferences.Models.ChooseReplacementAsync = (title, message, choices) =>
+            PromptDialog.ForChoice(title, message, choices, "Delete and Replace", destructive: true).ShowDialog<string?>(this);
         viewModel.Preferences.ShowDocxExportDefaultsDialogAsync = dialog =>
             new DocxExportDefaultsDialog { DataContext = dialog }.ShowDialog<DocxExportSettings?>(this);
     }
