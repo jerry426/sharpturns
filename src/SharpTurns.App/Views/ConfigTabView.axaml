@@ -368,7 +368,7 @@
                   <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="16">
                     <TextBlock Classes="sectionTitle" Text="Claude CLI" />
                     <TextBlock Grid.Row="1" Classes="sectionText"
-                               Text="The claude executable that runs turns and summaries, the model and effort new conversations start with, and the model that writes compressed turns' summaries." />
+                               Text="The claude executable that runs turns and summaries, the model and effort new conversations start with, and the model and effort that write compressed turns' summaries." />
 
                     <Border Grid.Row="2" Classes="preferenceInset">
                       <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="18" RowSpacing="12">
@@ -388,7 +388,7 @@
                       </Grid>
                     </Border>
 
-                    <Grid Grid.Row="3" ColumnDefinitions="Auto,260,Auto,180,Auto,260" RowDefinitions="Auto,Auto" ColumnSpacing="10"
+                    <Grid Grid.Row="3" ColumnDefinitions="Auto,260,Auto,180,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="10"
                           RowSpacing="12">
                       <TextBlock Classes="fieldLabel" Text="New conversation model" />
                       <ComboBox Grid.Column="1" ItemsSource="{Binding Preferences.ModelOptions}"
@@ -398,11 +398,15 @@
                       <ComboBox Grid.Column="3" ItemsSource="{Binding Preferences.EffortOptions}"
                                 SelectedItem="{Binding Preferences.NewConversationEffort}" HorizontalAlignment="Stretch" MinHeight="30"
                                 ToolTip.Tip="The effort new conversations start with; each conversation's own picker changes it" />
-                      <TextBlock Grid.Column="4" Classes="fieldLabel" Text="Summarizer model" Margin="10,0,0,0" />
-                      <ComboBox Grid.Column="5" ItemsSource="{Binding Preferences.ModelOptions}"
+                      <TextBlock Grid.Row="1" Classes="fieldLabel" Text="Summarizer model" />
+                      <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Preferences.ModelOptions}"
                                 SelectedItem="{Binding Preferences.SummarizerModel}" HorizontalAlignment="Stretch" MinHeight="30"
                                 ToolTip.Tip="Writes the Work Summary when a turn is compressed or auto-summarized" />
-                      <TextBlock Grid.Row="1" Grid.ColumnSpan="6" Classes="fieldLabel" Text="{Binding Preferences.ClaudeCliMessage}"
+                      <TextBlock Grid.Row="1" Grid.Column="2" Classes="fieldLabel" Text="Effort" Margin="10,0,0,0" />
+                      <ComboBox Grid.Row="1" Grid.Column="3" ItemsSource="{Binding Preferences.EffortOptions}"
+                                SelectedItem="{Binding Preferences.SummarizerEffort}" HorizontalAlignment="Stretch" MinHeight="30"
+                                ToolTip.Tip="The effort the summarizer model uses when it writes a Work Summary" />
+                      <TextBlock Grid.Row="2" Grid.ColumnSpan="5" Classes="fieldLabel" Text="{Binding Preferences.ClaudeCliMessage}"
                                  TextWrapping="Wrap" />
                     </Grid>
                   </Grid>

@@ -69,6 +69,7 @@ public sealed class TurnCompressionTests : IDisposable
         if (OperatingSystem.IsWindows()) return; // The fake CLI is a POSIX shell script.
         var store = await CreateStoreAsync();
         var turn = await SaveTurnAsync(store, ToolTurn(TurnStatus.Completed));
+        await store.SetSettingAsync(TurnSummarizer.EffortSetting, "high");
         var summarizer = new TurnSummarizer(store, CreateFakeCli("""
             printf '%s\n' "$@" > args.txt
             IFS= read -r init
@@ -89,6 +90,7 @@ public sealed class TurnCompressionTests : IDisposable
         Assert.Equal((compressed.Summary, "claude-sonnet-5-5"), (saved.Summary, saved.SummaryModel));
         var args = await File.ReadAllLinesAsync(Path.Combine(_directory, "args.txt"));
         Assert.Contains("--model=claude-sonnet-5-5", args);
+        Assert.Contains("--effort=high", args);
         var user = await File.ReadAllTextAsync(Path.Combine(_directory, "user.json"));
         Assert.Contains("dotnet test", user);
         Assert.Contains("HYBRID COMPRESSION INSTRUCTION", user);

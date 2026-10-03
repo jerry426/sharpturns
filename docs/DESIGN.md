@@ -136,8 +136,8 @@ version.
   `## Work Summary`, then `## Final Assistant Response — Verbatim` (or
   `Partial` for a stopped or failed turn) with the last response unchanged.
   The summary comes from a tool-less one-shot call with the summarizer model
-  (Config → Preferences). A turn with no tool calls or intermediate text gets
-  a fixed summary without a call. On screen, the Work Summary is a collapsed
+  and effort (Config → Preferences). A turn with no tool calls or
+  intermediate text gets a fixed summary without a call. On screen, the Work Summary is a collapsed
   card and the Final heading is hidden; the stored and replayed summary keeps
   both.
 - **A compression is kept only if it makes the replay smaller** than the

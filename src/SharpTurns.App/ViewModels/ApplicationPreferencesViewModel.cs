@@ -10,7 +10,7 @@ namespace SharpTurns.App.ViewModels;
 /// <summary>
 /// The Config tab's Preferences. As in the Workbench: restoring the last session at startup, the startup, Notes, and
 /// Markdown Viewer window sizes, and the DOCX export defaults. SharpTurns adds the claude path, the model and effort for
-/// new conversations, the summarizer model, and the system prompt. Each is saved in the settings table when it changes.
+/// new conversations, the summarizer model and effort, and the system prompt. Each is saved in the settings table when it changes.
 /// The Models subtab's list, which the model pickers offer, and the MCP Servers, Sounds, and API Keys subtabs live here too.
 /// </summary>
 public sealed partial class ApplicationPreferencesViewModel : ObservableObject
@@ -37,6 +37,9 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
 
     [ObservableProperty]
     private string _summarizerModel = TurnSummarizer.DefaultModel;
+
+    [ObservableProperty]
+    private string _summarizerEffort = ConversationViewModel.DefaultEffort;
 
     /// <summary>The outcome of the last change in the Claude CLI section.</summary>
     [ObservableProperty]
@@ -114,6 +117,8 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
 
     public string? NewConversationEffortOrNull => NewConversationEffort == ConversationViewModel.DefaultEffort ? null : NewConversationEffort;
 
+    public string? SummarizerEffortOrNull => SummarizerEffort == ConversationViewModel.DefaultEffort ? null : SummarizerEffort;
+
     /// <summary>The saved system prompt, appended to the CLI's own for every turn.</summary>
     public string SystemPrompt { get; private set; } = ClaudeCliCodingPolicy.DefaultSystemPrompt;
 
@@ -142,6 +147,7 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
             NewConversationModel = Option(ModelOptions, await _store.GetSettingAsync(NewConversationModelSetting)) ?? ModelOptions.FirstOrDefault();
             NewConversationEffort = Option(EffortOptions, await _store.GetSettingAsync(NewConversationEffortSetting)) ?? ConversationViewModel.DefaultEffort;
             SummarizerModel = Option(ModelOptions, await _store.GetSettingAsync(TurnSummarizer.ModelSetting)) ?? TurnSummarizer.DefaultModel;
+            SummarizerEffort = Option(EffortOptions, await _store.GetSettingAsync(TurnSummarizer.EffortSetting)) ?? ConversationViewModel.DefaultEffort;
             ApplySystemPrompt(await _store.GetSettingAsync(SystemPromptSetting) is { Length: > 0 } prompt
                 ? prompt : ClaudeCliCodingPolicy.DefaultSystemPrompt);
             SystemPromptMessage = SystemPromptLabel(SystemPrompt);
@@ -279,6 +285,13 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
         if (!_isLoading && value is not null)
             _ = SaveCliSettingAsync(TurnSummarizer.ModelSetting, value == TurnSummarizer.DefaultModel ? null : value,
                 $"Turns will be compressed with {value}.");
+    }
+
+    partial void OnSummarizerEffortChanged(string value)
+    {
+        if (!_isLoading)
+            _ = SaveCliSettingAsync(TurnSummarizer.EffortSetting, SummarizerEffortOrNull,
+                $"Summaries will use {(SummarizerEffortOrNull is { } effort ? effort + " effort" : "the CLI's default effort")}.");
     }
 
     // Owns its errors so the property setters can fire and forget it. Null removes the setting, so the default applies.

@@ -125,6 +125,10 @@ public sealed class ApplicationPreferencesViewModelTests : IDisposable
         preferences.SummarizerModel = "claude-haiku-4-5-20251001";
         await WaitForSettingAsync(store, TurnSummarizer.ModelSetting, "claude-haiku-4-5-20251001");
         Assert.Equal("claude-haiku-4-5-20251001", await new TurnSummarizer(store).GetModelAsync());
+        Assert.Null(await new TurnSummarizer(store).GetEffortAsync());
+        preferences.SummarizerEffort = "low";
+        await WaitForSettingAsync(store, TurnSummarizer.EffortSetting, "low");
+        Assert.Equal("low", await new TurnSummarizer(store).GetEffortAsync());
 
         // A blank prompt is refused; Cancel brings back the saved one.
         preferences.SystemPromptText = "  \n ";
@@ -145,6 +149,7 @@ public sealed class ApplicationPreferencesViewModelTests : IDisposable
         Assert.Equal("claude-opus-5-5", reloaded.NewConversationModel);
         Assert.Equal("high", reloaded.NewConversationEffortOrNull);
         Assert.Equal("claude-haiku-4-5-20251001", reloaded.SummarizerModel);
+        Assert.Equal("low", reloaded.SummarizerEffortOrNull);
         Assert.Equal("Be brief.\nUse British spelling.", reloaded.SystemPrompt);
 
         // Reset fills the editor with the built-in prompt; saving it removes the setting.
