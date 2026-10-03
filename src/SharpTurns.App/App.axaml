@@ -34,7 +34,7 @@
       <SolidColorBrush x:Key="TextDangerBrush" Color="#FFB8C0" />
       <SolidColorBrush x:Key="TextDangerStrongBrush" Color="#FFD7DC" />
       <SolidColorBrush x:Key="TextDangerDisabledBrush" Color="#816E75" />
-      <SolidColorBrush x:Key="ProminentTabAccentBrush" Color="#F3CA01" />
+      <SolidColorBrush x:Key="ProminentTabAccentBrush" Color="#CFAC01" />
       <!-- Conversation display settings; ConversationDisplayViewModel replaces these with the Font and BG sliders' values. -->
       <x:Double x:Key="ConversationFontSize">15</x:Double>
       <x:Double x:Key="ConversationLineHeight">22</x:Double>
@@ -612,6 +612,10 @@
       <Setter Property="Background" Value="{DynamicResource ProminentTabAccentBrush}" />
       <Setter Property="TextElement.Foreground" Value="Black" />
       <Setter Property="CornerRadius" Value="0,0,8,8" />
+    </Style>
+    <!-- A step above the theme's SemiLight, so the black text holds up on the yellow. -->
+    <Style Selector="TabControl.mainTabs TabItem:selected">
+      <Setter Property="FontWeight" Value="Medium" />
     </Style>
     <Style Selector="TabControl.mainTabs TabItem:selected /template/ Border#PART_SelectedPipe">
       <Setter Property="IsVisible" Value="False" />
