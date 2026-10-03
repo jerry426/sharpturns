@@ -11,6 +11,10 @@ conversation turns, the unit the whole app is built around.
 SharpTurns is an independent project. It is not affiliated with or endorsed by
 Anthropic.
 
+![The SharpTurns main window: the project and conversation list on the left,
+and a compressed turn on the right with its metrics, work summary, and
+rendered Markdown response](docs/images/main-window.webp)
+
 ## Why context management matters
 
 In a plain CLI session, everything a turn does stays in the context for the
@@ -35,6 +39,10 @@ turn at a time:
   replay entirely.
 - **Choose which images** keep being replayed, instead of resending them all.
 - **Branch** a useful run of turns into a fresh conversation.
+
+![The Context Management tab: Smart Cleanup, the visible and hidden turn
+counts, and the turn list with compressed turns marked and per-turn Hide
+buttons](docs/images/context-management.webp)
 
 **Less noise, more signal.** Once a turn is done, most of its raw tool output
 is noise: whole files read for one function, pages of build and test logs,
@@ -208,6 +216,10 @@ the repository root:
 ./run-instance-manager.sh                                  # macOS and Linux
 dotnet run --project src/SharpTurns.InstanceManager.App    # any platform
 ```
+
+<img src="docs/images/instance-manager.webp" width="320"
+  alt="The SharpTurns Instance Manager with three linked instances, each card
+  showing its project, conversation, model, process ID, and CPU use">
 
 - **Cards:** each running instance has one, showing its project, conversation,
   model, process ID, and CPU use. Drag a card to reorder the list.
