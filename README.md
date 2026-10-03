@@ -225,6 +225,32 @@ On macOS and Linux, Launch and Reload build the app first. On Windows they run
 the existing build, since running instances lock its files, so build it before
 reloading.
 
+## About the author
+
+I've been a developer for forty years. For more than half of them I've had my
+eyes glued to a terminal, writing C++, Python, Java and plenty more, or doing
+Linux admin work, all in vim. Eventually the terminal stopped being fun. The
+Claude Code CLI works well, but it isn't something I enjoy looking at all day.
+
+Soon after I got serious about agentic coding, I noticed that many of the
+problems I ran into came from the context: too much noise, too little signal.
+So I set out to see how coherently a model can reason when its context is kept
+clean, turn after turn. SharpTurns is my answer: far better than when every
+turn replays the same noise and bloat.
+
+SharpTurns is a small piece of a much larger agentic development platform I've
+built for my own work. Unlike SharpTurns, which runs on the Claude Code CLI,
+that platform is completely provider and model agnostic. SharpTurns keeps two
+of its biggest advantages: beautiful Markdown rendering and continuous context
+optimization.
+
+Apart from changing a few color hex values, I haven't written a single line of
+SharpTurns' code, and I'm very happy about that. Porting it out of the larger
+platform into this standalone app took less than two days. It shows what's
+possible in 2026 with today's excellent models and harnesses.
+
+If you're interested in custom work, you can reach me at *[contact]*.
+
 ## License
 
 MIT; see [LICENSE](LICENSE). Third-party components and their licenses are
