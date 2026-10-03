@@ -241,18 +241,26 @@ public sealed class ConversationStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task InitializeMarksTurnsLeftRunningAsFailed()
+    public async Task TurnsLeftRunningAreListedAndFailedOneConversationAtATime()
     {
         await _store.InitializeAsync();
         var project = await _store.CreateProjectAsync("Project", "/work");
-        var conversation = await _store.CreateConversationAsync(project.Id, "Conversation");
-        await _store.StartTurnAsync(conversation.Id, "prompt");
+        var first = await _store.CreateConversationAsync(project.Id, "First");
+        var second = await _store.CreateConversationAsync(project.Id, "Second");
+        await _store.StartTurnAsync(first.Id, "prompt");
+        await _store.StartTurnAsync(second.Id, "prompt");
 
+        // Another instance may still be running them, so starting up leaves them alone.
         await _store.InitializeAsync();
+        Assert.Equal([first.Id, second.Id], await _store.ListConversationsWithRunningTurnsAsync());
 
-        var turn = Assert.Single(await _store.LoadTurnsAsync(conversation.Id));
+        await _store.FailRunningTurnsAsync(first.Id);
+
+        var turn = Assert.Single(await _store.LoadTurnsAsync(first.Id));
         Assert.Equal(TurnStatus.Failed, turn.Status);
         Assert.Equal("The app closed before this turn finished.", turn.ErrorMessage);
+        Assert.Equal(TurnStatus.Running, Assert.Single(await _store.LoadTurnsAsync(second.Id)).Status);
+        Assert.Equal([second.Id], await _store.ListConversationsWithRunningTurnsAsync());
     }
 
     [Fact]

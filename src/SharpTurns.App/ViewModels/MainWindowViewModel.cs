@@ -1,10 +1,13 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SharpTurns.App.Services;
 using SharpTurns.ClaudeCli;
 using SharpTurns.Core;
+using SharpTurns.Core.InstanceManagement;
 using SharpTurns.Core.Persistence;
 
 namespace SharpTurns.App.ViewModels;
@@ -20,6 +23,10 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private readonly DeepgramDictationService _dictation;
     // Kept while the app runs, so a turn keeps streaming when another conversation is shown.
     private readonly Dictionary<long, ConversationViewModel> _openConversations = [];
+    // Several instances can run. Each holds the lock of the conversation it shows and of any running a turn or summary;
+    // switching away from an idle one releases it for the others.
+    private readonly ConversationLocks _locks;
+    private DispatcherTimer? _lockWaitTimer;
     private long? _conversationToRestore;
 
     [ObservableProperty]
@@ -48,6 +55,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(HasNoConversation), nameof(IsDictationBusy))]
     private ConversationViewModel? _currentConversation;
 
+    /// <summary>The selected conversation while another instance holds it; it opens here once that instance lets it go.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NoConversationText))]
+    private Conversation? _lockedConversation;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasError))]
     private string? _errorMessage;
@@ -60,13 +72,17 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsWaitingForPlanUsage))]
     private ClaudeCliRateLimitSnapshot? _planUsage;
 
-    /// <summary>Without a dictation service, one is made with this platform's recorder and the saved Deepgram key.</summary>
+    /// <summary>
+    /// Without a dictation service, one is made with this platform's recorder and the saved Deepgram key. Without
+    /// conversation locks, they go in a folder beside the database.
+    /// </summary>
     internal MainWindowViewModel(ConversationStore store, ClaudeTurnRunner runner, TurnSummarizer summarizer,
-        ApplicationPreferencesViewModel preferences, DeepgramDictationService? dictation = null)
+        ApplicationPreferencesViewModel preferences, DeepgramDictationService? dictation = null, ConversationLocks? locks = null)
     {
         _store = store;
         _runner = runner;
         _summarizer = summarizer;
+        _locks = locks ?? ConversationLocks.For(store);
         Preferences = preferences;
         _dictation = dictation ?? DeepgramDictationService.Create(() => preferences.ApiKeys.DeepgramApiKey);
         preferences.ApiKeys.PropertyChanged += (_, e) =>
@@ -117,9 +133,20 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     public bool HasNoConversation => CurrentConversation is null;
 
-    public string NoConversationText => SelectedProject is null
-        ? "Create a project on the Projects tab to get started."
-        : "Create a conversation to get started.";
+    public string NoConversationText => LockedConversation is { } locked
+        ? $"\"{locked.Title}\" is open in another SharpTurns instance. It opens here once that instance switches to another conversation or closes."
+        : SelectedProject is null
+            ? "Create a project on the Projects tab to get started."
+            : "Create a conversation to get started.";
+
+    /// <summary>A turn or summary is running in one of this instance's conversations.</summary>
+    public bool IsAnyTurnActive => _openConversations.Values.Any(c => !c.IsIdle);
+
+    /// <summary>Raised when something the Instance Manager shows for this instance changes.</summary>
+    internal event Action? InstanceStateChanged;
+
+    internal InstanceSnapshot CaptureInstanceSnapshot() => new(SelectedProject?.Id, SelectedProject?.Name, SelectedProject?.Color,
+        CurrentConversation?.Conversation.Id, CurrentConversation?.Title, CurrentConversation?.SelectedModel, IsAnyTurnActive);
 
     /// <summary>
     /// Recording or transcribing in the shown conversation. Switching conversations or projects waits for it, so the
@@ -149,16 +176,23 @@ public sealed partial class MainWindowViewModel : ObservableObject
     /// <summary>Title and message; returns true when confirmed.</summary>
     public Func<string, string, Task<bool>>? ConfirmAsync { get; set; }
 
-    public async Task InitializeAsync()
+    /// <summary>A startup session, from the Instance Manager's Reload, opens its project and conversation either way.</summary>
+    public async Task InitializeAsync(AppStartupSession? startupSession = null)
     {
         try
         {
             await _store.InitializeAsync();
+            await FailAbandonedTurnsAsync();
             await Preferences.LoadAsync();
             foreach (var project in await _store.ListProjectsAsync()) Projects.Add(project);
             // The selection is saved either way, so turning restore back on picks up the latest one.
             long? lastProject = null;
-            if (Preferences.RestoreLastSession)
+            if (startupSession is not null)
+            {
+                lastProject = startupSession.ProjectId;
+                _conversationToRestore = startupSession.ConversationId;
+            }
+            else if (Preferences.RestoreLastSession)
             {
                 lastProject = ParseId(await _store.GetSettingAsync(LastProjectSetting));
                 _conversationToRestore = ParseId(await _store.GetSettingAsync(LastConversationSetting));
@@ -168,6 +202,18 @@ public sealed partial class MainWindowViewModel : ObservableObject
             _ = CheckClaudeCliAsync();
         }
         catch (Exception e) { ErrorMessage = "Couldn't open the database: " + e.Message; }
+    }
+
+    // A turn still marked running belongs to an instance that exited if its conversation's lock is free; a live
+    // instance running it holds the lock. Taking the lock while closing the turns keeps another instance from starting one.
+    private async Task FailAbandonedTurnsAsync()
+    {
+        foreach (var conversationId in await _store.ListConversationsWithRunningTurnsAsync())
+        {
+            if (!_locks.TryAcquire(conversationId)) continue;
+            try { await _store.FailRunningTurnsAsync(conversationId); }
+            finally { _locks.Release(conversationId); }
+        }
     }
 
     // The window opens without waiting for it; the preferences' check owns its errors.
@@ -200,24 +246,120 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void ToggleConversationSidebar() => IsConversationSidebarOpen = !IsConversationSidebarOpen;
 
-    partial void OnSelectedProjectChanged(Project? value) => _ = LoadConversationsAsync(value);
-
-    partial void OnSelectedConversationChanged(Conversation? value)
+    partial void OnSelectedProjectChanged(Project? value)
     {
+        _ = LoadConversationsAsync(value);
+        InstanceStateChanged?.Invoke();
+    }
+
+    partial void OnSelectedConversationChanged(Conversation? value) => OpenSelectedConversation();
+
+    // Shows the selected conversation if no other instance holds it; otherwise waits for that instance to let it go.
+    private void OpenSelectedConversation()
+    {
+        var value = SelectedConversation;
+        var previous = CurrentConversation;
         if (value is null || SelectedProject is null)
         {
+            StopLockWait();
+            LockedConversation = null;
             CurrentConversation = null;
+            ReleaseIfIdle(previous);
             return;
         }
+        if (!_locks.TryAcquire(value.Id, out var heldElsewhereSince))
+        {
+            LockedConversation = value;
+            CurrentConversation = null;
+            ReleaseIfIdle(previous);
+            StartLockWait();
+            return;
+        }
+        StopLockWait();
+        LockedConversation = null;
         if (!_openConversations.TryGetValue(value.Id, out var conversation))
         {
             conversation = new ConversationViewModel(value, SelectedProject, _store, _runner, _summarizer, Display, Preferences,
                 _dictation, limits => PlanUsage = limits, OnConversationUpdated, OnConversationBranched);
+            conversation.PropertyChanged += OnOpenConversationPropertyChanged;
             _openConversations[value.Id] = conversation;
-            _ = conversation.LoadAsync();
+            _ = ReloadConversationAsync(conversation);
         }
+        // One this instance let go of, and another instance opened since, may have changed there.
+        else if (heldElsewhereSince) _ = ReloadConversationAsync(conversation);
         CurrentConversation = conversation;
+        ReleaseIfIdle(previous);
         _ = SaveSettingAsync(LastConversationSetting, value.Id);
+    }
+
+    // Lets another instance open a conversation that isn't shown here and has no turn or summary running.
+    private void ReleaseIfIdle(ConversationViewModel? conversation)
+    {
+        if (conversation is null || conversation == CurrentConversation || !conversation.IsIdle) return;
+        _locks.Release(conversation.Conversation.Id);
+    }
+
+    // Owns its errors. The list was read when the project was selected, so the conversation may have changed, or been
+    // deleted, in another instance since.
+    private async Task ReloadConversationAsync(ConversationViewModel conversation)
+    {
+        var id = conversation.Conversation.Id;
+        try
+        {
+            if (await _store.GetConversationAsync(id) is not { } saved)
+            {
+                ForgetConversation(conversation);
+                if (Conversations.FirstOrDefault(c => c.Id == id) is { } listed) Conversations.Remove(listed);
+                if (SelectedConversation?.Id == id) SelectedConversation = Conversations.FirstOrDefault();
+                ErrorMessage = $"\"{conversation.Title}\" was deleted in another SharpTurns instance.";
+                return;
+            }
+            await conversation.ReloadAsync(saved);
+            var index = Conversations.Select(c => c.Id).ToList().IndexOf(id);
+            if (index < 0 || Conversations[index] == saved) return;
+            var selected = SelectedConversation?.Id == id;
+            Conversations[index] = saved;
+            if (selected) SelectedConversation = saved;
+        }
+        catch (Exception e) { conversation.Status = "Couldn't load this conversation: " + e.Message; }
+    }
+
+    // A deleted conversation: stops its recorder and lets its lock go.
+    private void ForgetConversation(ConversationViewModel conversation)
+    {
+        var id = conversation.Conversation.Id;
+        if (_openConversations.Remove(id))
+        {
+            conversation.PropertyChanged -= OnOpenConversationPropertyChanged;
+            _ = conversation.Dictation.CancelAsync();
+        }
+        _locks.Release(id);
+    }
+
+    // Checks every second whether the instance holding the selected conversation has let it go.
+    private void StartLockWait()
+    {
+        if (_lockWaitTimer is null)
+        {
+            _lockWaitTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _lockWaitTimer.Tick += (_, _) => OpenSelectedConversation();
+        }
+        _lockWaitTimer.Start();
+    }
+
+    private void StopLockWait() => _lockWaitTimer?.Stop();
+
+    private void OnOpenConversationPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (sender is not ConversationViewModel conversation) return;
+        if (e.PropertyName is nameof(ConversationViewModel.IsRunning) or nameof(ConversationViewModel.IsCompressing))
+        {
+            OnPropertyChanged(nameof(IsAnyTurnActive));
+            ReleaseIfIdle(conversation);
+        }
+        if (e.PropertyName is nameof(ConversationViewModel.IsRunning) or nameof(ConversationViewModel.IsCompressing)
+            or nameof(ConversationViewModel.Title) or nameof(ConversationViewModel.SelectedModel))
+            InstanceStateChanged?.Invoke();
     }
 
     partial void OnCurrentConversationChanged(ConversationViewModel? oldValue, ConversationViewModel? newValue)
@@ -225,6 +367,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         if (oldValue is not null) oldValue.Dictation.PropertyChanged -= OnDictationPropertyChanged;
         if (newValue is not null) newValue.Dictation.PropertyChanged += OnDictationPropertyChanged;
         NotifySwitchingChanged();
+        InstanceStateChanged?.Invoke();
     }
 
     private void OnDictationPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -354,20 +497,36 @@ public sealed partial class MainWindowViewModel : ObservableObject
             ErrorMessage = "Stop the running turn in this project before deleting it.";
             return;
         }
-        if (ConfirmAsync is null || !await ConfirmAsync("Delete Project",
-                $"Delete \"{project.Name}\" and all of its conversations? This can't be undone. Files in its working directory are not affected."))
-            return;
-        await RunAsync("delete the project", async () =>
+        // Held through the confirmation, so no other instance opens one of the project's conversations meanwhile.
+        var taken = new List<long>();
+        try
         {
-            await _store.DeleteProjectAsync(project.Id);
-            foreach (var conversation in open)
+            foreach (var conversation in await _store.ListConversationsAsync(project.Id))
             {
-                _openConversations.Remove(conversation.Conversation.Id);
-                _ = conversation.Dictation.CancelAsync();
+                if (_locks.IsHeld(conversation.Id)) continue;
+                if (!_locks.TryAcquire(conversation.Id))
+                {
+                    ErrorMessage = $"\"{conversation.Title}\" is open in another SharpTurns instance, so this project can't be deleted.";
+                    return;
+                }
+                taken.Add(conversation.Id);
             }
-            Projects.Remove(project);
-            SelectedProject = Projects.FirstOrDefault();
-        });
+            if (ConfirmAsync is null || !await ConfirmAsync("Delete Project",
+                    $"Delete \"{project.Name}\" and all of its conversations? This can't be undone. Files in its working directory are not affected."))
+                return;
+            await RunAsync("delete the project", async () =>
+            {
+                await _store.DeleteProjectAsync(project.Id);
+                foreach (var conversation in open) ForgetConversation(conversation);
+                Projects.Remove(project);
+                SelectedProject = Projects.FirstOrDefault();
+            });
+        }
+        catch (Exception e) { ErrorMessage = "Couldn't delete the project: " + e.Message; }
+        finally
+        {
+            foreach (var id in taken) _locks.Release(id);
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanSwitchFromSelectedProject))]
@@ -414,6 +573,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private async Task DeleteConversationAsync()
     {
         var conversation = SelectedConversation!;
+        if (!_locks.IsHeld(conversation.Id))
+        {
+            ErrorMessage = $"\"{conversation.Title}\" is open in another SharpTurns instance, so it can't be deleted here.";
+            return;
+        }
         if (_openConversations.TryGetValue(conversation.Id, out var open) && open.IsRunning)
         {
             ErrorMessage = "Stop the running turn before deleting this conversation.";
@@ -425,7 +589,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         await RunAsync("delete the conversation", async () =>
         {
             await _store.DeleteConversationAsync(conversation.Id);
-            if (_openConversations.Remove(conversation.Id, out var removed)) _ = removed.Dictation.CancelAsync();
+            if (_openConversations.TryGetValue(conversation.Id, out var removed)) ForgetConversation(removed);
             Conversations.Remove(conversation);
             SelectedConversation = Conversations.FirstOrDefault();
         });

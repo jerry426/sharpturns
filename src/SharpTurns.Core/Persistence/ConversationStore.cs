@@ -12,6 +12,7 @@ public sealed class ConversationStore
     public ConversationStore(string databasePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
+        DatabasePath = databasePath;
         _connectionString = new SqliteConnectionStringBuilder
         {
             DataSource = databasePath,
@@ -20,27 +21,53 @@ public sealed class ConversationStore
         }.ToString();
     }
 
-    /// <summary>Applies pending migrations and closes turns a previous run left open. Call once at startup.</summary>
+    public string DatabasePath { get; }
+
+    /// <summary>
+    /// Applies pending migrations. Call once at startup. Several instances can share the file, so each migration
+    /// re-reads the version inside its write transaction and skips one another instance already applied.
+    /// </summary>
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
         await ExecuteAsync(connection, null, "PRAGMA journal_mode = WAL", cancellationToken).ConfigureAwait(false);
-        var version = Convert.ToInt32(await ScalarAsync(connection, null, "PRAGMA user_version", cancellationToken)
-            .ConfigureAwait(false), CultureInfo.InvariantCulture);
-        if (version > Migrations.Scripts.Length)
-            throw new InvalidOperationException(
-                $"The database schema (version {version}) is newer than this build supports ({Migrations.Scripts.Length}).");
-        for (; version < Migrations.Scripts.Length; version++)
+        while (true)
         {
-            await using var transaction = connection.BeginTransaction();
+            // BEGIN IMMEDIATE, so a second instance waits here rather than applying the same migration.
+            await using var transaction = connection.BeginTransaction(deferred: false);
+            var version = Convert.ToInt32(await ScalarAsync(connection, transaction, "PRAGMA user_version", cancellationToken)
+                .ConfigureAwait(false), CultureInfo.InvariantCulture);
+            if (version > Migrations.Scripts.Length)
+                throw new InvalidOperationException(
+                    $"The database schema (version {version}) is newer than this build supports ({Migrations.Scripts.Length}).");
+            if (version == Migrations.Scripts.Length) break;
             await ExecuteAsync(connection, transaction, Migrations.Scripts[version], cancellationToken).ConfigureAwait(false);
             await ExecuteAsync(connection, transaction, $"PRAGMA user_version = {version + 1}", cancellationToken).ConfigureAwait(false);
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         }
-        // A single app instance runs at a time, so no live process still owns these turns.
-        await ExecuteAsync(connection, null,
-            "UPDATE conversation_turns SET status = 'failed', error_message = $message, finished_at = $now WHERE status = 'running'",
-            cancellationToken, ("$message", "The app closed before this turn finished."), ("$now", Now())).ConfigureAwait(false);
+    }
+
+    /// <summary>Conversations with a turn still marked running, by this instance or another, or by one that exited.</summary>
+    public async Task<IReadOnlyList<long>> ListConversationsWithRunningTurnsAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = Command(connection, null,
+            "SELECT DISTINCT conversation_id FROM conversation_turns WHERE status = 'running' ORDER BY conversation_id");
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        var ids = new List<long>();
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false)) ids.Add(reader.GetInt64(0));
+        return ids;
+    }
+
+    /// <summary>Closes the conversation's turns an exited instance left running. Call only while holding its lock.</summary>
+    public async Task FailRunningTurnsAsync(long conversationId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await ExecuteAsync(connection, null, """
+            UPDATE conversation_turns SET status = 'failed', error_message = $message, finished_at = $now
+            WHERE conversation_id = $conversation AND status = 'running'
+            """, cancellationToken, ("$conversation", conversationId), ("$message", "The app closed before this turn finished."),
+            ("$now", Now())).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<Project>> ListProjectsAsync(CancellationToken cancellationToken = default)
@@ -102,6 +129,18 @@ public sealed class ConversationStore
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             conversations.Add(ReadConversation(reader));
         return conversations;
+    }
+
+    /// <summary>Null when the conversation was deleted, for example by another instance.</summary>
+    public async Task<Conversation?> GetConversationAsync(long conversationId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = Command(connection, null, """
+            SELECT id, project_id, title, model, effort, updated_at, output_style, auto_summarize FROM conversations
+            WHERE id = $id
+            """, ("$id", conversationId));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        return await reader.ReadAsync(cancellationToken).ConfigureAwait(false) ? ReadConversation(reader) : null;
     }
 
     /// <summary>A null model or effort leaves the choice to the CLI's own default. New conversations start with Auto-Summarize on.</summary>

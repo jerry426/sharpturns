@@ -1,0 +1,85 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SharpTurns.InstanceManager.App.ViewModels"
+        x:Class="SharpTurns.InstanceManager.App.Views.MainWindow"
+        x:DataType="vm:InstanceManagerViewModel"
+        Title="SharpTurns Instance Manager"
+        Width="380" Height="860" MinWidth="340" MaxWidth="460" MinHeight="560"
+        Background="#0e1118"
+        WindowStartupLocation="CenterScreen">
+  <!-- The Workbench's Instance Manager with one list of instances in place of its MAIN and DEV sections. -->
+  <Grid RowDefinitions="Auto,*,Auto">
+
+    <Border Grid.Row="0" Padding="14,11" Background="#151923">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <StackPanel Grid.Column="0" Spacing="1">
+          <TextBlock Text="SharpTurns" FontSize="17" FontWeight="SemiBold" Foreground="#F4F7FB" />
+          <TextBlock Text="INSTANCE MANAGER" FontSize="10" FontWeight="Bold" Foreground="#8792A8" />
+        </StackPanel>
+        <Button Grid.Column="1"
+                Classes="secondaryBtn"
+                Content="Detach All"
+                Command="{Binding DetachCommand}"
+                IsEnabled="{Binding HasLinkedInstance}"
+                VerticalAlignment="Center"
+                ToolTip.Tip="Return all linked SharpTurns instances to standalone mode" />
+        <Button Grid.Column="2"
+                Classes="launchBtn"
+                Content="+ Launch"
+                Command="{Binding LaunchCommand}"
+                IsEnabled="{Binding CanLaunch}"
+                VerticalAlignment="Center"
+                ToolTip.Tip="Start another SharpTurns instance from this repository with dotnet run" />
+      </Grid>
+    </Border>
+
+    <ScrollViewer Grid.Row="1">
+      <Grid x:Name="ListOverlay" Margin="8">
+        <ItemsControl x:Name="InstanceList" ItemsSource="{Binding Instances}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="vm:InstanceCardViewModel">
+              <Border Classes="cardPanel"
+                      Classes.selected="{Binding IsSelected}"
+                      BorderBrush="{Binding ProjectBorderColor}"
+                      Margin="0,0,0,7"
+                      ToolTip.Tip="Click to link and select, or drag to reorder"
+                      PointerPressed="Card_PointerPressed"
+                      PointerMoved="Card_PointerMoved"
+                      PointerReleased="Card_PointerReleased">
+                <StackPanel Spacing="3">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{Binding ProjectTitle, TargetNullValue='(no project)'}" FontSize="13" FontWeight="SemiBold" Foreground="#00E5FF" TextTrimming="CharacterEllipsis" />
+                    <Border Grid.Column="1" Classes="linkedBadge" IsVisible="{Binding IsLinked}">
+                      <TextBlock Text="LINKED" FontSize="9" FontWeight="Bold" Foreground="#42E38F" />
+                    </Border>
+                  </Grid>
+                  <TextBlock Text="{Binding ConversationTitle, TargetNullValue='(no conversation)'}" FontSize="17" Foreground="#FFD54A" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Text="{Binding ConversationModel}" FontSize="11" Foreground="#AAB3C5" TextTrimming="CharacterEllipsis" IsVisible="{Binding HasConversationModel}" />
+                  <Grid ColumnDefinitions="Auto,Auto,*" Margin="0,3,0,0">
+                    <TextBlock Text="{Binding PidLabel}" FontSize="15" Foreground="#FFFFFF" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding HeartbeatLabel}" Margin="9,0,0,0" FontSize="15" Foreground="#FFFFFF" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2" Text="{Binding CpuLabel}" Margin="9,0,0,0" MinWidth="100" TextAlignment="Right" FontSize="13" Foreground="#FFFFFF" VerticalAlignment="Center"
+                               ToolTip.Tip="SharpTurns process CPU, sampled every 2 seconds. 100% = one logical core; may exceed 100%. Excludes child processes such as claude. — = waiting for samples or unavailable." />
+                  </Grid>
+                  <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,2,0,0" IsVisible="{Binding TurnActive}">
+                    <TextBlock Text="● turn in progress" FontSize="10" FontWeight="SemiBold" Foreground="#FFB454" VerticalAlignment="Center" />
+                    <ProgressBar Classes="turnProgressBar" IsIndeterminate="{Binding TurnActive}" Width="90" Height="4" VerticalAlignment="Center" />
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,5,0,0">
+                    <Button Classes="stopBtn" Content="End Process" Command="{Binding StopCommand}" ToolTip.Tip="End the running process (disabled while a turn or summary is running in any of its conversations)" />
+                    <Button Classes="secondaryBtn" Content="Reload" Command="{Binding ReloadCommand}" ToolTip.Tip="Restart this SharpTurns instance to pick up development changes, reopening the same project and conversation. Disabled while a turn or summary is running." />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Border x:Name="DropIndicator" Classes="dropIndicator" />
+      </Grid>
+    </ScrollViewer>
+
+    <Border Grid.Row="2" Padding="12,7" Background="#0b0e14">
+      <TextBlock Text="{Binding StatusText}" FontSize="11" Foreground="#8792A8" TextWrapping="Wrap" MaxHeight="44" />
+    </Border>
+  </Grid>
+</Window>

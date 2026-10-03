@@ -15,7 +15,8 @@ credentials.
 
 Out of scope unless the maintainer agrees otherwise: other model providers, an
 in-app tool runtime, other databases, document management, multi-agent
-features, browser automation, and IDE integrations.
+features, browser automation, and IDE integrations. The optional Instance
+Manager (see Multiple instances) manages SharpTurns windows only.
 
 There are no prebuilt binaries. Users build from source, typically with their
 CLI's help (see the README).
@@ -29,7 +30,9 @@ src/
   SharpTurns.App                  Avalonia app: views, view models, services, composition root
   SharpTurns.ClaudeCli            CLI process client and stream-json protocol; no UI or persistence deps
   SharpTurns.Core                 conversation records, replay seeding and fingerprints, context and compression logic
-    Persistence/                  SQLite store and numbered migrations
+    Persistence/                  SQLite store, numbered migrations, and conversation locks
+    InstanceManagement/           local IPC and window-linking geometry shared with the Instance Manager
+  SharpTurns.InstanceManager.App  optional Instance Manager, run on its own
   SharpTurns.Markdown.Rendering   Markdown rendering controls (LiveMarkdown.Avalonia, Markdig)
   SharpTurns.MarkdownViewer.App   standalone viewer, launched as a separate process
 tests/
@@ -210,6 +213,54 @@ from isn't stored, since nothing shows it.
 - Deleting a conversation or closing the app stops its recorder, so no
   recorder process outlives it.
 
+## Multiple instances
+
+- **One conversation, one instance.** Two instances writing to one
+  conversation would collide on turn numbers, the CLI session, and the replay.
+  So each instance holds a lock file for the conversation it shows, and for any
+  conversation still running a turn, an Auto-Summarize, or a compression
+  (`ConversationLocks`, a `locks` folder beside the database). The file is
+  open with `FileShare.None`, so the OS releases it if the instance exits or
+  crashes.
+- **Switching away from an idle conversation releases it,** so another
+  instance can open it. One that selects a held conversation shows why and
+  checks every second until it's free.
+- **Taking a conversation back reloads it only if another instance held it
+  meanwhile.** Each holder writes a new token into the lock file, so finding
+  its own token means nothing changed, and the turn cards keep their state.
+  The composer's draft and images survive a reload.
+- **Turns left `running` are failed at startup only if their conversation's
+  lock is free,** since a live instance may still be running them. The lock is
+  held while they're closed, so no instance starts a turn there meanwhile.
+- Deleting a conversation, or a project with one, that another instance holds
+  is refused.
+- Other state isn't shared live: each instance reads the conversation list
+  when a project is selected, and preferences at startup.
+
+### Instance Manager
+
+`SharpTurns.InstanceManager.App` is a separate, optional app that lists the
+running instances and docks their windows beside its own.
+
+- **Reporting.** Each instance sends its project, open conversation, model,
+  and whether a turn or summary is running over a per-user local socket
+  (a named pipe on Windows), on every change and as a 5-second heartbeat. The
+  manager drops an instance it hasn't heard from in 20 seconds. Without a
+  manager the reports simply fail and retry.
+- **Linking.** The manager links every instance it discovers through a
+  per-process window-control endpoint. Each instance keeps ownership of its
+  own window and applies the bounds the manager sends; the manager follows
+  the window the user moves or resizes. The linked window's left edge sits on
+  the manager's right edge, and both share one top and height. Detaching, or
+  losing the connection, restores the window's own bounds.
+- **Launch and Reload** run `dotnet run --project src/SharpTurns.App` from the
+  repository above the manager's build folder. On Windows they pass
+  `--no-build`, since running instances lock the build output. Reload ends the
+  instance first, so its conversation lock is free for the replacement, which
+  opens that project and conversation from `SHARPTURNS_APP_STARTUP_SESSION`.
+- **End Process and Reload** wait for running turns and summaries, then end
+  the instance's whole process tree.
+
 ## Persistence
 
 - One SQLite file, `sharpturns.db`, in WAL mode, under the per-user local
@@ -217,8 +268,9 @@ from isn't stored, since nothing shows it.
 - Numbered migrations in `Persistence/Migrations.cs`, tracked by
   `PRAGMA user_version`. A schema newer than the build supports is refused.
   Merged migrations are never edited.
-- `sharpturns.lock`, held open beside the database, limits the app to one
-  running instance. At startup, turns left `running` are marked failed.
+- Several instances can share the database (see Multiple instances). Each
+  migration re-reads the schema version inside an immediate transaction, so
+  two instances starting at once don't apply the same one twice.
 - Response parts are written when a turn ends; the prompt and images when it
   starts.
 - Core references `SQLitePCLRaw.bundle_e_sqlite3` directly to override the
@@ -233,6 +285,12 @@ from isn't stored, since nothing shows it.
   Renaming or deleting an ID moves the conversations and settings that use it.
 - **MCP servers** can be defined in Config, but are not yet passed to turns;
   turns deny `mcp__*` tools until they are.
+- **The main window** opens at the Preferences startup size, centered on the
+  monitor it was last moved to (`startup_window_screen`: the monitor's name
+  and bounds). The monitor is saved when the window reaches it, not on close,
+  because not every way out of the app closes the window first. It falls
+  back to the main display when that monitor is gone. With several
+  instances, the last one moved to another monitor decides.
 - **Display settings** (font size, background, text brightness, Markdown and
   monospace toggles) are shared by every conversation and reset on restart.
 - **Notes** are never sent to Claude.

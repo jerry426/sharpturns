@@ -89,6 +89,8 @@ focused on what matters, and fewer tokens sent with every request.
 - **Extras**: notes, search, user message history, Markdown and DOCX export,
   and a separate Markdown Viewer.
 - **Dictation** with your own Deepgram API key (optional).
+- **Several instances at once**, with an optional Instance Manager that docks
+  them beside it and launches, reloads, and ends them.
 
 ## How it uses the CLI
 
@@ -169,7 +171,9 @@ it must be the native `claude.exe`, not a `.cmd` or shell wrapper.
   `SharpTurns` folder under your local app-data directory:
   `~/Library/Application Support` on macOS, `%LOCALAPPDATA%` on Windows, and
   `~/.local/share` on Linux. This includes your conversations, the images you
-  attach, and your settings.
+  attach, and your settings. A `locks` folder beside it holds a small file for
+  each conversation you've opened, which keeps two instances out of the same
+  conversation.
 - **The Deepgram API key is stored in plain text** in that database. Anyone who
   can read the file can read the key.
 - Turns go through the CLI. SharpTurns itself only connects to the network to
@@ -188,6 +192,38 @@ Two environment variables override the recorder:
 
 - `SHARPTURNS_AUDIO_RECORDER_PATH`: the recorder executable.
 - `SHARPTURNS_AUDIO_INPUT_DEVICE`: the input device to record from.
+
+## Several instances and the Instance Manager
+
+You can run several SharpTurns instances at once, for example one per
+conversation. A conversation is open in one instance at a time. Another
+instance that selects it waits, and opens it as soon as the first switches to a
+different conversation or closes. A conversation with a turn or summary still
+running stays with its instance until that finishes.
+
+The optional **SharpTurns Instance Manager** keeps track of them. Start it from
+the repository root:
+
+```sh
+./run-instance-manager.sh                                  # macOS and Linux
+dotnet run --project src/SharpTurns.InstanceManager.App    # any platform
+```
+
+- **Cards:** each running instance has one, showing its project, conversation,
+  model, process ID, and CPU use. Drag a card to reorder the list.
+- **Docking:** the manager links every instance it finds. A linked window's
+  left edge sits on the manager's right edge, and moving or vertically resizing
+  either one moves or resizes the other, so they stay the same height. Clicking
+  a card brings its instance to the front. **Detach All** puts the windows back
+  where they were.
+- **+ Launch** starts another instance from this repository with `dotnet run`.
+- **Reload** restarts an instance and reopens its project and conversation, so
+  it picks up changes to the source. **End Process** ends it. Both are disabled
+  while a turn or summary is running in it, and an unsent draft is lost.
+
+On macOS and Linux, Launch and Reload build the app first. On Windows they run
+the existing build, since running instances lock its files, so build it before
+reloading.
 
 ## License
 

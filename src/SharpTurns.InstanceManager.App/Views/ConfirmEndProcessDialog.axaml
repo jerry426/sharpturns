@@ -1,0 +1,20 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="SharpTurns.InstanceManager.App.Views.ConfirmEndProcessDialog"
+        Title="End Process?"
+        Width="460" Height="230"
+        CanResize="False"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="#0e1118">
+  <Grid RowDefinitions="*,Auto" Margin="22,20,22,18">
+    <StackPanel Grid.Row="0" Spacing="10">
+      <TextBlock x:Name="HeadingText" Text="End this SharpTurns instance?" FontSize="16" FontWeight="SemiBold" Foreground="#F4F7FB" />
+      <TextBlock x:Name="MessageText" FontSize="12" Foreground="#CFD7E6" TextWrapping="Wrap" />
+    </StackPanel>
+    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,16,0,0">
+      <Button Content="Cancel" Click="OnCancel" MinWidth="86" Padding="14,8" />
+      <Button x:Name="ConfirmButton" Classes="stopBtn" Content="End Process" Click="OnConfirm" MinWidth="112" FontSize="13" Padding="14,8" />
+    </StackPanel>
+  </Grid>
+</Window>

@@ -84,6 +84,9 @@ public sealed partial class ConversationViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(BranchThroughSelectedTurnCommand))]
     private bool _isCompressing;
 
+    // A completed turn's Auto-Summarize is about to start.
+    private bool _summarizeNext;
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SendCommand))]
     private bool _isAddingImage;
@@ -226,6 +229,12 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     public string SendLabel => IsRunning ? "Queue" : "Send";
 
+    /// <summary>
+    /// No turn, Auto-Summarize, or compression is running, so the saved conversation won't change until the user acts.
+    /// Read when IsRunning or IsCompressing changes.
+    /// </summary>
+    public bool IsIdle => !IsRunning && !IsCompressing && !_summarizeNext;
+
     // The header's Notes button, as in the Workbench.
     public string NotesLabel => NotesCount > 0 ? string.Create(CultureInfo.CurrentCulture, $"📝 Notes ({NotesCount:N0})") : "📝 Notes";
 
@@ -298,6 +307,24 @@ public sealed partial class ConversationViewModel : ObservableObject
             NotesCount = await _store.CountNotesAsync(Conversation.Id);
         }
         catch (Exception e) { Status = "Couldn't load this conversation: " + e.Message; }
+    }
+
+    /// <summary>
+    /// Takes the saved settings and turns afresh, since another SharpTurns instance may have changed them while this one
+    /// didn't hold the conversation. The composer's draft and images stay.
+    /// </summary>
+    public async Task ReloadAsync(Conversation conversation)
+    {
+        // The pickers' saves compare with Conversation, so setting it first keeps them from writing back.
+        Conversation = conversation;
+        Title = conversation.Title;
+        SelectedModel = conversation.Model;
+        SelectedEffort = conversation.Effort ?? DefaultEffort;
+        SelectedOutputStyle = conversation.OutputStyle ?? DefaultOutputStyle;
+        AutoSummarize = conversation.AutoSummarize;
+        _branchEndpoints.Clear();
+        _selectionAnchor = null;
+        await LoadAsync();
     }
 
     public void ApplyRename(Conversation conversation)
@@ -409,8 +436,10 @@ public sealed partial class ConversationViewModel : ObservableObject
             // Finish first: clearing IsRunning re-checks the card commands, which need the finished record.
             turn.Finish(result.Turn);
             OnPropertyChanged(nameof(LastReportedInputLabel));
-            IsRunning = false;
             completed = result.Turn.Status == TurnStatus.Completed;
+            // Set before IsRunning clears, so the conversation never looks idle between the turn and its summary.
+            _summarizeNext = completed && AutoSummarize;
+            IsRunning = false;
             // As in the Workbench, only a turn that completes plays the sound.
             if (completed) Preferences.Sounds.PlayNotification(AppSoundNotificationKind.ConversationTurnFinished);
             QueuedMessages.Clear();
@@ -443,7 +472,7 @@ public sealed partial class ConversationViewModel : ObservableObject
             TurnContentChanged?.Invoke(this, EventArgs.Empty);
         }
         // Stopped and failed turns stay as they are, so the user can see what happened and retry.
-        if (completed && AutoSummarize) await CompressAsync(turn, automatic: true);
+        if (_summarizeNext) await CompressAsync(turn, automatic: true);
     }
 
     private void StartElapsed()
@@ -568,6 +597,7 @@ public sealed partial class ConversationViewModel : ObservableObject
     {
         var record = turn.Record!;
         IsCompressing = true;
+        _summarizeNext = false;
         turn.IsCompressing = true;
         Status = automatic ? $"Auto-summarizing turn {record.TurnNumber}…" : $"Compressing turn {record.TurnNumber}…";
         try
