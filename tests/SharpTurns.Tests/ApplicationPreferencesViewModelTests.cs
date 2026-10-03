@@ -63,6 +63,36 @@ public sealed class ApplicationPreferencesViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task SavingTheClaudePathChecksItsVersion()
+    {
+        if (OperatingSystem.IsWindows()) return; // The fake CLI is a POSIX shell script.
+        Directory.CreateDirectory(_directory);
+        var store = new ConversationStore(Path.Combine(_directory, "test.db"));
+        await store.InitializeAsync();
+        var preferences = new ApplicationPreferencesViewModel(store);
+        await preferences.LoadAsync();
+        var claude = Path.Combine(_directory, "claude");
+
+        async Task<string> SaveAsync(string script)
+        {
+            await File.WriteAllTextAsync(claude, "#!/bin/sh\n" + script);
+            File.SetUnixFileMode(claude, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            preferences.ClaudePathText = claude;
+            await preferences.SaveClaudePathCommand.ExecuteAsync(null);
+            return preferences.ClaudeCliMessage;
+        }
+
+        Assert.Equal($"Saved. Turns and summaries run {claude}, version 2.1.290.", await SaveAsync("echo '2.1.290 (Claude Code)'\n"));
+        Assert.Equal($"Saved. SharpTurns needs Claude Code {ClaudeCliVersion.Minimum} or later, but {claude} is version 2.1.100. "
+            + "Run `claude update` to update it.", await SaveAsync("echo '2.1.100 (Claude Code)'\n"));
+        Assert.EndsWith("didn't report a version.", await SaveAsync("echo 'unknown'\n"));
+        // The path stays saved when the check fails; the startup check returns the problem for the window's banner.
+        Assert.Equal(claude, preferences.ClaudePath);
+        File.SetUnixFileMode(claude, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        Assert.Contains("couldn't run", await preferences.CheckClaudeCliAsync());
+    }
+
+    [Fact]
     public async Task CliSettingsAreSavedAndReloaded()
     {
         Directory.CreateDirectory(_directory);

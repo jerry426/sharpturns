@@ -211,7 +211,12 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
             ApplyClaudePath(path);
             ClaudeCliMessage = "Saved. " + UsingClaudePathLabel(path);
         }
-        catch (Exception e) { ClaudeCliMessage = "Couldn't save the claude path: " + e.Message; }
+        catch (Exception e)
+        {
+            ClaudeCliMessage = "Couldn't save the claude path: " + e.Message;
+            return;
+        }
+        await CheckClaudeCliAsync("Saved. ");
     }
 
     private void ApplyClaudePath(string? path)
@@ -220,9 +225,40 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
         ClaudePathText = path ?? "";
     }
 
-    private static string UsingClaudePathLabel(string? path) => path is null
-        ? "Turns and summaries run claude from your PATH."
-        : $"Turns and summaries run {path}.";
+    /// <summary>
+    /// Runs <c>claude --version</c> for the saved path and shows the outcome in the Claude CLI section. Returns why turns
+    /// may fail (claude can't be run, or is older than <see cref="ClaudeCliVersion.Minimum"/>), or null. Owns its errors.
+    /// </summary>
+    internal async Task<string?> CheckClaudeCliAsync(string messagePrefix = "")
+    {
+        var path = ClaudePath;
+        var claude = path ?? "the claude on your PATH";
+        var needs = $"SharpTurns needs Claude Code {ClaudeCliVersion.Minimum} or later";
+        Version? version = null;
+        string? problem;
+        try
+        {
+            version = await ClaudeCliVersion.ReadAsync(path);
+            problem = version is null ? $"{needs}, but {claude} didn't report a version."
+                : version < ClaudeCliVersion.Minimum ? $"{needs}, but {claude} is version {version}. Run `claude update` to update it."
+                : null;
+        }
+        catch (Exception e)
+        {
+            // A failed start's message repeats the path and working directory; the OS's own reason is enough.
+            var reason = e is System.ComponentModel.Win32Exception start
+                ? new System.ComponentModel.Win32Exception(start.NativeErrorCode).Message : e.Message;
+            problem = $"{needs}, but it couldn't run {claude}: {reason.TrimEnd('.')}. Install it, or enter its full path in Config → Preferences.";
+        }
+        // A save during the check runs its own.
+        if (path != ClaudePath) return null;
+        ClaudeCliMessage = messagePrefix + (problem ?? UsingClaudePathLabel(path, version));
+        return problem;
+    }
+
+    private static string UsingClaudePathLabel(string? path, Version? version = null) =>
+        (path is null ? "Turns and summaries run claude from your PATH" : $"Turns and summaries run {path}")
+        + (version is null ? "." : $", version {version}.");
 
     // A picker whose list changed passes null until its selection is restored.
     partial void OnNewConversationModelChanged(string? value)

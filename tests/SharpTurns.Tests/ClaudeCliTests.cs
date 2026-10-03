@@ -27,6 +27,13 @@ public sealed class ClaudeCliTests : IDisposable
     }
 
     [Theory]
+    [InlineData("2.1.288 (Claude Code)\n", "2.1.288")]
+    [InlineData("claude 3.0.12", "3.0.12")]
+    [InlineData("Claude Code\n", null)]
+    public void VersionIsReadFromTheVersionOutput(string output, string? expected) =>
+        Assert.Equal(expected is null ? null : Version.Parse(expected), ClaudeCliVersion.Parse(output));
+
+    [Theory]
     [InlineData("""{"type":"assistant","message":{"content":[{"type":"text","text":"duplicate"}]}}""")]
     [InlineData("""{"type":"result","result":"duplicate"}""")]
     [InlineData("""{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"thinking_delta","thinking":"private"}}}""")]

@@ -165,8 +165,15 @@ public sealed partial class MainWindowViewModel : ObservableObject
             }
             SelectedProject = Projects.FirstOrDefault(p => p.Id == lastProject) ?? Projects.FirstOrDefault();
             if (SelectedProject is null) SelectedTabIndex = 0;
+            _ = CheckClaudeCliAsync();
         }
         catch (Exception e) { ErrorMessage = "Couldn't open the database: " + e.Message; }
+    }
+
+    // The window opens without waiting for it; the preferences' check owns its errors.
+    private async Task CheckClaudeCliAsync()
+    {
+        if (await Preferences.CheckClaudeCliAsync() is { } problem) ErrorMessage ??= problem;
     }
 
     /// <summary>Also stops a dictation recorder, which would otherwise outlive the app.</summary>

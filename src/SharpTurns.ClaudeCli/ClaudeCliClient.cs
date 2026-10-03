@@ -17,8 +17,10 @@ public sealed class ClaudeCliClient
     private readonly string _executable;
     private int _running;
 
-    public ClaudeCliClient(string? executable = null) =>
-        _executable = executable ?? (OperatingSystem.IsWindows() ? "claude.exe" : "claude");
+    public ClaudeCliClient(string? executable = null) => _executable = executable ?? DefaultExecutable;
+
+    /// <summary>claude from the PATH.</summary>
+    internal static string DefaultExecutable => OperatingSystem.IsWindows() ? "claude.exe" : "claude";
 
     public async Task<ClaudeCliResult> RunTurnAsync(
         string workingDirectory,
