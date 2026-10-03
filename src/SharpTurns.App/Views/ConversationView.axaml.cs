@@ -85,6 +85,13 @@ public sealed partial class ConversationView : UserControl
             e.Handled = true;
             if (_viewModel?.SendCommand.CanExecute(null) == true) _viewModel.SendCommand.Execute(null);
         }
+        else if (command && e.Key is Key.D1 or Key.NumPad1)
+        {
+            // Voice, as in the Workbench.
+            e.Handled = true;
+            if (_viewModel?.Dictation.ToggleRecordingCommand.CanExecute(null) == true)
+                _ = _viewModel.Dictation.ToggleRecordingCommand.ExecuteAsync(null);
+        }
         else if (command && e.Key == Key.V)
         {
             // Clipboard formats can only be read asynchronously, so take over the paste and fall back to text.

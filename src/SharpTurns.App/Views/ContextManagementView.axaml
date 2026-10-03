@@ -150,10 +150,10 @@
               <Button Classes="secondaryActionButton contextAction delete" Content="{Binding DeleteSelectedTurnsLabel}"
                       Command="{Binding DeleteSelectedTurnsCommand}"
                       ToolTip.Tip="Permanently delete the selected turns and everything saved with them, after confirming" />
-              <Button Classes="secondaryActionButton contextAction branch" Content="{Binding BranchRangeLabel}"
+              <Button Classes="secondaryActionButton contextAction branch dictationLocked" Content="{Binding BranchRangeLabel}"
                       Command="{Binding BranchSelectedRangeCommand}"
                       ToolTip.Tip="Copy the selected contiguous range of turns into a new branched conversation." />
-              <Button Classes="secondaryActionButton contextAction branch" Content="{Binding BranchThroughLabel}"
+              <Button Classes="secondaryActionButton contextAction branch dictationLocked" Content="{Binding BranchThroughLabel}"
                       Command="{Binding BranchThroughSelectedTurnCommand}"
                       ToolTip.Tip="Copy every turn from the start of this conversation through the single selected turn into a new branched conversation." />
             </WrapPanel>

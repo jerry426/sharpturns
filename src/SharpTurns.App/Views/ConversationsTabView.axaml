@@ -23,7 +23,8 @@
         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
           <TextBlock Text="Project:" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="16"
                      VerticalAlignment="Center" />
-          <ComboBox Grid.Column="1" ItemsSource="{Binding Projects}" SelectedItem="{Binding SelectedProject}"
+          <ComboBox Grid.Column="1" Classes="dictationLocked" ItemsSource="{Binding Projects}" SelectedItem="{Binding SelectedProject}"
+                    IsEnabled="{Binding !IsDictationBusy}"
                     BorderBrush="{Binding ProjectBorderColor}" MinHeight="40" FontSize="14" FontWeight="SemiBold"
                     HorizontalAlignment="Stretch" ToolTip.Tip="The project whose conversations are listed">
             <ComboBox.ItemTemplate>
@@ -36,7 +37,7 @@
                   MinWidth="40" MinHeight="40" Padding="0" FontSize="24" ToolTip.Tip="Hide the conversations sidebar" />
         </Grid>
 
-        <Button Grid.Row="1" Classes="primaryActionButton" Content="+ New Conversation" Command="{Binding NewConversationCommand}"
+        <Button Grid.Row="1" Classes="primaryActionButton dictationLocked" Content="+ New Conversation" Command="{Binding NewConversationCommand}"
                 HorizontalAlignment="Right" ToolTip.Tip="Create a conversation in this project" />
 
         <Border Grid.Row="2" Classes="card" BorderBrush="{Binding ProjectBorderColor}" CornerRadius="12" Padding="12"
@@ -49,7 +50,7 @@
                       Width="34" Height="34" Padding="0" ToolTip.Tip="Rename this conversation">
                 <PathIcon Width="16" Height="16" Data="{StaticResource EditIconGeometry}" />
               </Button>
-              <Button Grid.Column="2" Classes="dangerActionButton" Command="{Binding DeleteConversationCommand}"
+              <Button Grid.Column="2" Classes="dangerActionButton dictationLocked" Command="{Binding DeleteConversationCommand}"
                       Width="34" Height="34" Padding="0" ToolTip.Tip="Delete this conversation">
                 <PathIcon Width="16" Height="16" Data="{StaticResource DeleteIconGeometry}" />
               </Button>
@@ -114,15 +115,19 @@
           </Grid>
         </Border>
 
-        <TextBlock Grid.Row="4" Text="{Binding OtherConversationsLabel}" Foreground="{DynamicResource TextSubtleBrush}" FontSize="11"
-                   IsVisible="{Binding SelectedProject, Converter={x:Static ObjectConverters.IsNotNull}}" />
+        <StackPanel Grid.Row="4" Spacing="4">
+          <TextBlock Text="Finish dictating before switching conversations, projects, or tabs." IsVisible="{Binding IsDictationBusy}"
+                     Foreground="{DynamicResource TextYellowBrush}" FontSize="12" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding OtherConversationsLabel}" Foreground="{DynamicResource TextSubtleBrush}" FontSize="11"
+                     IsVisible="{Binding SelectedProject, Converter={x:Static ObjectConverters.IsNotNull}}" />
+        </StackPanel>
 
         <ScrollViewer Grid.Row="5" HorizontalScrollBarVisibility="Disabled">
           <!-- Reserve the scrollbar gap during measurement; ScrollViewer padding is only applied during arrangement. -->
           <ItemsControl ItemsSource="{Binding OtherConversations}" Margin="0,0,8,0">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="core:Conversation">
-                <Button Classes="cardButton" Margin="0,0,0,10" ToolTip.Tip="{Binding Title}"
+                <Button Classes="cardButton dictationLocked" Margin="0,0,0,10" ToolTip.Tip="{Binding Title}"
                         Command="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).SelectConversationCommand}"
                         CommandParameter="{Binding}">
                   <Border Classes="card"

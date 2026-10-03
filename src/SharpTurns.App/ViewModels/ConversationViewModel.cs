@@ -38,6 +38,10 @@ public sealed partial class ConversationViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(ClearComposerCommand))]
     private string _composerText = "";
 
+    /// <summary>Where dictation inserts its transcript.</summary>
+    [ObservableProperty]
+    private int _composerCaretIndex;
+
     /// <summary>Elapsed time of the latest turn started in this session, as mm:ss; empty until one starts.</summary>
     [ObservableProperty]
     private string _elapsedText = "";
@@ -107,12 +111,13 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     /// <summary>
     /// conversationUpdated receives the conversation when a turn starts and moves its updated time. conversationBranched
-    /// receives a new branch of this conversation and the status line to show in it.
+    /// receives a new branch of this conversation and the status line to show in it. Every conversation shares dictation's
+    /// service.
     /// </summary>
     internal ConversationViewModel(Conversation conversation, Project project, ConversationStore store, ClaudeTurnRunner runner,
         TurnSummarizer summarizer, ConversationDisplayViewModel display, ApplicationPreferencesViewModel preferences,
-        Action<ClaudeCliRateLimitSnapshot> rateLimitsChanged, Action<Conversation> conversationUpdated,
-        Action<Conversation, string> conversationBranched)
+        DeepgramDictationService dictationService, Action<ClaudeCliRateLimitSnapshot> rateLimitsChanged,
+        Action<Conversation> conversationUpdated, Action<Conversation, string> conversationBranched)
     {
         Conversation = conversation;
         Project = project;
@@ -129,6 +134,16 @@ public sealed partial class ConversationViewModel : ObservableObject
         _selectedEffort = conversation.Effort ?? DefaultEffort;
         _selectedOutputStyle = conversation.OutputStyle ?? DefaultOutputStyle;
         _autoSummarize = conversation.AutoSummarize;
+        Dictation = new DictationViewModel(dictationService, () => ComposerText, value => ComposerText = value,
+            () => ComposerCaretIndex, value => ComposerCaretIndex = value);
+        Dictation.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != nameof(DictationViewModel.IsBusy)) return;
+            SendCommand.NotifyCanExecuteChanged();
+            ToggleBranchEndpointCommand.NotifyCanExecuteChanged();
+            BranchSelectedRangeCommand.NotifyCanExecuteChanged();
+            BranchThroughSelectedTurnCommand.NotifyCanExecuteChanged();
+        };
         Turns.CollectionChanged += (_, e) =>
         {
             // Removed turns are gone for good, so only new ones need the selection hook; a deleted endpoint is dropped.
@@ -165,6 +180,9 @@ public sealed partial class ConversationViewModel : ObservableObject
     public Project Project { get; set; }
 
     public ConversationDisplayViewModel Display { get; }
+
+    /// <summary>The composer's Voice, confidence, and Undo.</summary>
+    public DictationViewModel Dictation { get; }
 
     /// <summary>
     /// Shared by every conversation: the system prompt, the Notes and Markdown Viewer window sizes, and the DOCX export
@@ -309,10 +327,15 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     private bool CanClearComposer() => ComposerText.Length > 0;
 
+    // As in the Workbench, clearing also drops dictation's undo history, whose snapshots no longer match the composer.
     [RelayCommand(CanExecute = nameof(CanClearComposer))]
-    private void ClearComposer() => ComposerText = "";
+    private void ClearComposer()
+    {
+        ComposerText = "";
+        Dictation.ClearUndoHistory();
+    }
 
-    private bool CanSend() => !string.IsNullOrWhiteSpace(ComposerText) && !IsAddingImage && !IsCompressing
+    private bool CanSend() => !string.IsNullOrWhiteSpace(ComposerText) && !IsAddingImage && !IsCompressing && !Dictation.IsBusy
         && (!IsRunning || QueuedMessages.Count < ClaudeCliInputQueue.Capacity);
 
     // Concurrent: Send stays available during a turn to queue messages for it.
@@ -326,6 +349,7 @@ public sealed partial class ConversationViewModel : ObservableObject
             {
                 QueuedMessages.Add(queued!);
                 ComposerText = "";
+                Dictation.ClearStateAfterSend();
             }
             else Status = "The turn is finishing; send this message as the next turn.";
             return;
@@ -333,6 +357,7 @@ public sealed partial class ConversationViewModel : ObservableObject
 
         var images = Attachments.Select(a => a.Attachment).ToArray();
         ComposerText = "";
+        Dictation.ClearStateAfterSend();
         Attachments.Clear();
         var turn = new TurnViewModel(prompt, images) { IsWorkSummaryExpanded = Display.IsWorkSummaryExpanded };
         Turns.Add(turn);

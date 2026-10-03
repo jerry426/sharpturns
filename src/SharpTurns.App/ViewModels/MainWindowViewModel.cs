@@ -16,6 +16,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private readonly ConversationStore _store;
     private readonly ClaudeTurnRunner _runner;
     private readonly TurnSummarizer _summarizer;
+    // One microphone, so one recording at a time across every conversation's composer.
+    private readonly DeepgramDictationService _dictation;
     // Kept while the app runs, so a turn keeps streaming when another conversation is shown.
     private readonly Dictionary<long, ConversationViewModel> _openConversations = [];
     private long? _conversationToRestore;
@@ -43,7 +45,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private bool _isConversationSidebarOpen = true;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasNoConversation))]
+    [NotifyPropertyChangedFor(nameof(HasNoConversation), nameof(IsDictationBusy))]
     private ConversationViewModel? _currentConversation;
 
     [ObservableProperty]
@@ -58,13 +60,19 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsWaitingForPlanUsage))]
     private ClaudeCliRateLimitSnapshot? _planUsage;
 
+    /// <summary>Without a dictation service, one is made with this platform's recorder and the saved Deepgram key.</summary>
     internal MainWindowViewModel(ConversationStore store, ClaudeTurnRunner runner, TurnSummarizer summarizer,
-        ApplicationPreferencesViewModel preferences)
+        ApplicationPreferencesViewModel preferences, DeepgramDictationService? dictation = null)
     {
         _store = store;
         _runner = runner;
         _summarizer = summarizer;
         Preferences = preferences;
+        _dictation = dictation ?? DeepgramDictationService.Create(() => preferences.ApiKeys.DeepgramApiKey);
+        preferences.ApiKeys.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ApiKeysConfigViewModel.IsConfigured)) _dictation.NotifyConfigurationChanged();
+        };
         preferences.Models.ModelsChanged += OnModelsChanged;
         Projects.CollectionChanged += (_, _) =>
         {
@@ -113,6 +121,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
         ? "Create a project on the Projects tab to get started."
         : "Create a conversation to get started.";
 
+    /// <summary>
+    /// Recording or transcribing in the shown conversation. Switching conversations or projects waits for it, so the
+    /// transcript lands in the composer on screen.
+    /// </summary>
+    public bool IsDictationBusy => CurrentConversation?.Dictation.IsBusy == true;
+
     public bool HasError => ErrorMessage is not null;
 
     public bool HasPlanUsage => PlanUsage is not null;
@@ -155,18 +169,25 @@ public sealed partial class MainWindowViewModel : ObservableObject
         catch (Exception e) { ErrorMessage = "Couldn't open the database: " + e.Message; }
     }
 
+    /// <summary>Also stops a dictation recorder, which would otherwise outlive the app.</summary>
     public void CancelRunningTurns()
     {
-        foreach (var conversation in _openConversations.Values) conversation.CancelTurn();
+        foreach (var conversation in _openConversations.Values)
+        {
+            conversation.CancelTurn();
+            _ = conversation.Dictation.CancelAsync();
+        }
     }
 
     [RelayCommand]
     private void DismissError() => ErrorMessage = null;
 
-    [RelayCommand]
+    private bool CanSwitch() => !IsDictationBusy;
+
+    [RelayCommand(CanExecute = nameof(CanSwitch))]
     private void SelectProject(Project project) => SelectedProject = project;
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanSwitch))]
     private void SelectConversation(Conversation conversation) => SelectedConversation = conversation;
 
     [RelayCommand]
@@ -184,12 +205,37 @@ public sealed partial class MainWindowViewModel : ObservableObject
         if (!_openConversations.TryGetValue(value.Id, out var conversation))
         {
             conversation = new ConversationViewModel(value, SelectedProject, _store, _runner, _summarizer, Display, Preferences,
-                limits => PlanUsage = limits, OnConversationUpdated, OnConversationBranched);
+                _dictation, limits => PlanUsage = limits, OnConversationUpdated, OnConversationBranched);
             _openConversations[value.Id] = conversation;
             _ = conversation.LoadAsync();
         }
         CurrentConversation = conversation;
         _ = SaveSettingAsync(LastConversationSetting, value.Id);
+    }
+
+    partial void OnCurrentConversationChanged(ConversationViewModel? oldValue, ConversationViewModel? newValue)
+    {
+        if (oldValue is not null) oldValue.Dictation.PropertyChanged -= OnDictationPropertyChanged;
+        if (newValue is not null) newValue.Dictation.PropertyChanged += OnDictationPropertyChanged;
+        NotifySwitchingChanged();
+    }
+
+    private void OnDictationPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(DictationViewModel.IsBusy)) return;
+        OnPropertyChanged(nameof(IsDictationBusy));
+        NotifySwitchingChanged();
+    }
+
+    // Everything that would show another conversation: picking one, a project change, and creating or deleting either.
+    private void NotifySwitchingChanged()
+    {
+        SelectProjectCommand.NotifyCanExecuteChanged();
+        SelectConversationCommand.NotifyCanExecuteChanged();
+        NewProjectCommand.NotifyCanExecuteChanged();
+        DeleteProjectCommand.NotifyCanExecuteChanged();
+        NewConversationCommand.NotifyCanExecuteChanged();
+        DeleteConversationCommand.NotifyCanExecuteChanged();
     }
 
     // A turn started, so the conversation moves to the top with its new time, matching the store's order.
@@ -252,7 +298,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         catch (Exception e) { ErrorMessage = "Couldn't load conversations: " + e.Message; }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanSwitch))]
     private async Task NewProjectAsync()
     {
         var dialog = new ProjectDialogViewModel("New Project");
@@ -266,6 +312,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
     }
 
     private bool HasSelectedProject() => SelectedProject is not null;
+
+    private bool CanSwitchFromSelectedProject() => HasSelectedProject() && CanSwitch();
 
     [RelayCommand(CanExecute = nameof(HasSelectedProject))]
     private async Task EditProjectAsync()
@@ -289,7 +337,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         });
     }
 
-    [RelayCommand(CanExecute = nameof(HasSelectedProject))]
+    [RelayCommand(CanExecute = nameof(CanSwitchFromSelectedProject))]
     private async Task DeleteProjectAsync()
     {
         var project = SelectedProject!;
@@ -305,13 +353,17 @@ public sealed partial class MainWindowViewModel : ObservableObject
         await RunAsync("delete the project", async () =>
         {
             await _store.DeleteProjectAsync(project.Id);
-            foreach (var conversation in open) _openConversations.Remove(conversation.Conversation.Id);
+            foreach (var conversation in open)
+            {
+                _openConversations.Remove(conversation.Conversation.Id);
+                _ = conversation.Dictation.CancelAsync();
+            }
             Projects.Remove(project);
             SelectedProject = Projects.FirstOrDefault();
         });
     }
 
-    [RelayCommand(CanExecute = nameof(HasSelectedProject))]
+    [RelayCommand(CanExecute = nameof(CanSwitchFromSelectedProject))]
     private async Task NewConversationAsync()
     {
         var project = SelectedProject!;
@@ -329,6 +381,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
     }
 
     private bool HasSelectedConversation() => SelectedConversation is not null;
+
+    private bool CanDeleteConversation() => HasSelectedConversation() && CanSwitch();
 
     [RelayCommand(CanExecute = nameof(HasSelectedConversation))]
     private async Task RenameConversationAsync()
@@ -349,7 +403,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         });
     }
 
-    [RelayCommand(CanExecute = nameof(HasSelectedConversation))]
+    [RelayCommand(CanExecute = nameof(CanDeleteConversation))]
     private async Task DeleteConversationAsync()
     {
         var conversation = SelectedConversation!;
@@ -364,7 +418,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         await RunAsync("delete the conversation", async () =>
         {
             await _store.DeleteConversationAsync(conversation.Id);
-            _openConversations.Remove(conversation.Id);
+            if (_openConversations.Remove(conversation.Id, out var removed)) _ = removed.Dictation.CancelAsync();
             Conversations.Remove(conversation);
             SelectedConversation = Conversations.FirstOrDefault();
         });

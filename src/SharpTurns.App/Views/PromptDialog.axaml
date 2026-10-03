@@ -11,7 +11,7 @@
     <TextBox x:Name="InputBox" />
     <ComboBox x:Name="ChoiceBox" IsVisible="False" HorizontalAlignment="Stretch" />
     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-      <Button Classes="secondaryActionButton" Content="Cancel" Click="Cancel_Click" MinWidth="90" IsCancel="True" />
+      <Button x:Name="CancelButton" Classes="secondaryActionButton" Content="Cancel" Click="Cancel_Click" MinWidth="90" IsCancel="True" />
       <Button x:Name="ConfirmButton" Content="OK" Click="Confirm_Click" MinWidth="90" IsDefault="True" />
     </StackPanel>
   </StackPanel>

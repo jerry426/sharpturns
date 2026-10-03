@@ -21,14 +21,16 @@
       </Grid>
     </Border>
 
+    <!-- Dictation runs in the Conversations tab's composer, so the other tabs wait for it.
+         Clicking a dictationLocked control while dictating explains the lock (see MainWindow.axaml.cs). -->
     <TabControl Grid.Row="2" Classes="mainTabs" SelectedIndex="{Binding SelectedTabIndex}" Padding="8,0,8,8">
-      <TabItem Header="Projects" FontSize="14">
+      <TabItem Header="Projects" Classes="dictationLocked" FontSize="14" IsEnabled="{Binding !IsDictationBusy}">
         <views:ProjectsTabView />
       </TabItem>
       <TabItem Header="Conversations" FontSize="14">
         <views:ConversationsTabView />
       </TabItem>
-      <TabItem Header="Config" FontSize="14">
+      <TabItem Header="Config" Classes="dictationLocked" FontSize="14" IsEnabled="{Binding !IsDictationBusy}">
         <views:ConfigTabView />
       </TabItem>
     </TabControl>

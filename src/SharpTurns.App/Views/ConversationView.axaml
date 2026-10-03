@@ -199,7 +199,7 @@
                         <Button Classes="railButton export" Content="📤 Export / MacDown / DOCX"
                                 Command="{ReflectionBinding $parent[UserControl].DataContext.ExportTurnCommand}" CommandParameter="{Binding}"
                                 ToolTip.Tip="Open export options for Markdown, MacDown, text, and DOCX" />
-                        <Button Classes="railButton branch" Content="{Binding BranchEndpointLabel}"
+                        <Button Classes="railButton branch dictationLocked" Content="{Binding BranchEndpointLabel}"
                                 Command="{ReflectionBinding $parent[UserControl].DataContext.ToggleBranchEndpointCommand}"
                                 CommandParameter="{Binding}"
                                 ToolTip.Tip="Mark this turn as a branch endpoint. Select two endpoints to create a branched conversation from the inclusive range." />
@@ -461,8 +461,8 @@
       </Border>
     </Grid>
 
-    <!-- The composer card, laid out like the Workbench's. Voice, the confidence box, and Undo are placeholders until
-         dictation (phase 5) arrives. It has no margin of its own, so its bottom edge lines up with the sidebar's. -->
+    <!-- The composer card, laid out like the Workbench's. It has no margin of its own, so its bottom edge lines up with
+         the sidebar's. -->
     <Border Grid.Row="3" Background="#1B1F2A" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
             CornerRadius="12" Padding="14">
       <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
@@ -511,7 +511,7 @@
         </Border>
 
         <Grid Grid.Row="2" RowDefinitions="Auto,Auto" ColumnDefinitions="*,80,80,80,Auto" ColumnSpacing="10" RowSpacing="4">
-          <Grid Grid.RowSpan="2" RowDefinitions="Auto,*" RowSpacing="4">
+          <Grid Grid.RowSpan="2" RowDefinitions="Auto,*,Auto" RowSpacing="4">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
               <ProgressBar Height="6" MinHeight="0" IsVisible="{Binding IsRunning}" IsIndeterminate="{Binding IsRunning}"
                            Foreground="{DynamicResource TextCyanBrush}" VerticalAlignment="Center" />
@@ -519,23 +519,26 @@
                          FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextCyanBrush}" TextAlignment="Right"
                          VerticalAlignment="Center" ToolTip.Tip="Elapsed time of the latest turn" />
             </Grid>
-            <TextBox x:Name="Composer" Grid.Row="1" Text="{Binding ComposerText}" AcceptsReturn="True" TextWrapping="Wrap"
-                     FontSize="{DynamicResource ConversationFontSize}"
+            <TextBox x:Name="Composer" Grid.Row="1" Text="{Binding ComposerText}" CaretIndex="{Binding ComposerCaretIndex, Mode=TwoWay}"
+                     AcceptsReturn="True" TextWrapping="Wrap" FontSize="{DynamicResource ConversationFontSize}"
                      MinHeight="80" MaxHeight="450" PlaceholderText="Message (Ctrl+Enter or ⌘+Enter to send; paste images)" />
+            <TextBlock Grid.Row="2" Text="{Binding Dictation.StatusLabel}" IsVisible="{Binding Dictation.IsStatusVisible}"
+                       Foreground="{DynamicResource TextSubtleBrush}" FontSize="11" TextWrapping="Wrap" />
           </Grid>
 
           <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
-            <Button Classes="composerButton" Content="🎤 Voice" IsEnabled="False" ToolTip.Tip="Dictation isn't available yet" />
+            <Button Classes="composerButton" Content="{Binding Dictation.VoiceButtonLabel}" Command="{Binding Dictation.ToggleRecordingCommand}"
+                    ToolTip.Tip="{Binding Dictation.VoiceToolTip}" ToolTip.ShowOnDisabled="True" />
             <Border Background="#151A22" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="5" MinHeight="38"
                     Padding="8,4" ToolTip.Tip="Transcription confidence">
-              <TextBlock Text="—" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"
-                         HorizontalAlignment="Center" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding Dictation.ConfidenceLabel}" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"
+                         FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
           </StackPanel>
 
           <StackPanel Grid.Column="2" Spacing="4" VerticalAlignment="Center">
-            <Button Classes="composerButton undo" Content="↩ Undo" IsEnabled="False"
-                    ToolTip.Tip="Remove the last inserted dictation transcript (dictation isn't available yet)" />
+            <Button Classes="composerButton undo" Content="{Binding Dictation.UndoButtonLabel}" Command="{Binding Dictation.UndoCommand}"
+                    ToolTip.Tip="Remove the last inserted dictation transcript" />
             <Button Classes="composerButton" Content="Clear" Command="{Binding ClearComposerCommand}"
                     ToolTip.Tip="Clear the message input text" />
           </StackPanel>
@@ -552,7 +555,7 @@
                   FontWeight="Medium" Padding="8,4" ToolTip.ShowOnDisabled="True"
                   ToolTip.Tip="Browse the conversation's images, choose which stay in the replay when their turn is compressed, and jump to their turns" />
 
-          <Button Grid.Column="4" Grid.RowSpan="2" Classes="primaryActionButton" Command="{Binding SendCommand}" MinWidth="80"
+          <Button Grid.Column="4" Grid.RowSpan="2" Classes="primaryActionButton dictationLocked" Command="{Binding SendCommand}" MinWidth="80"
                   VerticalAlignment="Stretch" ToolTip.Tip="While a turn runs, messages are queued and delivered to Claude during it">
             <TextBlock Text="{Binding SendLabel}" TextAlignment="Center" TextWrapping="Wrap" />
           </Button>

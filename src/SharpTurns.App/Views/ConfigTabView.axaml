@@ -633,7 +633,7 @@
 
                       <StackPanel Spacing="5">
                         <TextBlock Text="Description" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13" />
-                        <TextBlock Text="Used by dictation transcription, which arrives in a later phase. Nothing reads the key until then."
+                        <TextBlock Text="Used by dictation transcription: the composer's Voice button sends each recording to Deepgram."
                                    Foreground="{DynamicResource TextMutedBrush}" FontSize="12" TextWrapping="Wrap" />
                       </StackPanel>
 

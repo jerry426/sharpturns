@@ -38,6 +38,15 @@ public sealed partial class PromptDialog : Window
         return dialog;
     }
 
+    /// <summary>Shows a message with only an OK button.</summary>
+    public static PromptDialog ForNotice(string title, string message)
+    {
+        var dialog = new PromptDialog(title, message, null, "OK", destructive: false);
+        dialog.CancelButton.IsVisible = false;
+        dialog.ConfirmButton.IsCancel = true;
+        return dialog;
+    }
+
     private void Cancel_Click(object? sender, RoutedEventArgs e) => Close(null);
 
     private void Confirm_Click(object? sender, RoutedEventArgs e) =>

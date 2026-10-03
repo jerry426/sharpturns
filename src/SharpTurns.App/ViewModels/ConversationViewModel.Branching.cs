@@ -9,7 +9,8 @@ public sealed record BranchConfirmation(string Title, string Message, string Det
 
 // Branching, as in the Workbench: Select as Branch End Point on two turn cards, and the Context Management tab's Branch
 // Range and Branch Through, copy a run of turns into a new conversation after confirming; the source is unchanged. They
-// wait for a running turn or compression, so a copied turn is never still changing.
+// wait for a running turn or compression, so a copied turn is never still changing, and for dictation, since the branch
+// opens in place of this conversation.
 public sealed partial class ConversationViewModel
 {
     // The second endpoint opens the confirmation, and both are cleared after it either way.
@@ -18,8 +19,10 @@ public sealed partial class ConversationViewModel
     /// <summary>Returns true when the user confirms creating the branch.</summary>
     public Func<BranchConfirmation, Task<bool>>? ConfirmBranchAsync { get; set; }
 
+    private bool CanBranch() => !IsRunning && !IsCompressing && !Dictation.IsBusy;
+
     private bool CanToggleBranchEndpoint(TurnViewModel? turn) =>
-        !IsRunning && !IsCompressing && turn?.Record is { Status: not TurnStatus.Running };
+        CanBranch() && turn?.Record is { Status: not TurnStatus.Running };
 
     [RelayCommand(CanExecute = nameof(CanToggleBranchEndpoint))]
     private async Task ToggleBranchEndpointAsync(TurnViewModel turn)
@@ -54,7 +57,7 @@ public sealed partial class ConversationViewModel
         finally { ClearBranchEndpoints(); }
     }
 
-    private bool CanBranchSelectedRange() => !IsRunning && !IsCompressing && HasSelectedTurns();
+    private bool CanBranchSelectedRange() => CanBranch() && HasSelectedTurns();
 
     [RelayCommand(CanExecute = nameof(CanBranchSelectedRange))]
     private async Task BranchSelectedRangeAsync()
@@ -81,7 +84,7 @@ public sealed partial class ConversationViewModel
     }
 
     // The Workbench enables this for any selection and then asks for exactly one turn; here it waits for one.
-    private bool CanBranchThroughSelectedTurn() => !IsRunning && !IsCompressing && SelectedTurnCount == 1;
+    private bool CanBranchThroughSelectedTurn() => CanBranch() && SelectedTurnCount == 1;
 
     [RelayCommand(CanExecute = nameof(CanBranchThroughSelectedTurn))]
     private async Task BranchThroughSelectedTurnAsync()
