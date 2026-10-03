@@ -105,6 +105,35 @@ persistence.
 - Tests use temporary database files, never a user's database.
 - Settings such as the Deepgram key are stored in plain text. Never log secrets.
 
+## Updating the Model List
+
+When a user asks to update SharpTurns' model list, edit their database; do not
+change the migration that seeds new installs.
+
+- Source: Anthropic's models overview,
+  <https://platform.claude.com/docs/en/about-claude/models/overview>. Use Claude
+  API IDs such as `claude-opus-5-5`, not aliases or cloud-platform IDs. Include
+  the current models and the legacy models still available; leave out retired
+  ones and ones whose retirement date has passed.
+- Database: `SharpTurns/sharpturns.db` under `~/Library/Application Support` on
+  macOS, `%LOCALAPPDATA%` on Windows, or `~/.local/share` on Linux. If it does
+  not exist, start the app once to create it.
+- Close every SharpTurns instance first; they share the database. Make the
+  change with `sqlite3` in one transaction. If `sqlite3` is unavailable and
+  cannot be installed, give the user the IDs to enter in Config → Models.
+- Rewrite `models (id, position)` with positions from 1, keeping at least one
+  row. Keep the order of IDs that stay and put new current models before legacy
+  ones. The first model is the new-conversation default when `default_model` is
+  not set.
+- Ask before removing an ID the page does not mention; the user may have added
+  it.
+- For each removed ID, move conversations whose `model` uses it to the first
+  listed model, and delete the `default_model` or `summarizer_model` row in
+  `settings` that names it.
+- The built-in summarizer default is `claude-sonnet-5-5`. If it is removed, set
+  `summarizer_model` to a listed model, preferably the current Sonnet.
+- Show the user the old and new lists when done.
+
 ## Validation
 
 Run the narrowest validation that gives reasonable confidence in the change.

@@ -139,12 +139,43 @@ Before you use it, know that:
   command-line recorder: `ffmpeg` on macOS and Windows, or `pw-record` or
   `arecord` on Linux.
 
+By default SharpTurns runs `claude` from your `PATH`. To use another install,
+enter the full path to the executable in **Config → Preferences**. On Windows,
+it must be the native `claude.exe`, not a `.cmd` or shell wrapper.
+
 SharpTurns is developed and tested mainly on macOS. It also targets Windows and
 Linux. System sounds are available on macOS and Windows.
 
 ## Build and run
 
-There are no prebuilt binaries. Clone the repository, then from its root:
+There are no prebuilt binaries. Clone the repository, then let your CLI set it
+up (recommended) or build it yourself.
+
+### Let your CLI set it up (recommended)
+
+The best way to get running is to have the Claude Code CLI you already use do
+the setup. Start `claude` in the repository folder with a capable model such as
+Opus 5.5 (`claude --model claude-opus-5-5`), and ask something like:
+
+> Check that this machine has what SharpTurns needs, install anything missing,
+> then build it, run the tests, and start the app. After I close it, update its
+> model list from Anthropic's models overview page.
+
+The CLI reads the repository's `AGENTS.md` (through `CLAUDE.md`), so it knows
+how the project is laid out, how to build and test it, and how to update the
+model list. It can also install a recorder for dictation and work through
+platform-specific problems.
+
+**Why the model list step matters:** SharpTurns starts with a fixed list of
+model IDs, and new models come out after each release. The CLI compares that
+list with Anthropic's [models overview][models] and brings it up to date, so
+the models you can pick are the current ones. Ask it again whenever new models
+come out, with every SharpTurns window closed. You can also edit the list
+yourself in **Config → Models**.
+
+### Build it yourself
+
+From the repository root:
 
 ```sh
 ./run.sh                # macOS and Linux
@@ -158,23 +189,10 @@ To run the tests:
 dotnet test
 ```
 
-### Let your CLI set it up
+The starting model list may be out of date. Check it against Anthropic's
+[models overview][models] in **Config → Models**.
 
-The quickest way to get running is to have the Claude Code CLI you already use
-do the setup. Clone the repository, start `claude` in its folder with a capable
-model such as Opus 5.5 (`claude --model claude-opus-5-5`), and ask something
-like:
-
-> Check that this machine has what SharpTurns needs, install anything missing,
-> then build it, run the tests, and start the app.
-
-The CLI reads the repository's `AGENTS.md` (through `CLAUDE.md`), so it knows
-how the project is laid out and how to build and test it. It can also install
-a recorder for dictation and work through platform-specific problems.
-
-By default SharpTurns runs `claude` from your `PATH`. To use another install,
-enter the full path to the executable in **Config → Preferences**. On Windows,
-it must be the native `claude.exe`, not a `.cmd` or shell wrapper.
+[models]: https://platform.claude.com/docs/en/about-claude/models/overview
 
 ## Your data
 
