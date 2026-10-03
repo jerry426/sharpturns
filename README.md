@@ -4,9 +4,12 @@ A lightweight desktop app (.NET 10, Avalonia) that gives your installed Claude
 Code CLI a rendered-Markdown conversation UI, with projects, conversations, and
 context management.
 
-The name has two halves. **Sharp** is for C#, and for how sharp a rendered
-Markdown conversation looks next to the CLI's terminal output. **Turns** is for
-conversation turns, the unit the whole app is built around.
+The name has two halves:
+
+- **Sharp** is for C#, for how sharp a rendered Markdown conversation looks
+  next to the CLI's terminal output, and for the sharper reasoning a model
+  shows when its context is kept clean.
+- **Turns** is for conversation turns, the unit the whole app is built around.
 
 SharpTurns is an independent project. It is not affiliated with or endorsed by
 Anthropic.
