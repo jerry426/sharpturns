@@ -6,7 +6,7 @@ using SharpTurns.Core;
 namespace SharpTurns.App.ViewModels;
 
 /// <summary>
-/// The conversation's images by turn, as in the Workbench's Conversation Images dialog: each image's replay choice,
+/// The conversation's images by turn: each image's replay choice,
 /// whether the replay sends it now, and a way back to its turn.
 /// </summary>
 public sealed partial class ImagesBeingReplayedDialogViewModel : ObservableObject

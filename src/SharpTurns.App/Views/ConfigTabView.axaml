@@ -4,8 +4,6 @@
              xmlns:fonts="using:SharpTurns.Markdown.Rendering.Styling"
              x:Class="SharpTurns.App.Views.ConfigTabView"
              x:DataType="vm:MainWindowViewModel">
-  <!-- Laid out like the Workbench's Config tab, with the subtabs SharpTurns uses, in the Workbench's order; Models takes the
-       place of its Providers/Models. -->
   <UserControl.Styles>
     <Style Selector="Border.preferenceSection">
       <Setter Property="Background" Value="#151A22" />
@@ -107,7 +105,7 @@
       <Setter Property="FontSize" Value="14" />
       <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
-    <!-- The Workbench's green Add Server button. -->
+    <!-- The green Add Server button. -->
     <Style Selector="Button.primaryActionButton.addServer">
       <Setter Property="Background" Value="#2A6B3F" />
       <Setter Property="BorderBrush" Value="#3E8A55" />
@@ -173,7 +171,7 @@
             </ScrollViewer>
           </TabItem>
 
-          <!-- The Workbench's list and editor without Test Connection, since turns don't use the servers until v2. -->
+          <!-- The server list and editor, without Test Connection, since turns don't use the servers until v2. -->
           <TabItem Header="MCP Servers" FontSize="13">
             <Grid RowDefinitions="Auto,*" RowSpacing="12" Margin="0,0,12,0">
               <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
@@ -363,7 +361,6 @@
                              FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" />
                 </Grid>
 
-                <!-- SharpTurns' own sections; the Workbench sets these elsewhere. -->
                 <Border Classes="preferenceSection">
                   <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="16">
                     <TextBlock Classes="sectionTitle" Text="Claude CLI" />
@@ -560,8 +557,8 @@
             </ScrollViewer>
           </TabItem>
 
-          <!-- The Workbench's list and editor with only the Deepgram key, so no custom keys and no key, name, category,
-               format, or secret fields to edit. -->
+          <!-- Only the Deepgram key, so no custom keys and no key, name, category, format, or secret fields to
+               edit. -->
           <TabItem Header="API Keys" FontSize="13">
             <Grid RowDefinitions="Auto,*" RowSpacing="12" Margin="0,0,12,0">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">

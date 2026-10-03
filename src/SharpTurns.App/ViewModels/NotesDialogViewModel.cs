@@ -8,9 +8,8 @@ using SharpTurns.Core.Persistence;
 namespace SharpTurns.App.ViewModels;
 
 /// <summary>
-/// As in the Workbench's Notes window, without tags or workspace notes: the conversation's notes, each with a title and
-/// Markdown source saved as typed. Notes are never sent to Claude. As in the Workbench, choosing another note or New
-/// discards unsaved edits.
+/// The Notes window: the conversation's notes, each with a title and Markdown source saved as typed. Notes are never
+/// sent to Claude. Choosing another note or New discards unsaved edits.
 /// </summary>
 public sealed partial class NotesDialogViewModel : ObservableObject
 {
@@ -91,7 +90,7 @@ public sealed partial class NotesDialogViewModel : ObservableObject
         Status = "Creating a new note.";
     }
 
-    // As in the Workbench, a note needs a title and content.
+    // A note needs a title and content.
     private bool CanSave() => IsEditorEnabled && (IsNewNote || HasDirtyChanges)
         && !string.IsNullOrWhiteSpace(TitleText) && !string.IsNullOrWhiteSpace(ContentText);
 
@@ -187,7 +186,7 @@ public sealed partial class NotesDialogViewModel : ObservableObject
     }
 }
 
-/// <summary>A note in the Notes window's list, as in the Workbench: its title, the start of its content, and when it changed.</summary>
+/// <summary>A note in the Notes window's list: its title, the start of its content, and when it changed.</summary>
 public sealed class NoteCardViewModel(ConversationNote note)
 {
     public ConversationNote Note { get; } = note;

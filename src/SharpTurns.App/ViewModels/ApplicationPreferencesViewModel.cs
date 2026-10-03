@@ -8,9 +8,9 @@ using SharpTurns.Markdown.Rendering;
 namespace SharpTurns.App.ViewModels;
 
 /// <summary>
-/// The Config tab's Preferences. As in the Workbench: restoring the last session at startup, the startup, Notes, and
-/// Markdown Viewer window sizes, and the DOCX export defaults. SharpTurns adds the claude path, the model and effort for
-/// new conversations, the summarizer model and effort, and the system prompt. Each is saved in the settings table when it changes.
+/// The Config tab's Preferences: restoring the last session at startup, the startup, Notes, and Markdown Viewer window
+/// sizes, the DOCX export defaults, the claude path, the model and effort for new conversations, the summarizer model
+/// and effort, and the system prompt. Each is saved in the settings table when it changes.
 /// The Models subtab's list, which the model pickers offer, and the MCP Servers, Sounds, and API Keys subtabs live here too.
 /// </summary>
 public sealed partial class ApplicationPreferencesViewModel : ObservableObject

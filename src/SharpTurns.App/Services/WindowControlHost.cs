@@ -8,7 +8,7 @@ namespace SharpTurns.App.Services;
 
 /// <summary>
 /// Lets the current-user Instance Manager coordinate this SharpTurns window while
-/// SharpTurns remains the owner of its native top-level window and process, as in the Workbench.
+/// SharpTurns remains the owner of its native top-level window and process.
 /// </summary>
 public sealed class WindowControlHost : IAsyncDisposable
 {

@@ -143,7 +143,7 @@ public sealed class ConversationStoreTests : IDisposable
 
         Assert.Equal((first.CreatedAt, "First, edited", "# Plan\n- done"), (updated.CreatedAt, updated.Title, updated.Content));
         Assert.True(updated.UpdatedAt >= first.UpdatedAt);
-        // Listed in the order they were created, as in the Workbench, not by the latest edit.
+        // Listed in the order they were created, not by the latest edit.
         Assert.Equal([updated, second], await _store.ListNotesAsync(conversation.Id));
         Assert.Equal(2, await _store.CountNotesAsync(conversation.Id));
         await Assert.ThrowsAsync<ArgumentException>(() => _store.CreateNoteAsync(conversation.Id, "Empty", " "));

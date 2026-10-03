@@ -8,7 +8,7 @@
         WindowStartupLocation="CenterOwner"
         CanResize="False"
         Background="#111318">
-  <!-- The Workbench's branch confirmation: a yellow-bordered card with the turns to copy and an amber warning. -->
+  <!-- The branch confirmation: a yellow-bordered card with the turns to copy and an amber warning. -->
   <Window.Styles>
     <Style Selector="Button.dialogButton">
       <Setter Property="MinHeight" Value="40" />

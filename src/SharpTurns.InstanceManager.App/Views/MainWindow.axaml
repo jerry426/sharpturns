@@ -7,7 +7,7 @@
         Width="380" Height="860" MinWidth="340" MaxWidth="460" MinHeight="560"
         Background="#0e1118"
         WindowStartupLocation="CenterScreen">
-  <!-- The Workbench's Instance Manager with one list of instances in place of its MAIN and DEV sections. -->
+  <!-- One list of running instances. -->
   <Grid RowDefinitions="Auto,*,Auto">
 
     <Border Grid.Row="0" Padding="14,11" Background="#151923">

@@ -12,7 +12,7 @@ namespace SharpTurns.Core;
 public sealed record CompressionSource(string SummarizerSource, string ResponseHeading, string Response, bool HasWork);
 
 /// <summary>
-/// Hybrid turn compression, as in the Workbench: the user inputs stay exact, a generated work summary replaces the
+/// Hybrid turn compression: the user inputs stay exact, a generated work summary replaces the
 /// assistant's intermediate text and tool activity, and the turn's last response follows it verbatim.
 /// </summary>
 public static class TurnCompression

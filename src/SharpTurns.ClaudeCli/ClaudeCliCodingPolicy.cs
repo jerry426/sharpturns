@@ -18,7 +18,7 @@ public static class ClaudeCliCodingPolicy
     // Overrides the user's settings files, which load so the CLI keeps discovering CLAUDE.md.
     // The app owns context management, so auto-compact stays off.
     public const string Settings = "{\"fallbackModel\":[],\"switchModelsOnFlag\":false,\"disableAllHooks\":true,\"disableClaudeAiConnectors\":true,\"autoCompactEnabled\":false}";
-    // The CLI's built-in styles, as in the Workbench. Null leaves the style to the user's settings files.
+    // The CLI's built-in styles. Null leaves the style to the user's settings files.
     public static readonly IReadOnlyList<string> OutputStyles = ["Proactive", "Concise", "Explanatory", "Learning"];
 
     public static string SettingsFor(string? outputStyle)

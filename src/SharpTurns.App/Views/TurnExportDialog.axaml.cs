@@ -47,8 +47,8 @@ public sealed partial class TurnExportDialog : Window
                 Title = $"Save {viewModel.Title}",
                 SuggestedFileName = fileName,
                 DefaultExtension = OperatingSystem.IsMacOS() ? Path.GetExtension(fileName).TrimStart('.') : null,
-                // As in the Workbench: Avalonia 12.0.5's native macOS filter accessory can keep laying out after the
-                // picker closes, causing sustained CPU use, so macOS relies on the default extension above.
+                // Avalonia 12.0.5's native macOS filter accessory can keep laying out after the picker closes, causing
+                // sustained CPU use, so macOS relies on the default extension above.
                 FileTypeChoices = OperatingSystem.IsMacOS() ? null : [FileType(viewModel.Format)],
             });
             if (file?.TryGetLocalPath() is { } path) await viewModel.SaveAsync(path);

@@ -22,7 +22,7 @@ internal sealed record ConversationSearchSource(object Item, ConversationSearchS
 internal sealed record ConversationSearchEntry(object Item, ConversationSearchSegmentKind Kind, int FirstMatchIndex, int MatchCount);
 
 /// <summary>
-/// The Workbench's off-screen search index: counts the matches in each piece of shown text in display order, so the
+/// An off-screen search index: counts the matches in each piece of shown text in display order, so the
 /// total and the active match don't depend on what has rendered. Rendered Markdown is counted in its displayed text.
 /// </summary>
 internal sealed class ConversationSearchIndex
@@ -44,7 +44,7 @@ internal sealed class ConversationSearchIndex
     public int TotalMatches { get; }
 
     /// <summary>
-    /// The text the shown turns display, in order: each prompt, then its items. As in the Workbench, a collapsed tool card
+    /// The text the shown turns display, in order: each prompt, then its items. A collapsed tool card
     /// or Work Summary card is left out. Response text is Markdown only when it renders as Markdown.
     /// </summary>
     public static IReadOnlyList<ConversationSearchSource> CaptureSources(IEnumerable<TurnViewModel> turns, bool renderMarkdown)

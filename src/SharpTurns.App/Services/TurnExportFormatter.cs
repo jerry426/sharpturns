@@ -19,7 +19,7 @@ public sealed record TurnExportOptions(
     bool FullToolResults = false,
     bool IncludeHiddenTurns = false);
 
-/// <summary>A turn or a whole conversation as Markdown or plain text, as the Workbench's export formats them.</summary>
+/// <summary>A turn or a whole conversation as Markdown or plain text, for export.</summary>
 public static partial class TurnExportFormatter
 {
     private const int ToolInputStringLimit = 500;
@@ -229,7 +229,7 @@ public static partial class TurnExportFormatter
         return string.Join('\n', lines.Take(maxLines));
     }
 
-    // Long strings are cut and "__" keys dropped, as in the Workbench; input that isn't JSON is shown as is.
+    // Long strings are cut and "__" keys dropped; input that isn't JSON is shown as is.
     private static string FilterToolInput(string? json)
     {
         if (string.IsNullOrWhiteSpace(json)) return "";

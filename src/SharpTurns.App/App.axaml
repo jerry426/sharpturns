@@ -25,7 +25,7 @@
       <SolidColorBrush x:Key="TextBlueSoftBrush" Color="#66B3FF" />
       <SolidColorBrush x:Key="TextBlueMetricBrush" Color="#60A5FA" />
       <SolidColorBrush x:Key="TextGreenBrush" Color="#8FD19E" />
-      <!-- The Workbench's tool card greens. -->
+      <!-- Tool card greens. -->
       <SolidColorBrush x:Key="TextGreenAccentBrush" Color="#42E38F" />
       <SolidColorBrush x:Key="TextGreenLightBrush" Color="#D9FBE7" />
       <SolidColorBrush x:Key="TextGreenPreviewBrush" Color="#86D8AF" />
@@ -47,7 +47,7 @@
       <StreamGeometry x:Key="EditIconGeometry">M2,14 L12,4 L16,8 L6,18 L1,19 Z M13,3 L15,1 L19,5 L17,7 Z</StreamGeometry>
       <StreamGeometry x:Key="DeleteIconGeometry">M8,2 H16 V4 H21 V6 H3 V4 H8 Z M5,8 H19 L18,22 H6 Z</StreamGeometry>
       <StreamGeometry x:Key="RemoveIconGeometry">M0,0 L8,8 M8,0 L0,8</StreamGeometry>
-      <!-- The Workbench's search icons. -->
+      <!-- Search icons. -->
       <StreamGeometry x:Key="SearchIconGeometry">F0 M16,9 A7,7 0 1 1 2,9 A7,7 0 1 1 16,9 Z M14,9 A5,5 0 1 0 4,9 A5,5 0 1 0 14,9 Z M14,12 L22,20 L20,22 L12,14 Z</StreamGeometry>
       <StreamGeometry x:Key="UpTriangleIconGeometry">M0,8 L6,0 L12,8 Z</StreamGeometry>
       <StreamGeometry x:Key="DownTriangleIconGeometry">M0,0 L12,0 L6,8 Z</StreamGeometry>
@@ -132,7 +132,7 @@
       <Setter Property="Foreground" Value="{DynamicResource TextDangerDisabledBrush}" />
     </Style>
 
-    <!-- Turn card rail actions, in the Workbench's colors. -->
+    <!-- Turn card rail actions. -->
     <Style Selector="Button.railButton">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="FontWeight" Value="SemiBold" />
@@ -284,7 +284,7 @@
       <Setter Property="BorderBrush" Value="#8F1111" />
     </Style>
 
-    <!-- Composer action buttons, in the Workbench's colors: neutral by default, plus undo (gold), stop (red), and image. -->
+    <!-- Composer action buttons: neutral by default, plus undo (gold), stop (red), and image. -->
     <Style Selector="Button.composerButton">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="FontWeight" Value="SemiBold" />
@@ -367,7 +367,7 @@
       <Setter Property="BorderBrush" Value="#2D3340" />
     </Style>
 
-    <!-- Images Available for Replay, as in the Workbench: a dark red border, or a thick green one while images are
+    <!-- Images Available for Replay: a dark red border, or a thick green one while images are
          being replayed, that stays on hover. -->
     <Style Selector="Button.replayImages">
       <Setter Property="BorderBrush" Value="#633C40" />
@@ -383,7 +383,7 @@
       <Setter Property="BorderBrush" Value="#00FF00" />
     </Style>
 
-    <!-- The conversation header's Markdown, Mono, and Auto-scroll toggles, in the Workbench's colors. -->
+    <!-- The conversation header's Markdown, Mono, and Auto-scroll toggles. -->
     <Style Selector="ToggleButton.headerToggle">
       <Setter Property="Background" Value="#182235" />
       <Setter Property="BorderBrush" Value="#2D3A52" />
@@ -411,7 +411,7 @@
       <Setter Property="BorderBrush" Value="#1B6FC7" />
     </Style>
 
-    <!-- The conversation header's action buttons, each in its Workbench colors. -->
+    <!-- The conversation header's action buttons, each in its own color. -->
     <Style Selector="Button.headerButton">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="FontWeight" Value="SemiBold" />
@@ -514,7 +514,7 @@
     <Style Selector="ToggleButton.cardHeader:pressed /template/ ContentPresenter#PART_ContentPresenter">
       <Setter Property="Background" Value="#151B27" />
     </Style>
-    <!-- Tool cards are green, as in the Workbench, so their header hovers in green. -->
+    <!-- Tool cards are green, so their header hovers in green. -->
     <Style Selector="ToggleButton.cardHeader.toolHeader:pointerover /template/ ContentPresenter#PART_ContentPresenter">
       <Setter Property="Background" Value="#0F4232" />
     </Style>
@@ -591,7 +591,7 @@
       <Setter Property="StrokeLineCap" Value="Round" />
     </Style>
 
-    <!-- Main tab strip, as in the Workbench: the selected tab is filled yellow with black text and no underline.
+    <!-- Main tab strip: the selected tab is filled yellow with black text and no underline.
          Header TextBlocks must not set their own Foreground, or the black won't apply. -->
     <Style Selector="TabControl.mainTabs TabItem">
       <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
@@ -657,7 +657,7 @@
       <Setter Property="FontSize" Value="12" />
       <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
-    <!-- The Workbench's on/off setting label colors. -->
+    <!-- On/off setting label colors. -->
     <Style Selector="TextBlock.settingLabel">
       <Setter Property="Foreground" Value="#E55353" />
       <Setter Property="FontSize" Value="12" />

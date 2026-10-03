@@ -4,7 +4,7 @@ using SharpTurns.App.ViewModels;
 
 namespace SharpTurns.App.Views;
 
-/// <summary>Non-modal, as in the Workbench, so the conversation stays usable while the notes are open.</summary>
+/// <summary>Non-modal, so the conversation stays usable while the notes are open.</summary>
 public sealed partial class NotesDialog : Window
 {
     public NotesDialog() => InitializeComponent();

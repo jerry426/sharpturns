@@ -41,7 +41,7 @@ public sealed class ApiKeysConfigViewModelTests : IDisposable
         await reloaded.LoadAsync();
         Assert.Equal("secret-key", reloaded.ApiKeys.DeepgramApiKey);
 
-        // As in the Workbench, saving a blank value clears the key, as Clear Value does.
+        // Saving a blank value clears the key, as Clear Value does.
         keys.ValueText = " ";
         await keys.SaveCommand.ExecuteAsync(null);
         Assert.Null(await store.GetSettingAsync(ApiKeysConfigViewModel.DeepgramSetting));

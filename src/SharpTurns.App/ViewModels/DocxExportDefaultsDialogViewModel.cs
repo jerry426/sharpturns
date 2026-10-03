@@ -4,7 +4,7 @@ using SharpTurns.App.Services;
 
 namespace SharpTurns.App.ViewModels;
 
-/// <summary>The Workbench's DOCX export defaults dialog: edits a copy of the settings, which Save returns.</summary>
+/// <summary>The DOCX export defaults dialog: edits a copy of the settings, which Save returns.</summary>
 public sealed partial class DocxExportDefaultsDialogViewModel : ObservableObject
 {
     [ObservableProperty]

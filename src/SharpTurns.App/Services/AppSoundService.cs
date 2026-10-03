@@ -5,13 +5,12 @@ using System.Text.Json.Nodes;
 
 namespace SharpTurns.App.Services;
 
-// Copied from the Workbench. Only the JSON differs: SharpTurns saves the sounds as their own settings value instead of
-// inside a shared preferences document.
+// The sounds are saved as their own settings value.
 
 public enum AppSoundNotificationKind
 {
     ConversationTurnFinished,
-    /// <summary>A permission or question dialog, as the Workbench's command approval and user input dialogs.</summary>
+    /// <summary>A permission or question dialog.</summary>
     CommandApprovalDisplayed,
 }
 

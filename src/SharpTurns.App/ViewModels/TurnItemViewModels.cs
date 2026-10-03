@@ -11,7 +11,7 @@ public abstract class TurnItemViewModel : ObservableObject;
 
 /// <summary>
 /// Assistant text: plain while it streams, rendered as Markdown once complete. A compressed turn's summary is one
-/// text item: as in the Workbench, its Work Summary section is a collapsible card above the rest. The Final
+/// text item: its Work Summary section is a collapsible card above the rest. The Final
 /// Response heading is hidden; a Partial Response heading stays and is highlighted.
 /// </summary>
 public sealed partial class TextItemViewModel(string text, bool isStreaming, bool isSummary = false) : TurnItemViewModel
@@ -24,7 +24,7 @@ public sealed partial class TextItemViewModel(string text, bool isStreaming, boo
     [NotifyPropertyChangedFor(nameof(IsRendered))]
     private bool _isStreaming = isStreaming;
 
-    /// <summary>Whether the Work Summary card is open; collapsed by default, as in the Workbench.</summary>
+    /// <summary>Whether the Work Summary card is open; collapsed by default.</summary>
     [ObservableProperty]
     private bool _isExpanded;
 
@@ -42,7 +42,7 @@ public sealed partial class TextItemViewModel(string text, bool isStreaming, boo
     /// <summary>The text shown outside the Work Summary card: all of it, or a summary's response section.</summary>
     public string PrimaryText => TrySplitWorkSummary(out _, out _, out var remainder) ? remainder : Text;
 
-    // A summary leads with its Work Summary section, which runs to the response heading, as in the Workbench.
+    // A summary leads with its Work Summary section, which runs to the response heading.
     private bool TrySplitWorkSummary(out string header, out string body, out string remainder)
     {
         const string heading = TurnCompression.WorkSummaryHeading;
@@ -96,7 +96,7 @@ public sealed partial class ToolItemViewModel : TurnItemViewModel
 {
     private const int MaxSummaryChars = 160;
 
-    // The expanded card shows this many lines of the input and the result until Show Full, as in the Workbench.
+    // The expanded card shows this many lines of the input and the result until Show Full.
     private const int DisplayLineLimit = 20;
 
     [ObservableProperty]
@@ -137,7 +137,7 @@ public sealed partial class ToolItemViewModel : TurnItemViewModel
 
     public string Id => Tool.Id;
 
-    /// <summary>The call's 1-based position among the turn's tool cards, as in the Workbench; 0 when unnumbered.</summary>
+    /// <summary>The call's 1-based position among the turn's tool cards; 0 when unnumbered.</summary>
     public int Number { get; }
 
     public bool HasNumber => Number > 0;
@@ -170,7 +170,7 @@ public sealed partial class ToolItemViewModel : TurnItemViewModel
 
     public bool IsSucceeded => !Tool.IsError && !IsWaiting && !IsRunning;
 
-    // The cache hit rate of the model request that made the call, as in the Workbench.
+    // The cache hit rate of the model request that made the call.
     public bool HasCacheUsage => Tool is { RequestInputTokens: > 0, RequestCachedTokens: not null };
 
     public string CacheUsageBadge => Tool is { RequestInputTokens: > 0 and var input, RequestCachedTokens: { } cached }

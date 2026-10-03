@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 
 namespace SharpTurns.App.Services;
 
-/// <summary>The Workbench's DOCX export defaults: page layout, typography, and formatting, saved as JSON.</summary>
+/// <summary>The DOCX export defaults: page layout, typography, and formatting, saved as JSON.</summary>
 public sealed record DocxExportSettings(
     string PageSize,
     string Orientation,

@@ -199,7 +199,7 @@ public sealed class ConversationStore
             cancellationToken, ("$id", conversationId)).ConfigureAwait(false);
     }
 
-    /// <summary>The conversation's notes in the order they were created, as in the Workbench.</summary>
+    /// <summary>The conversation's notes in the order they were created.</summary>
     public async Task<IReadOnlyList<ConversationNote>> ListNotesAsync(long conversationId, CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -221,7 +221,7 @@ public sealed class ConversationStore
             cancellationToken, ("$conversation", conversationId)).ConfigureAwait(false), CultureInfo.InvariantCulture);
     }
 
-    /// <summary>As in the Workbench, a note needs a title and content.</summary>
+    /// <summary>A note needs a title and content.</summary>
     public async Task<ConversationNote> CreateNoteAsync(long conversationId, string title, string content,
         CancellationToken cancellationToken = default)
     {
@@ -332,7 +332,7 @@ public sealed class ConversationStore
                 cancellationToken, ("$id", id), ("$new", newId), ("$key", key)).ConfigureAwait(false);
     }
 
-    /// <summary>The MCP server definitions by name, as in the Workbench.</summary>
+    /// <summary>The MCP server definitions by name.</summary>
     public async Task<IReadOnlyList<McpServer>> ListMcpServersAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -361,7 +361,7 @@ public sealed class ConversationStore
             ("$now", Now())).ConfigureAwait(false);
     }
 
-    /// <summary>As in the Workbench, the name can't change after creation.</summary>
+    /// <summary>The name can't change after creation.</summary>
     public async Task<McpServer> UpdateMcpServerAsync(long serverId, string displayName, string? description, string commandJson,
         string? envJson, string? workingDirectory, bool enabled, CancellationToken cancellationToken = default)
     {
@@ -554,7 +554,7 @@ public sealed class ConversationStore
     }
 
     /// <summary>
-    /// As in the Workbench, copies a contiguous run of the conversation's turns, renumbered from 1, with their parts and
+    /// Copies a contiguous run of the conversation's turns, renumbered from 1, with their parts and
     /// context state into a new conversation with the same project, title, and settings. The source is unchanged. The
     /// branch has no CLI session, so its first turn reseeds from the copied history. Throws unless turnIds are every
     /// turn between the first and last of them, none still running.

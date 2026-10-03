@@ -8,9 +8,8 @@ using SharpTurns.Markdown.Rendering.Styling;
 namespace SharpTurns.App.ViewModels;
 
 /// <summary>
-/// The conversation display controls and search, shared by every conversation, with the Workbench's ranges and defaults.
-/// As in the Workbench, they last until the app closes. Font, background, and text changes update application resources
-/// that the views use through DynamicResource.
+/// The conversation display controls and search, shared by every conversation. They last until the app closes. Font,
+/// background, and text changes update application resources that the views use through DynamicResource.
 /// </summary>
 public sealed partial class ConversationDisplayViewModel : ObservableObject
 {
@@ -32,7 +31,7 @@ public sealed partial class ConversationDisplayViewModel : ObservableObject
     [ObservableProperty]
     private bool _isMonospaceFontEnabled;
 
-    /// <summary>Opens or closes every compressed card's Work Summary, as in the Workbench; closed by default.</summary>
+    /// <summary>Opens or closes every compressed card's Work Summary; closed by default.</summary>
     [ObservableProperty]
     private bool _isWorkSummaryExpanded;
 
@@ -59,7 +58,7 @@ public sealed partial class ConversationDisplayViewModel : ObservableObject
     [ObservableProperty]
     private int _turnFilterIndex = VisibleTurns;
 
-    /// <summary>Search in turns, as in the Workbench. A new query clears the active match.</summary>
+    /// <summary>Search in turns. A new query clears the active match.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSearchActive), nameof(SearchMatchStatusLabel))]
     [NotifyCanExecuteChangedFor(nameof(ClearSearchCommand))]
@@ -130,7 +129,7 @@ public sealed partial class ConversationDisplayViewModel : ObservableObject
 
     private bool CanNavigateSearchMatch() => TotalSearchMatches > 0;
 
-    // Both directions wrap around, as in the Workbench.
+    // Both directions wrap around.
     [RelayCommand(CanExecute = nameof(CanNavigateSearchMatch))]
     private void NextSearchMatch() => CurrentMatchIndex = CurrentMatchIndex + 1 >= TotalSearchMatches ? 0 : CurrentMatchIndex + 1;
 

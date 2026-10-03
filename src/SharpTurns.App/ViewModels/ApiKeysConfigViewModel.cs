@@ -5,7 +5,7 @@ using SharpTurns.Core.Persistence;
 namespace SharpTurns.App.ViewModels;
 
 /// <summary>
-/// The Config tab's API Keys, laid out like the Workbench's with only the Deepgram key, which dictation uses. The key is
+/// The Config tab's API Keys, with only the Deepgram key, which dictation uses. The key is
 /// stored in plain text in the settings table and masked until revealed; it never goes into a status message or a log.
 /// </summary>
 public sealed partial class ApiKeysConfigViewModel : ObservableObject
@@ -54,7 +54,7 @@ public sealed partial class ApiKeysConfigViewModel : ObservableObject
 
     private bool CanSave() => HasChanges;
 
-    /// <summary>As in the Workbench, saving a blank value clears the stored key.</summary>
+    /// <summary>Saving a blank value clears the stored key.</summary>
     [RelayCommand(CanExecute = nameof(CanSave))]
     private Task SaveAsync() => StoreAsync(Normalize(ValueText));
 

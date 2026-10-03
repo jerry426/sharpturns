@@ -6,7 +6,7 @@ using System.Xml;
 namespace SharpTurns.App.Services;
 
 /// <summary>
-/// Writes export Markdown as a minimal Word document, as the Workbench does: headings, quotes, lists, and code blocks
+/// Writes export Markdown as a minimal Word document: headings, quotes, lists, and code blocks
 /// become paragraph styles, and inline Markdown is stripped. Page layout and fonts come from the DOCX export defaults.
 /// </summary>
 public static partial class TurnExportDocxWriter

@@ -5,9 +5,9 @@ using SharpTurns.App.Services;
 namespace SharpTurns.App.ViewModels;
 
 /// <summary>
-/// A composer's Voice button, confidence box, Undo button, and dictation status line, as the Workbench's dictation
-/// coordinator, without its streaming mode. Each conversation has one and all share the app's service, so a transcript
-/// goes to the composer whose recording it was, and another composer reports the microphone as in use.
+/// A composer's Voice button, confidence box, Undo button, and dictation status line. Each conversation has one and all
+/// share the app's service, so a transcript goes to the composer whose recording it was, and another composer reports
+/// the microphone as in use.
 /// </summary>
 public sealed partial class DictationViewModel : ObservableObject
 {

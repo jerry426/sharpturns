@@ -20,7 +20,7 @@ public sealed class LinkedWindowConnectionChangedEventArgs(
 
 /// <summary>
 /// Coordinates the separately owned Instance Manager and attached SharpTurns
-/// windows as a linked group, as in the Workbench: each SharpTurns window's left edge
+/// windows as a linked group: each SharpTurns window's left edge
 /// sits on the manager's right edge, and they share one top and height. Whichever window the user moves or vertically
 /// resizes is treated as the leader; programmatic follower updates are
 /// suppressed to avoid loops.

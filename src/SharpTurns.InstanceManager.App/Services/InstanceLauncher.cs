@@ -5,9 +5,9 @@ using SharpTurns.Core.InstanceManagement;
 namespace SharpTurns.InstanceManager.App.Services;
 
 /// <summary>
-/// Launches SharpTurns instances from the repository the manager was built in, with <c>dotnet run</c>, as the Workbench
-/// launches its checkouts. The child survives the manager exiting. On Windows it runs the existing build, since running
-/// instances lock its files; elsewhere it builds first, so Reload picks up source changes.
+/// Launches SharpTurns instances from the repository the manager was built in, with <c>dotnet run</c>. The child
+/// survives the manager exiting. On Windows it runs the existing build, since running instances lock its files;
+/// elsewhere it builds first, so Reload picks up source changes.
 /// </summary>
 public sealed class InstanceLauncher
 {
@@ -120,7 +120,7 @@ public sealed class InstanceLauncher
     }
 
     // macOS apps launched from the Dock or Finder get a minimal PATH and don't read the shell profile, so Homebrew
-    // and the .NET install are added, as in the Workbench. The existing PATH is kept; these only go in front.
+    // and the .NET install are added. The existing PATH is kept; these only go in front.
     private static string ResolveAugmentedPath()
     {
         var currentPath = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;

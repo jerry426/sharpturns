@@ -4,10 +4,10 @@ using SharpTurns.Core;
 
 namespace SharpTurns.App.ViewModels;
 
-/// <summary>The text of a branch confirmation, laid out as in the Workbench's dialog.</summary>
+/// <summary>The text of a branch confirmation dialog.</summary>
 public sealed record BranchConfirmation(string Title, string Message, string DetailTitle, string DetailText, string WarningText);
 
-// Branching, as in the Workbench: Select as Branch End Point on two turn cards, and the Context Management tab's Branch
+// Branching: Select as Branch End Point on two turn cards, and the Context Management tab's Branch
 // Range and Branch Through, copy a run of turns into a new conversation after confirming; the source is unchanged. They
 // wait for a running turn or compression, so a copied turn is never still changing, and for dictation, since the branch
 // opens in place of this conversation.
@@ -41,7 +41,7 @@ public sealed partial class ConversationViewModel
             Status = "Branch endpoint 1 of 2 selected. Select a second endpoint to define the range.";
             return;
         }
-        // As in the Workbench, the range includes the turns between that the Show picker leaves out.
+        // The range includes the turns between that the Show picker leaves out.
         var first = _branchEndpoints.Min(t => t.Record!.TurnNumber);
         var last = _branchEndpoints.Max(t => t.Record!.TurnNumber);
         var range = SavedTurnsInOrder().Where(t => t.Record!.TurnNumber >= first && t.Record.TurnNumber <= last).ToArray();
@@ -65,7 +65,7 @@ public sealed partial class ConversationViewModel
         var selected = SelectedTurns();
         var first = selected[0].Record!.TurnNumber;
         var last = selected[^1].Record!.TurnNumber;
-        // As in the Workbench, the selection must be contiguous, counting turns the Show picker leaves out.
+        // The selection must be contiguous, counting turns the Show picker leaves out.
         if (SavedTurnsInOrder().FirstOrDefault(t => t.Record!.TurnNumber > first && t.Record.TurnNumber < last && !t.IsSelected)
             is { } missing)
         {
@@ -83,7 +83,7 @@ public sealed partial class ConversationViewModel
             ClearContextTurnSelection();
     }
 
-    // The Workbench enables this for any selection and then asks for exactly one turn; here it waits for one.
+    // Enabled only once exactly one turn is selected.
     private bool CanBranchThroughSelectedTurn() => CanBranch() && SelectedTurnCount == 1;
 
     [RelayCommand(CanExecute = nameof(CanBranchThroughSelectedTurn))]
@@ -137,7 +137,7 @@ public sealed partial class ConversationViewModel
         ? $"turn {turns[0].Record!.TurnNumber}"
         : $"turns {turns[0].Record!.TurnNumber}–{turns[^1].Record!.TurnNumber}";
 
-    // "Turn 4 · id 17" or "Turns 3, 4, 5 · ids 12, 13, 14", as in the Workbench.
+    // "Turn 4 · id 17" or "Turns 3, 4, 5 · ids 12, 13, 14".
     private static string TurnsAndIdsLabel(IReadOnlyList<TurnViewModel> turns)
     {
         var numbers = LimitedList(turns.Select(t => t.Record!.TurnNumber.ToString(CultureInfo.InvariantCulture)));

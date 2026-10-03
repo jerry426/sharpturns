@@ -399,7 +399,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         if (selected) SelectedConversation = conversation;
     }
 
-    // As in the Workbench, a new branch opens at once. It's the newest conversation, so it goes first, matching the
+    // A new branch opens at once. It's the newest conversation, so it goes first, matching the
     // store's order.
     private void OnConversationBranched(Conversation branch, string status)
     {
@@ -615,7 +615,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         return index;
     }
 
-    // Shows the share remaining, as in the Workbench. Absolute reset times stay true when the window sits idle past a reset.
+    // Shows the share remaining. Absolute reset times stay true when the window sits idle past a reset.
     private static string FormatWindow(ClaudeCliRateLimitWindow? window)
     {
         var remaining = window?.Utilization is { } fraction

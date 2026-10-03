@@ -40,9 +40,9 @@
   </UserControl.Styles>
 
   <Grid RowDefinitions="Auto,Auto,*,Auto">
-    <!-- The display toggles, as in the Workbench. They and the Show picker apply to every conversation. The title and
+    <!-- The display toggles. They and the Show picker apply to every conversation. The title and
          workspace are in the sidebar's conversation card, so the header shows only the status. Markdown Viewer and
-         the second row's buttons sit at the right, as in the Workbench. -->
+         the second row's buttons sit at the right. -->
     <Grid Margin="0,10,0,0" ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="6">
       <WrapPanel VerticalAlignment="Center">
         <ToggleButton Classes="headerToggle" Content="Markdown" IsChecked="{Binding Display.IsMarkdownRenderingEnabled, Mode=TwoWay}"
@@ -60,7 +60,7 @@
                  TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Status}" />
       <Button Grid.Column="2" Classes="headerButton viewer" Content="📖 Markdown Viewer" Command="{Binding OpenMarkdownViewerCommand}"
               ToolTip.Tip="Open the Markdown Viewer on this project's documentation" />
-      <!-- Search in turns, as in the Workbench. The search and the active match are shared by every conversation. -->
+      <!-- Search in turns. The search and the active match are shared by every conversation. -->
       <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
         <PathIcon Width="13" Height="13" Data="{StaticResource SearchIconGeometry}" Foreground="{DynamicResource TextMutedBrush}"
                   VerticalAlignment="Center" Margin="0,0,2,0" />
@@ -118,10 +118,10 @@
       </Grid>
     </Border>
 
-    <!-- As in the Workbench, the Conversation Turns and Context Management tabs sit under a yellow line, above the
+    <!-- The Conversation Turns and Context Management tabs sit under a yellow line, above the
          composer. The tab strip only switches which panel is visible, so the turn cards stay rendered and keep their
          scroll position while Context Management is open. The view is reused across conversations, so the chosen tab
-         carries over, as in the Workbench. -->
+         carries over. -->
     <Grid Grid.Row="2" Margin="0,12,0,10" RowDefinitions="2,Auto,*">
       <Border Background="{StaticResource ProminentTabAccentBrush}" />
       <TabControl Grid.Row="1" Classes="mainTabs" Padding="0">
@@ -136,7 +136,7 @@
         <ScrollViewer x:Name="TurnsScroller">
           <ItemsControl x:Name="TurnsList" ItemsSource="{Binding ShownTurns}" Margin="0,0,14,0">
             <ItemsControl.ItemTemplate>
-              <!-- Each turn is a card, laid out like the Workbench's: a rail with the turn's details and actions, then
+              <!-- Each turn is a card: a rail with the turn's details and actions, then
                    the prompt and response. A compressed turn has a darker blue card; a hidden turn has a thick orange border. -->
               <DataTemplate x:DataType="vm:TurnViewModel">
                 <Border Classes="turnCard" Classes.compressed="{Binding IsCompressed}" Margin="0,0,0,14"
@@ -232,7 +232,7 @@
                         </Grid>
                       </Border>
                       <TextBlock Text="USER:" Foreground="{DynamicResource TextYellowBrush}" FontSize="15" FontWeight="SemiBold" />
-                      <!-- As in the Workbench, each image is a card above the prompt with its thumbnail, details, and replay choice. -->
+                      <!-- Each image is a card above the prompt with its thumbnail, details, and replay choice. -->
                       <ItemsControl ItemsSource="{Binding Images}" IsVisible="{Binding HasImages}">
                         <ItemsControl.ItemsPanel>
                           <ItemsPanelTemplate>
@@ -263,7 +263,7 @@
                           </DataTemplate>
                         </ItemsControl.ItemTemplate>
                       </ItemsControl>
-                      <!-- As in the Workbench, plain text is a read-only text box, so search can select its active match.
+                      <!-- Plain text is a read-only text box, so search can select its active match.
                            Each searchable control has a search class naming what it shows. -->
                       <markdown:HighlightableTextBlock Classes="plainText searchPrompt" Text="{Binding UserText, Mode=OneWay}"
                                                        Foreground="{DynamicResource TextPrimaryBrush}"
@@ -282,7 +282,7 @@
                         <ItemsControl.DataTemplates>
                           <DataTemplate DataType="vm:TextItemViewModel" x:DataType="vm:TextItemViewModel">
                             <StackPanel Spacing="10">
-                              <!-- As in the Workbench, a compressed card's Work Summary is a collapsible card above the
+                              <!-- A compressed card's Work Summary is a collapsible card above the
                                    response; the header's Work Summary toggle opens or closes them all. -->
                               <Border IsVisible="{Binding HasWorkSummary}" Background="#010D1D" BorderBrush="#9CA1A8" BorderThickness="1"
                                       CornerRadius="10">
@@ -355,7 +355,7 @@
                           </DataTemplate>
 
                           <DataTemplate DataType="vm:ToolItemViewModel" x:DataType="vm:ToolItemViewModel">
-                            <!-- The Workbench's tool card greens: header, border, and the expanded detail panel. -->
+                            <!-- Tool card greens: header, border, and the expanded detail panel. -->
                             <Border Background="#0B3528" BorderBrush="#1C7A55" BorderThickness="1" CornerRadius="8">
                               <StackPanel>
                                 <ToggleButton Classes="cardHeader toolHeader" IsChecked="{Binding IsExpanded}">
@@ -383,7 +383,7 @@
                                 <Border IsVisible="{Binding IsExpanded}" Background="#0C1E18" BorderBrush="#1C7A55" BorderThickness="0,1,0,0"
                                         CornerRadius="0,0,7,7" Padding="28,8,12,10">
                                   <StackPanel Spacing="6">
-                                    <!-- As in the Workbench: Input's Show Full sits beside its label, Result's at the right. -->
+                                    <!-- Input's Show Full sits beside its label, Result's at the right. -->
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                       <TextBlock Classes="detailLabel" Text="Input" Foreground="{DynamicResource TextGreenAccentBrush}"
                                                  VerticalAlignment="Center" />
@@ -461,7 +461,7 @@
       </Border>
     </Grid>
 
-    <!-- The composer card, laid out like the Workbench's. It has no margin of its own, so its bottom edge lines up with
+    <!-- The composer card. It has no margin of its own, so its bottom edge lines up with
          the sidebar's. -->
     <Border Grid.Row="3" Background="#1B1F2A" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
             CornerRadius="12" Padding="14">

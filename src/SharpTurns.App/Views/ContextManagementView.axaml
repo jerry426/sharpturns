@@ -3,7 +3,6 @@
              xmlns:vm="using:SharpTurns.App.ViewModels"
              x:Class="SharpTurns.App.Views.ContextManagementView"
              x:DataType="vm:ConversationViewModel">
-  <!-- Laid out like the Workbench's Context Management tab for a Claude conversation, in its colors. -->
   <UserControl.Styles>
     <Style Selector="Border.contextCount">
       <Setter Property="Background" Value="#121A27" />
@@ -166,7 +165,7 @@
                 <DataTemplate x:DataType="vm:TurnViewModel">
                   <Border Margin="0,0,0,4" Background="{Binding ContextRowBackground}" BorderBrush="#3A3F4D" BorderThickness="1"
                           CornerRadius="6" Padding="10,3">
-                    <!-- The Workbench's columns; the fourth holds its replay sizes, which a Claude conversation doesn't show. -->
+                    <!-- The fourth column is left empty. -->
                     <Grid ColumnDefinitions="100,100,120,230,210,40,92" ColumnSpacing="12" MinHeight="30">
                       <TextBlock Text="{Binding ContextTurnLabel}" Foreground="{DynamicResource TextStrongBrush}" FontWeight="SemiBold"
                                  FontSize="13" VerticalAlignment="Center" />

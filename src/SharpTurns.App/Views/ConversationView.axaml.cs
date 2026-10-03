@@ -87,7 +87,6 @@ public sealed partial class ConversationView : UserControl
         }
         else if (command && e.Key is Key.D1 or Key.NumPad1)
         {
-            // Voice, as in the Workbench.
             e.Handled = true;
             if (_viewModel?.Dictation.ToggleRecordingCommand.CanExecute(null) == true)
                 _ = _viewModel.Dictation.ToggleRecordingCommand.ExecuteAsync(null);
@@ -233,7 +232,7 @@ public sealed partial class ConversationView : UserControl
         new NotesDialog { DataContext = notes, Width = size.Width, Height = size.Height }.Show(owner);
     }
 
-    // As in the Workbench, the center of the screen showing the main window.
+    // The center of the screen showing the main window.
     private PixelPoint? GetScreenPoint()
     {
         if (TopLevel.GetTopLevel(this) is not Window window || window.Screens.ScreenFromWindow(window) is not { } screen)
@@ -278,7 +277,7 @@ public sealed partial class ConversationView : UserControl
     }
 
     // Auto-scroll keeps new output in view; off, the reader controls the scroll. Posted so layout grows the extent first.
-    // As in the Workbench, an active search owns the scroll instead.
+    // An active search owns the scroll instead.
     private void OnTurnContentChanged(object? sender, EventArgs e)
     {
         if (_viewModel?.Display is { IsAutoScrollEnabled: true, IsSearchActive: false })
@@ -299,7 +298,7 @@ public sealed partial class ConversationView : UserControl
             case nameof(ConversationDisplayViewModel.CurrentMatchIndex):
                 ScheduleSearchHighlight();
                 break;
-            // As in the Workbench, turning auto-scroll on returns to the bottom, and so does a display change that reflows
+            // Turning auto-scroll on returns to the bottom, and so does a display change that reflows
             // the turns unless a search is active.
             case nameof(ConversationDisplayViewModel.IsAutoScrollEnabled) when display.IsAutoScrollEnabled:
                 Dispatcher.UIThread.Post(TurnsScroller.ScrollToEnd, DispatcherPriority.Background);
@@ -322,7 +321,7 @@ public sealed partial class ConversationView : UserControl
         }
     }
 
-    // ---- Search in turns, as in the Workbench ----
+    // ---- Search in turns ----
 
     private void SearchBox_KeyDown(object? sender, KeyEventArgs e)
     {
@@ -539,7 +538,7 @@ public sealed partial class ConversationView : UserControl
         }
     }
 
-    // Puts the match in the middle of the turn list, as in the Workbench.
+    // Puts the match in the middle of the turn list.
     private bool TryCenterInTurns(Control match)
     {
         if (!match.IsEffectivelyVisible || match.Bounds.Width <= 0 || match.Bounds.Height <= 0) return false;

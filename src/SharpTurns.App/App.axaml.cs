@@ -37,8 +37,8 @@ public sealed partial class App : Application
     }
 
     // The window opens once the preferences load, at the saved startup size, centered on the monitor it was last moved
-    // to. InitializeAsync reports its own failures in the window. Then, as in the Workbench, the instance reports to the
-    // Instance Manager and lets it link the window.
+    // to. InitializeAsync reports its own failures in the window. Then the instance reports to the Instance Manager and
+    // lets it link the window.
     private static async Task ShowMainWindowAsync(IClassicDesktopStyleApplicationLifetime desktop, ConversationStore store,
         MainWindowViewModel viewModel, AppStartupSession? startupSession)
     {

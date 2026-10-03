@@ -11,7 +11,7 @@
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource CardBackgroundBrush}">
   <Window.Styles>
-    <!-- Laid out like the Workbench's dialog: each message is a card that goes to its turn. -->
+    <!-- Each message is a card that goes to its turn. -->
     <Style Selector="Button.messageCard">
       <Setter Property="Background" Value="#111722" />
       <Setter Property="BorderBrush" Value="#34445F" />

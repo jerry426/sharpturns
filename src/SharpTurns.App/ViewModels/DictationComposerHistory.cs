@@ -1,7 +1,7 @@
 namespace SharpTurns.App.ViewModels;
 
 /// <summary>
-/// Copied from the Workbench. Inserts a transcript at the composer's caret, spaced from the text around it, and keeps the
+/// Inserts a transcript at the composer's caret, spaced from the text around it, and keeps the
 /// composer's text and caret from before each insertion so Undo can restore them.
 /// </summary>
 internal sealed class DictationComposerHistory

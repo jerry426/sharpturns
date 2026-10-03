@@ -35,7 +35,7 @@
       </TabItem>
     </TabControl>
 
-    <!-- The conversation display sliders, beside the tab strip as in the Workbench, with its ranges. -->
+    <!-- The conversation display sliders, beside the tab strip. -->
     <Border Grid.Row="2" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,12,0" Background="#151820"
             CornerRadius="999" Padding="10,3">
       <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">

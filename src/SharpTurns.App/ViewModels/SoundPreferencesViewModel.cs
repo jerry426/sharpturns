@@ -6,7 +6,7 @@ using SharpTurns.Core.Persistence;
 namespace SharpTurns.App.ViewModels;
 
 /// <summary>
-/// The Config tab's Sounds, as in the Workbench: a sound when a turn finishes and one when a permission or question
+/// The Config tab's Sounds: a sound when a turn finishes and one when a permission or question
 /// dialog appears. Edits apply at once and are kept by Save Sounds; Reload brings back the saved choices.
 /// </summary>
 public sealed class SoundPreferencesViewModel : ObservableObject

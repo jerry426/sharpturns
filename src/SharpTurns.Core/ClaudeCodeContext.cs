@@ -77,7 +77,7 @@ public static class ClaudeCodeContext
     }
 
     /// <summary>
-    /// The content followed by the images' descriptors, as the Workbench replays a compressed turn's images. When
+    /// The content followed by the images' descriptors, as a compressed turn's images are replayed. When
     /// includeSelected is set, images chosen to stay in the replay are marked as included.
     /// </summary>
     internal static string WithImageDescriptors(string content, IReadOnlyList<ImageAttachment> images, bool includeSelected = true)

@@ -6,7 +6,7 @@ namespace SharpTurns.Core;
 /// <summary>Color is the project's border accent as #RRGGBB (see ProjectColor).</summary>
 public sealed record Project(long Id, string Name, string WorkingDirectory, string Color = ProjectColor.Default);
 
-/// <summary>Opaque RGB project accents, as in the Workbench.</summary>
+/// <summary>Opaque RGB project accents.</summary>
 public static class ProjectColor
 {
     public const string Default = "#7CFF2B";
@@ -27,13 +27,13 @@ public static class ProjectColor
 public sealed record Conversation(long Id, long ProjectId, string Title, string? Model, string? Effort, DateTimeOffset UpdatedAt,
     string? OutputStyle = null, bool AutoSummarize = false);
 
-/// <summary>A user's note on a conversation, as in the Workbench; Content is Markdown source. Never sent to Claude.</summary>
+/// <summary>A user's note on a conversation; Content is Markdown source. Never sent to Claude.</summary>
 public sealed record ConversationNote(long Id, long ConversationId, string Title, string Content, DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
 /// <summary>
-/// An MCP server definition from the Config tab, as in the Workbench. CommandJson is a JSON array of argv strings and
-/// EnvJson an optional JSON object of environment variables. Turns don't use them until v2.
+/// An MCP server definition from the Config tab. CommandJson is a JSON array of argv strings and EnvJson an optional
+/// JSON object of environment variables. Turns don't use them until v2.
 /// </summary>
 public sealed record McpServer(long Id, string Name, string DisplayName, string? Description, string CommandJson,
     string? EnvJson, string? WorkingDirectory, bool Enabled, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
@@ -78,7 +78,7 @@ public sealed record TurnUsage(long InputTokens, long CachedInputTokens, long Ou
 
 /// <summary>
 /// A native tool call the CLI ran, saved for display only; never replayed. RequestInputTokens and RequestCachedTokens
-/// measure the main-agent model request that made the call, as in the Workbench; calls from one request share them.
+/// measure the main-agent model request that made the call; calls from one request share them.
 /// They are null for calls saved before they were recorded.
 /// </summary>
 public sealed record ToolCallRecord(string Id, string Name, string? Input, string? Result, string Status, bool IsError,
@@ -90,7 +90,7 @@ public sealed record QuestionRecord(string Question, string? Answer);
 
 /// <summary>
 /// An attached image; Data is base64. IncludeInFutureReplay keeps the image's contents in the replay once its turn is
-/// compressed, as in the Workbench; a turn replayed in full sends all its images.
+/// compressed; a turn replayed in full sends all its images.
 /// </summary>
 public sealed record ImageAttachment(string FileName, string MediaType, string Data,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool IncludeInFutureReplay = false);

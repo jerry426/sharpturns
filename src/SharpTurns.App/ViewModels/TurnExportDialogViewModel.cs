@@ -7,7 +7,7 @@ using SharpTurns.Core;
 
 namespace SharpTurns.App.ViewModels;
 
-/// <summary>The Workbench's export options for one turn or the whole conversation, with a live preview.</summary>
+/// <summary>Export options for one turn or the whole conversation, with a live preview.</summary>
 public sealed partial class TurnExportDialogViewModel : ObservableObject
 {
     private readonly IReadOnlyList<ConversationTurn> _turns;
@@ -138,7 +138,7 @@ public sealed partial class TurnExportDialogViewModel : ObservableObject
 
     /// <summary>
     /// Owns its errors. Writes the Markdown to a temporary file and opens it in MacDown on macOS, or in the default app
-    /// for .md files elsewhere, as the Workbench does.
+    /// for .md files elsewhere.
     /// </summary>
     public async Task OpenInMacDownAsync()
     {

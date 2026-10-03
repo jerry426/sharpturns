@@ -4,7 +4,7 @@ using SharpTurns.App.ViewModels;
 
 namespace SharpTurns.App.Views;
 
-/// <summary>Asks before creating a branch, as in the Workbench. Closes with true when confirmed.</summary>
+/// <summary>Asks before creating a branch. Closes with true when confirmed.</summary>
 public sealed partial class BranchConfirmationDialog : Window
 {
     public BranchConfirmationDialog() => InitializeComponent();

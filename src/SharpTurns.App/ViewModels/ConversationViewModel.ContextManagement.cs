@@ -5,7 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace SharpTurns.App.ViewModels;
 
-// The Context Management tab, as in the Workbench with its Claude parts: Smart Cleanup, the turn list's selection, and the
+// The Context Management tab: Smart Cleanup, the turn list's selection, and the
 // bulk Show, Hide, and Delete. Like the turn card actions, each changes the replayed history, so they wait for a running
 // turn or compression, and the next turn starts a new CLI session.
 public sealed partial class ConversationViewModel
@@ -18,7 +18,7 @@ public sealed partial class ConversationViewModel
     // The turn a Shift-click selects the range from.
     private TurnViewModel? _selectionAnchor;
 
-    /// <summary>Keep Recent 15 Turns by default, as in the Workbench.</summary>
+    /// <summary>Keep Recent 15 Turns by default.</summary>
     [ObservableProperty]
     private int _smartCleanupIndex = 1;
 
@@ -49,8 +49,8 @@ public sealed partial class ConversationViewModel
         Turns.Where(t => t.IsSelected && t.Record is not null).OrderBy(t => t.Record!.TurnNumber).ToArray();
 
     /// <summary>
-    /// A click on a row's check box. Shift selects every listed turn between the last one clicked and this one, as in the
-    /// Workbench; otherwise it toggles this turn.
+    /// A click on a row's check box. Shift selects every listed turn between the last one clicked and this one;
+    /// otherwise it toggles this turn.
     /// </summary>
     public void SelectContextTurn(TurnViewModel turn, bool range)
     {
@@ -133,7 +133,7 @@ public sealed partial class ConversationViewModel
 
     private bool CanKeepRecentTurns() => !IsRunning && !IsCompressing && SavedTurns().Any();
 
-    /// <summary>As in the Workbench: shows the most recent turns and hides every older one.</summary>
+    /// <summary>Shows the most recent turns and hides every older one.</summary>
     [RelayCommand(CanExecute = nameof(CanKeepRecentTurns))]
     private async Task KeepRecentTurnsAsync()
     {
@@ -157,7 +157,7 @@ public sealed partial class ConversationViewModel
         catch (Exception e) { Status = "Couldn't apply Smart Cleanup: " + e.Message; }
     }
 
-    // "turn 4" or "turns 3, 4, 5", listing at most a dozen numbers as the Workbench does.
+    // "turn 4" or "turns 3, 4, 5", listing at most a dozen numbers.
     private static string TurnsLabel(IReadOnlyList<TurnViewModel> turns) =>
         (turns.Count == 1 ? "turn " : "turns ") + LimitedList(turns.Select(t => t.Record!.TurnNumber.ToString(CultureInfo.InvariantCulture)));
 

@@ -24,7 +24,7 @@ public sealed class NotesDialogViewModelTests : IDisposable
 
         notes.NewCommand.Execute(null);
         Assert.Equal(("Untitled Note", true), (notes.TitleText, notes.IsEditorEnabled));
-        // As in the Workbench, a note needs content.
+        // A note needs content.
         Assert.False(notes.SaveCommand.CanExecute(null));
         notes.ContentText = "# Plan\n- first";
         await notes.SaveCommand.ExecuteAsync(null);

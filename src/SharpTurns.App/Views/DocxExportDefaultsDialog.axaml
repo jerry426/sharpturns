@@ -10,7 +10,6 @@
         MinHeight="620"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource CardBackgroundBrush}">
-  <!-- Laid out like the Workbench's DOCX Export Defaults dialog. -->
   <Grid RowDefinitions="Auto,*,Auto" RowSpacing="16" Margin="18">
     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
       <StackPanel>

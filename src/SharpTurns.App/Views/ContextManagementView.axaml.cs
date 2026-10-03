@@ -11,7 +11,7 @@ public sealed partial class ContextManagementView : UserControl
     public ContextManagementView()
     {
         InitializeComponent();
-        // Tunnel, as in the Workbench, so a row's check box click can select a range before the check box toggles itself.
+        // Tunnel, so a row's check box click can select a range before the check box toggles itself.
         AddHandler(PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
     }
 

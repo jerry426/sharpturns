@@ -11,7 +11,7 @@
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource CardBackgroundBrush}">
   <Window.Styles>
-    <!-- Laid out like the Workbench's dialog: the turn's header and each thumbnail are borderless buttons. -->
+    <!-- The turn's header and each thumbnail are borderless buttons. -->
     <Style Selector="Button.imageTurn">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderBrush" Value="Transparent" />

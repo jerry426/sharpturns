@@ -98,7 +98,7 @@ public sealed partial class App : Application
         window.Activate();
     }
 
-    // As in the Workbench, the manager opens at SharpTurns' saved startup height, since linking gives the windows the
+    // The manager opens at SharpTurns' saved startup height, since linking gives the windows the
     // manager's height. The database is only read, and only if SharpTurns has created it.
     private static double LoadStartupWindowHeight()
     {

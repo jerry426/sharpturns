@@ -202,7 +202,7 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     public TurnViewModel? LastTurn => Turns.Count > 0 ? Turns[^1] : null;
 
-    // The metrics row, as in the Workbench without its KB figures. A live turn counts as visible and uncompressed.
+    // The metrics row. A live turn counts as visible and uncompressed.
     public string LastReportedInputLabel => LastTurn?.Usage?.ContextTokens is { } tokens ? Count(tokens) : "—";
 
     public string TurnsTotalLabel => Count(Turns.Count);
@@ -235,14 +235,14 @@ public sealed partial class ConversationViewModel : ObservableObject
     /// </summary>
     public bool IsIdle => !IsRunning && !IsCompressing && !_summarizeNext;
 
-    // The header's Notes button, as in the Workbench.
+    // The header's Notes button.
     public string NotesLabel => NotesCount > 0 ? string.Create(CultureInfo.CurrentCulture, $"📝 Notes ({NotesCount:N0})") : "📝 Notes";
 
     public string NotesToolTip => NotesCount > 0
         ? string.Create(CultureInfo.CurrentCulture, $"View this conversation's notes ({NotesCount:N0} note{(NotesCount == 1 ? "" : "s")})")
         : "View this conversation's notes";
 
-    // The composer's replay image button, as in the Workbench. A live turn's images count as replayed.
+    // The composer's replay image button. A live turn's images count as replayed.
     private int ReplayedImageCount => Turns.Sum(t => t.Record is { } turn ? ClaudeCodeContext.ReplayedImageCount(turn) : t.Images.Count);
 
     public bool HasConversationImages => Turns.Any(t => t.HasImages);
@@ -354,7 +354,7 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     private bool CanClearComposer() => ComposerText.Length > 0;
 
-    // As in the Workbench, clearing also drops dictation's undo history, whose snapshots no longer match the composer.
+    // Clearing also drops dictation's undo history, whose snapshots no longer match the composer.
     [RelayCommand(CanExecute = nameof(CanClearComposer))]
     private void ClearComposer()
     {
@@ -440,7 +440,7 @@ public sealed partial class ConversationViewModel : ObservableObject
             // Set before IsRunning clears, so the conversation never looks idle between the turn and its summary.
             _summarizeNext = completed && AutoSummarize;
             IsRunning = false;
-            // As in the Workbench, only a turn that completes plays the sound.
+            // Only a turn that completes plays the sound.
             if (completed) Preferences.Sounds.PlayNotification(AppSoundNotificationKind.ConversationTurnFinished);
             QueuedMessages.Clear();
             Status = result.Turn.Status switch
@@ -501,7 +501,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         return string.Create(CultureInfo.InvariantCulture, $"{seconds / 60:00}:{seconds % 60:00}");
     }
 
-    // As in the Workbench, both dialogs play the approval sound as they open.
+    // Both dialogs play the approval sound as they open.
     private async Task<string?> AskAsync(ClaudeCliQuestion question, CancellationToken token)
     {
         if (ShowQuestionAsync is null) return null;
@@ -668,7 +668,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         finally { image.Refresh(); } // Also puts the check box back when the save failed.
     }
 
-    // As in the Workbench, the history waits for a running turn, whose messages aren't saved until it ends.
+    // The history waits for a running turn, whose messages aren't saved until it ends.
     private bool CanOpenUserMessageHistory() => !IsRunning && Turns.Any(t => t.IsHydrated);
 
     [RelayCommand(CanExecute = nameof(CanOpenUserMessageHistory))]

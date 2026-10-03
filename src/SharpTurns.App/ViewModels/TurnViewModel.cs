@@ -36,7 +36,7 @@ public sealed partial class TurnViewModel : ObservableObject
     [ObservableProperty]
     private bool _isSelected;
 
-    /// <summary>Chosen with the rail's Select as Branch End Point, as in the Workbench; the card gets a thick yellow border.</summary>
+    /// <summary>Chosen with the rail's Select as Branch End Point; the card gets a thick yellow border.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(BranchEndpointLabel), nameof(CardBorderBrush), nameof(CardBorderThickness))]
     private bool _isBranchEndpoint;
@@ -150,7 +150,7 @@ public sealed partial class TurnViewModel : ObservableObject
 
     public bool HasContext => ContextLabel.Length > 0;
 
-    // Context management, with the Workbench's labels and colors. A live turn counts as shown and uncompressed.
+    // Context management labels and colors. A live turn counts as shown and uncompressed.
     public bool IsHydrated => Record?.IsHydrated ?? true;
 
     public bool IsCompressed => Record?.IsCompressed == true;
@@ -198,7 +198,7 @@ public sealed partial class TurnViewModel : ObservableObject
             $"View the full turn without changing its compression. Saved content: {TurnCompression.FullContentBytes(turn):N0} bytes; compressed replay: {ClaudeCodeContext.ReplayBytes(turn):N0} bytes.")
         : "";
 
-    // The Context Management tab's row, with the Workbench's labels and colors.
+    // The Context Management tab's row labels and colors.
     public string ContextTurnLabel => Record is { } turn ? $"Turn #{turn.TurnNumber.ToString(CultureInfo.InvariantCulture)}" : "Turn";
 
     public string ContextIdLabel => Record is { } turn ? $"ID: {turn.Id.ToString(CultureInfo.InvariantCulture)}" : "";
@@ -326,7 +326,7 @@ public sealed partial class TurnViewModel : ObservableObject
 
     private static TurnPart? Prompt(IEnumerable<TurnPart> parts) => parts.FirstOrDefault(p => p is { Role: "user", PartType: TurnParts.Text });
 
-    // The Work Summary heading gains the tool call count and the reduction, as in the Workbench.
+    // The Work Summary heading gains the tool call count and the reduction.
     private static string DisplaySummary(ConversationTurn turn)
     {
         var summary = turn.Summary!;
@@ -359,7 +359,7 @@ public sealed partial class TurnViewModel : ObservableObject
     }
 
     /// <summary>
-    /// The turn's dialogue as Markdown, under the same header lines the Workbench's turn copy uses. Tool activity is
+    /// The turn's dialogue as Markdown, under the turn's header lines. Tool activity is
     /// left out; images are named.
     /// </summary>
     public string FormatForClipboard(long conversationId)
@@ -452,7 +452,7 @@ public sealed partial class TurnViewModel : ObservableObject
     }
 }
 
-/// <summary>An image on a turn card, laid out like the Workbench's: thumbnail, details, and its replay choice.</summary>
+/// <summary>An image on a turn card: thumbnail, details, and its replay choice.</summary>
 public sealed class TurnImageViewModel(TurnViewModel owner, int index, ImageAttachmentViewModel preview) : ObservableObject
 {
     public TurnViewModel Owner { get; } = owner;

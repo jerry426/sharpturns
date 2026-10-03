@@ -10,8 +10,7 @@ using SharpTurns.InstanceManager.App.Services;
 namespace SharpTurns.InstanceManager.App.ViewModels;
 
 /// <summary>
-/// Shows live local IPC reports as cards and coordinates window linking, as in the Workbench, with one list in place of
-/// its MAIN and DEV columns.
+/// Shows live local IPC reports as cards in one list and coordinates window linking.
 /// </summary>
 public sealed partial class InstanceManagerViewModel : ObservableObject, IAsyncDisposable
 {

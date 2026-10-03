@@ -5,10 +5,9 @@ using System.Text.Json;
 
 namespace SharpTurns.App.Services;
 
-// Copied from the Workbench and pruned: no streaming dictation (the Workbench's was never available), no timing logs, no
-// IDictationService (the composer is the only user), and the key comes from Config → API Keys. Of the Workbench's
-// environment switches only the recorder path and input device remain, as SHARPTURNS_AUDIO_RECORDER_PATH and
-// SHARPTURNS_AUDIO_INPUT_DEVICE; the minimum confidence, capture warmup, and key terms use the Workbench's defaults.
+// Batch dictation only, with no streaming and no IDictationService (the composer is the only user). The key comes from
+// Config → API Keys. SHARPTURNS_AUDIO_RECORDER_PATH and SHARPTURNS_AUDIO_INPUT_DEVICE override the recorder path and
+// input device.
 
 public sealed record DictationResult(string Text, double Confidence);
 

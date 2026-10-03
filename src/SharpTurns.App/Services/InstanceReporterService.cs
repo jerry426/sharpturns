@@ -14,9 +14,9 @@ public sealed record InstanceSnapshot(
     bool TurnActive);
 
 /// <summary>
-/// Reports this SharpTurns process's live state (selected project and open conversation, heartbeat) over local IPC, as
-/// in the Workbench. A single sender coalesces state changes, retries on the next heartbeat when the manager is absent,
-/// and sends stopped on shutdown.
+/// Reports this SharpTurns process's live state (selected project and open conversation, heartbeat) over local IPC.
+/// A single sender coalesces state changes, retries on the next heartbeat when the manager is absent, and sends stopped
+/// on shutdown.
 /// </summary>
 public sealed class InstanceReporterService : IAsyncDisposable
 {

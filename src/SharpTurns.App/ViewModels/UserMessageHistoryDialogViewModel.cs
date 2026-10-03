@@ -4,7 +4,7 @@ using SharpTurns.Core;
 namespace SharpTurns.App.ViewModels;
 
 /// <summary>
-/// As in the Workbench's User Message History dialog: the user messages in Claude's context (the prompts and messages
+/// The User Message History dialog: the user messages in Claude's context (the prompts and messages
 /// sent during the turn of every turn that isn't hidden), each with a way back to its turn.
 /// </summary>
 public sealed class UserMessageHistoryDialogViewModel

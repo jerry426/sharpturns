@@ -11,7 +11,7 @@
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource CardBackgroundBrush}">
   <Window.Styles>
-    <!-- Laid out like the Workbench's Notes window: the note cards on the left, the selected note's editor on the right. -->
+    <!-- The note cards on the left, the selected note's editor on the right. -->
     <Style Selector="ListBox.notesList">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />

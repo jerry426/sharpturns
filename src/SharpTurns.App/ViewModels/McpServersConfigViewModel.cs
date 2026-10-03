@@ -10,8 +10,8 @@ using SharpTurns.Core.Persistence;
 namespace SharpTurns.App.ViewModels;
 
 /// <summary>
-/// The Config tab's MCP Servers: the Workbench's server list and editor, storing definitions only. Turns don't use them
-/// until v2, so there is no Test Connection, which needs the Workbench's in-app MCP client.
+/// The Config tab's MCP Servers: a server list and editor, storing definitions only. Turns don't use them until v2, so
+/// there is no Test Connection.
 /// </summary>
 public sealed partial class McpServersConfigViewModel : ObservableObject
 {
@@ -49,7 +49,7 @@ public sealed partial class McpServersConfigViewModel : ObservableObject
     /// <summary>Title and message; returns true when confirmed.</summary>
     public Func<string, string, Task<bool>>? ConfirmAsync { get; set; }
 
-    // As in the Workbench, choosing another server discards unsaved edits.
+    // Choosing another server discards unsaved edits.
     partial void OnSelectedServerChanged(McpServerRowViewModel? value)
     {
         if (value is not null) Editor = new(value.Server);
@@ -159,7 +159,7 @@ public sealed partial class McpServersConfigViewModel : ObservableObject
         return new(name, displayName, TrimToNull(edit.Description), commandJson, envJson, workingDirectory);
     }
 
-    // As in the Workbench: a non-empty JSON array of strings.
+    // A non-empty JSON array of strings.
     private static string? CommandError(string json)
     {
         const string Shape = """The command must be a non-empty JSON array of strings, such as ["npx", "-y", "package-name"].""";
@@ -174,7 +174,7 @@ public sealed partial class McpServersConfigViewModel : ObservableObject
         catch (JsonException e) { return "The command isn't valid JSON: " + e.Message; }
     }
 
-    // As in the Workbench: blank, null, or a JSON object.
+    // Blank, null, or a JSON object.
     private static string? EnvironmentError(string? json)
     {
         if (json is null) return null;
@@ -193,7 +193,7 @@ public sealed partial class McpServersConfigViewModel : ObservableObject
         string? WorkingDirectory);
 }
 
-/// <summary>A server in the list, as in the Workbench.</summary>
+/// <summary>A server in the list.</summary>
 public sealed class McpServerRowViewModel(McpServer server)
 {
     public McpServer Server { get; } = server;
@@ -212,7 +212,7 @@ public sealed class McpServerRowViewModel(McpServer server)
 }
 
 /// <summary>
-/// The editor for a new or saved server, as in the Workbench. The name is the server's key, so it can't change once saved;
+/// The editor for a new or saved server. The name is the server's key, so it can't change once saved;
 /// the command and environment are edited as JSON text.
 /// </summary>
 public sealed partial class McpServerEditViewModel : ObservableObject
