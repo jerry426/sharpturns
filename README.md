@@ -264,7 +264,8 @@ SharpTurns' code, and I'm very happy about that. Porting it out of the larger
 platform into this standalone app took less than two days. It shows what's
 possible in 2026 with today's excellent models and harnesses.
 
-If you're interested in custom work, you can reach me at *[contact]*.
+If you're interested in custom work, you can reach me at
+[jerry@sharpturns.ai](mailto:jerry@sharpturns.ai).
 
 ## License
 
