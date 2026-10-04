@@ -23,10 +23,12 @@ public static class ProjectColor
 /// <summary>
 /// Model, Effort, and OutputStyle are CLI values; null uses the CLI's own default. AutoSummarize compresses each
 /// turn that completes. WorkingDirectory overrides the project's; null uses it. A protected conversation can't be
-/// deleted, alone or with its project.
+/// deleted, alone or with its project. SummarizerModel and SummarizerEffort override the default summarizer's for
+/// this conversation's compressions; null uses the default.
 /// </summary>
 public sealed record Conversation(long Id, long ProjectId, string Title, string? Model, string? Effort, DateTimeOffset UpdatedAt,
-    string? OutputStyle = null, bool AutoSummarize = false, string? WorkingDirectory = null, bool IsProtected = false)
+    string? OutputStyle = null, bool AutoSummarize = false, string? WorkingDirectory = null, bool IsProtected = false,
+    string? SummarizerModel = null, string? SummarizerEffort = null)
 {
     /// <summary>The folder the CLI runs this conversation's turns in.</summary>
     public string WorkspaceFor(Project project) => WorkingDirectory ?? project.WorkingDirectory;

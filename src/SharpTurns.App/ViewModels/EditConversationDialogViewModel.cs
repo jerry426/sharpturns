@@ -7,12 +7,14 @@ namespace SharpTurns.App.ViewModels;
 
 /// <summary>
 /// The Edit Conversation dialog: the title, the project (a different one moves the conversation), an optional
-/// workspace in place of the project's, protection from deletion, the MCP servers its turns start, and the context
-/// files they share with Claude.
+/// workspace in place of the project's, protection from deletion, a summarizer model and effort in place of the
+/// default's, the MCP servers its turns start, and the context files they share with Claude.
 /// </summary>
 public sealed partial class EditConversationDialogViewModel : ObservableObject
 {
     private readonly Project _originalProject;
+    private readonly string _defaultSummarizerModelOption;
+    private readonly string _defaultSummarizerEffortOption;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasContextFilesError))]
@@ -34,9 +36,19 @@ public sealed partial class EditConversationDialogViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ProtectionLabel))]
     private bool _isProtected;
 
-    /// <summary>selectedServerIds are the conversation's saved MCP servers; projects includes its own.</summary>
+    [ObservableProperty]
+    private string _selectedSummarizerModel;
+
+    [ObservableProperty]
+    private string _selectedSummarizerEffort;
+
+    /// <summary>
+    /// selectedServerIds are the conversation's saved MCP servers; projects includes its own. models is the Config tab's
+    /// list, and defaultSummarizerModel and defaultSummarizerEffort are Config → Preferences' choices.
+    /// </summary>
     public EditConversationDialogViewModel(Conversation conversation, IReadOnlyList<Project> projects,
-        IReadOnlyList<McpServer> servers, IReadOnlyCollection<long> selectedServerIds, IReadOnlyList<ContextFile> contextFiles)
+        IReadOnlyList<McpServer> servers, IReadOnlyCollection<long> selectedServerIds, IReadOnlyList<ContextFile> contextFiles,
+        IReadOnlyList<string> models, string defaultSummarizerModel, string defaultSummarizerEffort)
     {
         foreach (var file in contextFiles) ContextFiles.Add(CreateContextFile(file));
         Projects = projects;
@@ -45,6 +57,17 @@ public sealed partial class EditConversationDialogViewModel : ObservableObject
         _selectedProject = _originalProject;
         _workingDirectory = conversation.WorkingDirectory ?? "";
         _isProtected = conversation.IsProtected;
+        _defaultSummarizerModelOption = $"Default ({defaultSummarizerModel})";
+        _defaultSummarizerEffortOption = defaultSummarizerEffort == ConversationViewModel.DefaultEffort
+            ? ConversationViewModel.DefaultEffort : $"Default ({defaultSummarizerEffort})";
+        // A saved model since removed from the list stays offered, so saving doesn't drop it.
+        SummarizerModelOptions = conversation.SummarizerModel is { } saved && !models.Contains(saved)
+            ? [_defaultSummarizerModelOption, .. models, saved]
+            : [_defaultSummarizerModelOption, .. models];
+        SummarizerEffortOptions = [_defaultSummarizerEffortOption, .. ConversationViewModel.SharedEffortOptions.Skip(1)];
+        _selectedSummarizerModel = conversation.SummarizerModel ?? _defaultSummarizerModelOption;
+        _selectedSummarizerEffort = conversation.SummarizerEffort is { } effort && SummarizerEffortOptions.Contains(effort)
+            ? effort : _defaultSummarizerEffortOption;
         McpServers = servers.OrderBy(s => s.DisplayName, StringComparer.CurrentCultureIgnoreCase)
             .Select(s => new McpServerOptionViewModel(s, selectedServerIds.Contains(s.Id), NotifyMcpServersChanged))
             .ToArray();
@@ -72,6 +95,19 @@ public sealed partial class EditConversationDialogViewModel : ObservableObject
     public string ProtectionLabel => IsProtected
         ? "Protected conversations can't be deleted, alone or with their project, until this is cleared."
         : "Unprotected conversations can be deleted from the sidebar.";
+
+    /// <summary>The default summarizer model, then the Config tab's models.</summary>
+    public IReadOnlyList<string> SummarizerModelOptions { get; }
+
+    public IReadOnlyList<string> SummarizerEffortOptions { get; }
+
+    /// <summary>Null uses the default summarizer model.</summary>
+    public string? SummarizerModelOrNull =>
+        SelectedSummarizerModel is { } model && model != _defaultSummarizerModelOption ? model : null;
+
+    /// <summary>Null uses the default summarizer effort.</summary>
+    public string? SummarizerEffortOrNull =>
+        SelectedSummarizerEffort is { } effort && effort != _defaultSummarizerEffortOption ? effort : null;
 
     public IReadOnlyList<McpServerOptionViewModel> McpServers { get; }
 

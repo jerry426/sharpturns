@@ -110,7 +110,7 @@ public sealed class McpServersConfigViewModelTests : IDisposable
         var project = await store.CreateProjectAsync("Project", _directory);
         var conversation = await store.CreateConversationAsync(project.Id, "Conversation", "claude-opus-5-5");
         var server = await store.CreateMcpServerAsync("chrome-devtools", "Chrome DevTools", null, """["npx"]""", null, null, true);
-        await store.UpdateConversationAsync(conversation.Id, conversation.Title, project.Id, null, false, [server.Id], []);
+        await store.UpdateConversationAsync(conversation.Id, conversation.Title, project.Id, null, false, null, null, [server.Id], []);
         var preferences = new ApplicationPreferencesViewModel(store);
         var main = new MainWindowViewModel(store, new ClaudeTurnRunner(store), new TurnSummarizer(store), preferences);
         await main.InitializeAsync();

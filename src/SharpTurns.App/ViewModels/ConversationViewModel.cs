@@ -198,6 +198,21 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     public bool IsProtected => Conversation.IsProtected;
 
+    /// <summary>The model and effort that compress this conversation's turns: its own, or else the default summarizer's.</summary>
+    public string SummarizerLabel =>
+        $"{Conversation.SummarizerModel ?? Preferences.SummarizerModel} ({Conversation.SummarizerEffort ?? Preferences.SummarizerEffort})";
+
+    public string SummarizerToolTip => Conversation.SummarizerModel is null && Conversation.SummarizerEffort is null
+        ? "The default summarizer model and effort, set in Config → Preferences. Edit Conversation can choose others for this conversation."
+        : "Chosen for this conversation in Edit Conversation, in place of the default summarizer's in Config → Preferences.";
+
+    /// <summary>The conversation's or the default summarizer's model or effort changed.</summary>
+    internal void NotifySummarizerChanged()
+    {
+        OnPropertyChanged(nameof(SummarizerLabel));
+        OnPropertyChanged(nameof(SummarizerToolTip));
+    }
+
     /// <summary>The sidebar's Conversation Configuration card: the enabled context files, in the order they're sent.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasContextFiles), nameof(ContextFilesHeaderLabel))]
@@ -383,6 +398,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         AutoSummarize = conversation.AutoSummarize;
         OnPropertyChanged(nameof(Workspace));
         OnPropertyChanged(nameof(IsProtected));
+        NotifySummarizerChanged();
         _branchEndpoints.Clear();
         _selectionAnchor = null;
         await LoadAsync();
@@ -396,12 +412,14 @@ public sealed partial class ConversationViewModel : ObservableObject
         Conversation = Conversation with
         {
             Title = conversation.Title, ProjectId = conversation.ProjectId, WorkingDirectory = conversation.WorkingDirectory,
-            IsProtected = conversation.IsProtected,
+            IsProtected = conversation.IsProtected, SummarizerModel = conversation.SummarizerModel,
+            SummarizerEffort = conversation.SummarizerEffort,
         };
         Title = conversation.Title;
         Project = project;
         OnPropertyChanged(nameof(Workspace));
         OnPropertyChanged(nameof(IsProtected));
+        NotifySummarizerChanged();
     }
 
     public void CancelTurn() => _turnLifetime?.Cancel();
@@ -870,6 +888,11 @@ public sealed partial class ConversationViewModel : ObservableObject
     internal void ApplyModelsChanged(string? replaced, string? replacement)
     {
         if (replacement is not null && Conversation.Model == replaced) Conversation = Conversation with { Model = replacement };
+        if (replacement is not null && Conversation.SummarizerModel == replaced)
+        {
+            Conversation = Conversation with { SummarizerModel = replacement };
+            NotifySummarizerChanged();
+        }
         SelectedModel = Conversation.Model;
         OnPropertyChanged(nameof(SelectedModel));
     }

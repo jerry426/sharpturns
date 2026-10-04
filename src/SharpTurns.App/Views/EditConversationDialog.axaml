@@ -58,6 +58,19 @@
       </StackPanel>
     </Grid>
 
+    <StackPanel Spacing="6">
+      <TextBlock Text="Summarizer model (Manual Compression and Auto-Summarize)" Foreground="{DynamicResource TextStrongBrush}"
+                 FontSize="13" />
+      <Grid ColumnDefinitions="2*,*" ColumnSpacing="14">
+        <ComboBox ItemsSource="{Binding SummarizerModelOptions}" SelectedItem="{Binding SelectedSummarizerModel}"
+                  HorizontalAlignment="Stretch" ToolTip.Tip="Summarizer model" />
+        <ComboBox Grid.Column="1" ItemsSource="{Binding SummarizerEffortOptions}" SelectedItem="{Binding SelectedSummarizerEffort}"
+                  HorizontalAlignment="Stretch" ToolTip.Tip="Summarizer effort" />
+      </Grid>
+      <TextBlock Text="Writes the Work Summary when one of this conversation's turns is compressed or auto-summarized, in a separate tool-less CLI call outside the conversation's session. Default uses the default summarizer model and effort in Config → Preferences."
+                 Foreground="{DynamicResource TextSubtleBrush}" FontSize="11" TextWrapping="Wrap" />
+    </StackPanel>
+
     <Border Background="#121620" BorderBrush="#2D3548" BorderThickness="1" CornerRadius="8" Padding="10">
       <StackPanel Spacing="8">
         <TextBlock Text="{Binding McpServersHeaderLabel}" Foreground="{DynamicResource TextStrongBrush}" FontSize="13"

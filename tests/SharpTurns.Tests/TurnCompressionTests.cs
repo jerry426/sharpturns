@@ -63,13 +63,20 @@ public sealed class TurnCompressionTests : IDisposable
     public void UnusableWorkSummariesAreRejected(string generated) =>
         Assert.Throws<InvalidOperationException>(() => TurnCompression.NormalizeWorkSummary(generated));
 
-    [Fact]
-    public async Task SummarizerSavesTheWorkSummaryAndVerbatimResponse()
+    // The conversation's own summarizer model and effort replace the default's.
+    [Theory]
+    [InlineData(null, null, "claude-sonnet-5-5", "high")]
+    [InlineData("claude-haiku-4-5-20251001", "low", "claude-haiku-4-5-20251001", "low")]
+    public async Task SummarizerSavesTheWorkSummaryAndVerbatimResponse(string? conversationModel, string? conversationEffort,
+        string model, string effort)
     {
         if (OperatingSystem.IsWindows()) return; // The fake CLI is a POSIX shell script.
         var store = await CreateStoreAsync();
         var turn = await SaveTurnAsync(store, ToolTurn(TurnStatus.Completed));
         await store.SetSettingAsync(TurnSummarizer.EffortSetting, "high");
+        var conversation = (await store.GetConversationAsync(turn.ConversationId))!;
+        await store.UpdateConversationAsync(conversation.Id, conversation.Title, conversation.ProjectId, null, false,
+            conversationModel, conversationEffort, [], []);
         var summarizer = new TurnSummarizer(store, CreateFakeCli("""
             printf '%s\n' "$@" > args.txt
             IFS= read -r init
@@ -85,12 +92,12 @@ public sealed class TurnCompressionTests : IDisposable
         var compressed = await summarizer.CompressAsync(turn);
 
         Assert.Equal("## Work Summary\n\n- Ran dotnet test.\n\n## Final Assistant Response — Verbatim\n\nAll tests pass.", compressed.Summary);
-        Assert.Equal("claude-sonnet-5-5", compressed.SummaryModel);
+        Assert.Equal(model, compressed.SummaryModel);
         var saved = Assert.Single(await store.LoadTurnsAsync(turn.ConversationId));
-        Assert.Equal((compressed.Summary, "claude-sonnet-5-5"), (saved.Summary, saved.SummaryModel));
+        Assert.Equal((compressed.Summary, model), (saved.Summary, saved.SummaryModel));
         var args = await File.ReadAllLinesAsync(Path.Combine(_directory, "args.txt"));
-        Assert.Contains("--model=claude-sonnet-5-5", args);
-        Assert.Contains("--effort=high", args);
+        Assert.Contains($"--model={model}", args);
+        Assert.Contains($"--effort={effort}", args);
         var user = await File.ReadAllTextAsync(Path.Combine(_directory, "user.json"));
         Assert.Contains("dotnet test", user);
         Assert.Contains("HYBRID COMPRESSION INSTRUCTION", user);

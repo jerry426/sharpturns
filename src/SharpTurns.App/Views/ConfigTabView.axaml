@@ -398,10 +398,10 @@
                       <ComboBox Grid.Column="3" ItemsSource="{Binding Preferences.EffortOptions}"
                                 SelectedItem="{Binding Preferences.NewConversationEffort}" HorizontalAlignment="Stretch" MinHeight="30"
                                 ToolTip.Tip="The effort new conversations start with; each conversation's own picker changes it" />
-                      <TextBlock Grid.Row="1" Classes="fieldLabel" Text="Summarizer model" />
+                      <TextBlock Grid.Row="1" Classes="fieldLabel" Text="Default summarizer model" />
                       <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Preferences.ModelOptions}"
                                 SelectedItem="{Binding Preferences.SummarizerModel}" HorizontalAlignment="Stretch" MinHeight="30"
-                                ToolTip.Tip="Writes the Work Summary when a turn is compressed or auto-summarized" />
+                                ToolTip.Tip="Writes the Work Summary when a turn is compressed or auto-summarized, unless Edit Conversation chooses another for the conversation" />
                       <TextBlock Grid.Row="1" Grid.Column="2" Classes="fieldLabel" Text="Effort" Margin="10,0,0,0" />
                       <ComboBox Grid.Row="1" Grid.Column="3" ItemsSource="{Binding Preferences.EffortOptions}"
                                 SelectedItem="{Binding Preferences.SummarizerEffort}" HorizontalAlignment="Stretch" MinHeight="30"

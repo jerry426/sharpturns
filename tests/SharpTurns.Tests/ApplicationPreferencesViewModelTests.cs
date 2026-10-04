@@ -171,6 +171,46 @@ public sealed class ApplicationPreferencesViewModelTests : IDisposable
         Assert.Equal(((string?)null, (string?)null), (other.Model, other.Effort));
     }
 
+    [Fact]
+    public async Task EditConversationChoosesItsSummarizerAndOtherwiseTheCardShowsTheDefault()
+    {
+        Directory.CreateDirectory(_directory);
+        var store = new ConversationStore(Path.Combine(_directory, "test.db"));
+        await store.InitializeAsync();
+        var project = await store.CreateProjectAsync("Project", _directory);
+        await store.CreateConversationAsync(project.Id, "Conversation");
+        var preferences = new ApplicationPreferencesViewModel(store);
+        var main = new MainWindowViewModel(store, new ClaudeTurnRunner(store), new TurnSummarizer(store), preferences);
+        await main.InitializeAsync();
+        for (var i = 0; i < 100 && main.Conversations.Count == 0; i++) await Task.Delay(20);
+        main.SelectedConversation = main.Conversations[0];
+        var conversation = main.CurrentConversation!;
+        Assert.Equal("claude-sonnet-5-5 (Default effort)", conversation.SummarizerLabel);
+        preferences.SummarizerEffort = "high";
+        Assert.Equal("claude-sonnet-5-5 (high)", conversation.SummarizerLabel);
+        await WaitForSettingAsync(store, TurnSummarizer.EffortSetting, "high");
+
+        // The dialog starts on the defaults, which save as null.
+        main.ShowEditConversationDialogAsync = dialog =>
+        {
+            Assert.Equal(("Default (claude-sonnet-5-5)", "Default (high)"),
+                (dialog.SelectedSummarizerModel, dialog.SelectedSummarizerEffort));
+            Assert.Equal(((string?)null, (string?)null), (dialog.SummarizerModelOrNull, dialog.SummarizerEffortOrNull));
+            dialog.SelectedSummarizerModel = "claude-haiku-4-5-20251001";
+            dialog.SelectedSummarizerEffort = "low";
+            return Task.FromResult(true);
+        };
+        await main.EditConversationCommand.ExecuteAsync(null);
+
+        var saved = Assert.Single(await store.ListConversationsAsync(project.Id));
+        Assert.Equal(("claude-haiku-4-5-20251001", "low"), (saved.SummarizerModel, saved.SummarizerEffort));
+        Assert.Equal("claude-haiku-4-5-20251001 (low)", conversation.SummarizerLabel);
+        // The conversation's own no longer follows the default.
+        preferences.SummarizerModel = "claude-opus-5-5";
+        Assert.Equal("claude-haiku-4-5-20251001 (low)", conversation.SummarizerLabel);
+        await WaitForSettingAsync(store, TurnSummarizer.ModelSetting, "claude-opus-5-5");
+    }
+
     // The pickers save without being awaited.
     private static async Task WaitForSettingAsync(ConversationStore store, string key, string expected)
     {

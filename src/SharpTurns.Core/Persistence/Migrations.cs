@@ -161,5 +161,9 @@ internal static class Migrations
             UNIQUE (conversation_id, path)
         );
         """,
+        """
+        ALTER TABLE conversations ADD COLUMN summarizer_model TEXT;
+        ALTER TABLE conversations ADD COLUMN summarizer_effort TEXT;
+        """,
     ];
 }

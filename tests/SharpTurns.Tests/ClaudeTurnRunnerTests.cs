@@ -173,7 +173,7 @@ public sealed class ClaudeTurnRunnerTests : IDisposable
             """{"PORT": 9222, "MODE": "headless"}""", null, true);
         var db = await _store.CreateMcpServerAsync("db", "Database", null, """["db-mcp"]""", null, null, false);
         conversation = await _store.UpdateConversationAsync(conversation.Id, conversation.Title, project.Id, workspace, false,
-            [browser.Id, db.Id], []);
+            null, null, [browser.Id, db.Id], []);
         var approvals = new List<string>();
 
         var result = await RunAsync(runner, project, conversation, Callbacks(approve: (tool, _, _) =>
@@ -208,7 +208,7 @@ public sealed class ClaudeTurnRunnerTests : IDisposable
         var plan = Path.Combine(Directory.CreateDirectory(Path.Combine(_directory, "docs")).FullName, "plan.md");
         await File.WriteAllTextAsync(plan, "Plan v1");
         await File.WriteAllTextAsync(Path.Combine(_directory, "notes.md"), "Off");
-        conversation = await _store.UpdateConversationAsync(conversation.Id, conversation.Title, project.Id, null, false, [],
+        conversation = await _store.UpdateConversationAsync(conversation.Id, conversation.Title, project.Id, null, false, null, null, [],
         [
             new("docs/plan.md", ContextFileRoles.ActiveOperationalDocument, "Track progress", true, true, false),
             new("missing.md", ContextFileRoles.ReferenceSource, null, true, false, false),

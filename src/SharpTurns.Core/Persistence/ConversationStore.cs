@@ -160,11 +160,13 @@ public sealed class ConversationStore
 
     /// <summary>
     /// Saves the Edit Conversation dialog: the title, the project (a different one moves the conversation), the
-    /// workspace (null uses the project's), protection, the MCP servers its turns start, and its context files in order.
+    /// workspace (null uses the project's), protection, the summarizer model and effort (null uses the default's), the
+    /// MCP servers its turns start, and its context files in order.
     /// </summary>
     public async Task<Conversation> UpdateConversationAsync(long conversationId, string title, long projectId,
-        string? workingDirectory, bool isProtected, IReadOnlyCollection<long> mcpServerIds,
-        IReadOnlyList<ContextFile> contextFiles, CancellationToken cancellationToken = default)
+        string? workingDirectory, bool isProtected, string? summarizerModel, string? summarizerEffort,
+        IReadOnlyCollection<long> mcpServerIds, IReadOnlyList<ContextFile> contextFiles,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         if (workingDirectory is not null) ArgumentException.ThrowIfNullOrWhiteSpace(workingDirectory);
@@ -175,11 +177,11 @@ public sealed class ConversationStore
         Conversation conversation;
         await using (var command = Command(connection, transaction, $"""
             UPDATE conversations SET title = $title, project_id = $project, working_directory = $directory,
-                is_protected = $protected
+                is_protected = $protected, summarizer_model = $summarizerModel, summarizer_effort = $summarizerEffort
             WHERE id = $id
             RETURNING {ConversationColumns}
             """, ("$id", conversationId), ("$title", title), ("$project", projectId), ("$directory", workingDirectory),
-            ("$protected", isProtected)))
+            ("$protected", isProtected), ("$summarizerModel", summarizerModel), ("$summarizerEffort", summarizerEffort)))
         await using (var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
         {
             if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -354,7 +356,8 @@ public sealed class ConversationStore
     public async Task<int> CountConversationsUsingModelAsync(string id, CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
-        return Convert.ToInt32(await ScalarAsync(connection, null, "SELECT COUNT(*) FROM conversations WHERE model = $id",
+        return Convert.ToInt32(await ScalarAsync(connection, null,
+            "SELECT COUNT(*) FROM conversations WHERE model = $id OR summarizer_model = $id",
             cancellationToken, ("$id", id)).ConfigureAwait(false), CultureInfo.InvariantCulture);
     }
 
@@ -388,6 +391,8 @@ public sealed class ConversationStore
         string newId, IReadOnlyCollection<string> settingKeys, CancellationToken cancellationToken)
     {
         await ExecuteAsync(connection, transaction, "UPDATE conversations SET model = $new WHERE model = $id",
+            cancellationToken, ("$id", id), ("$new", newId)).ConfigureAwait(false);
+        await ExecuteAsync(connection, transaction, "UPDATE conversations SET summarizer_model = $new WHERE summarizer_model = $id",
             cancellationToken, ("$id", id), ("$new", newId)).ConfigureAwait(false);
         foreach (var key in settingKeys)
             await ExecuteAsync(connection, transaction, "UPDATE settings SET value = $new WHERE key = $key AND value = $id",
@@ -668,8 +673,9 @@ public sealed class ConversationStore
         Conversation branch;
         await using (var command = Command(connection, transaction, $"""
             INSERT INTO conversations (project_id, title, model, effort, output_style, auto_summarize, working_directory,
-                created_at, updated_at)
-            SELECT project_id, title, model, effort, output_style, auto_summarize, working_directory, $now, $now
+                summarizer_model, summarizer_effort, created_at, updated_at)
+            SELECT project_id, title, model, effort, output_style, auto_summarize, working_directory,
+                summarizer_model, summarizer_effort, $now, $now
             FROM conversations WHERE id = $source
             RETURNING {ConversationColumns}
             """, ("$source", conversationId), ("$now", now)))
@@ -797,14 +803,15 @@ public sealed class ConversationStore
             """, cancellationToken, ("$turn", turnId), ("$sequence", part.Sequence), ("$role", part.Role),
             ("$type", part.PartType), ("$content", part.Content));
 
-    private const string ConversationColumns =
-        "id, project_id, title, model, effort, updated_at, output_style, auto_summarize, working_directory, is_protected";
+    private const string ConversationColumns = "id, project_id, title, model, effort, updated_at, output_style, "
+        + "auto_summarize, working_directory, is_protected, summarizer_model, summarizer_effort";
 
     private static Conversation ReadConversation(SqliteDataReader reader) =>
         new(reader.GetInt64(0), reader.GetInt64(1), reader.GetString(2),
             reader.IsDBNull(3) ? null : reader.GetString(3), reader.IsDBNull(4) ? null : reader.GetString(4),
             ParseTime(reader.GetString(5)), reader.IsDBNull(6) ? null : reader.GetString(6), reader.GetBoolean(7),
-            reader.IsDBNull(8) ? null : reader.GetString(8), reader.GetBoolean(9));
+            reader.IsDBNull(8) ? null : reader.GetString(8), reader.GetBoolean(9),
+            reader.IsDBNull(10) ? null : reader.GetString(10), reader.IsDBNull(11) ? null : reader.GetString(11));
 
     private const string NoteColumns = "id, conversation_id, title, content, created_at, updated_at";
 

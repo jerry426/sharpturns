@@ -16,7 +16,8 @@ public sealed class ModelsConfigViewModelTests : IDisposable
         var store = new ConversationStore(Path.Combine(_directory, "test.db"));
         await store.InitializeAsync();
         var project = await store.CreateProjectAsync("Project", _directory);
-        await store.CreateConversationAsync(project.Id, "Conversation", "claude-opus-4-6");
+        var created = await store.CreateConversationAsync(project.Id, "Conversation", "claude-opus-4-6");
+        await store.UpdateConversationAsync(created.Id, created.Title, project.Id, null, false, "claude-opus-4-6", null, [], []);
         var preferences = new ApplicationPreferencesViewModel(store);
         var main = new MainWindowViewModel(store, new ClaudeTurnRunner(store), new TurnSummarizer(store), preferences);
         await main.InitializeAsync();
@@ -73,6 +74,10 @@ public sealed class ModelsConfigViewModelTests : IDisposable
         Assert.Equal("claude-opus-5-5", await store.GetSettingAsync("default_model"));
         Assert.Equal("claude-opus-5-5", conversation.SelectedModel);
         Assert.Equal("claude-opus-5-5", conversation.Conversation.Model);
+        // So does the conversation's own summarizer model.
+        Assert.Equal("claude-opus-5-5", Assert.Single(await store.ListConversationsAsync(project.Id)).SummarizerModel);
+        Assert.Equal("claude-opus-5-5", main.Conversations[0].SummarizerModel);
+        Assert.Equal("claude-opus-5-5 (Default effort)", conversation.SummarizerLabel);
         await WaitAsync(() => preferences.NewConversationModel == "claude-opus-5-5");
 
         // An unused ID is deleted after confirming.

@@ -52,7 +52,7 @@
                          ToolTip.Tip="Protected: it can't be deleted until protection is cleared in Edit Conversation" />
               <Button Grid.Column="2" Classes="secondaryActionButton dictationLocked" Command="{Binding EditConversationCommand}"
                       Width="34" Height="34" Padding="0"
-                      ToolTip.Tip="Edit this conversation: title, project, workspace, protection, MCP servers, and context files">
+                      ToolTip.Tip="Edit this conversation: title, project, workspace, protection, summarizer, MCP servers, and context files">
                 <PathIcon Width="16" Height="16" Data="{StaticResource EditIconGeometry}" />
               </Button>
               <Button Grid.Column="3" Classes="dangerActionButton dictationLocked" Command="{Binding DeleteConversationCommand}"
@@ -90,10 +90,6 @@
                            VerticalAlignment="Center" />
                 <ToggleSwitch IsChecked="{Binding CurrentConversation.AutoSummarize}" OnContent="" OffContent=""
                               VerticalAlignment="Center" />
-                <TextBlock Classes="cardValue" VerticalAlignment="Center">
-                  <Run Text="{Binding Preferences.SummarizerModel, Mode=OneWay}" />
-                  <Run Text="{Binding Preferences.SummarizerEffort, Mode=OneWay, StringFormat=' ({0})'}" />
-                </TextBlock>
               </StackPanel>
             </Grid>
 
@@ -106,6 +102,14 @@
                           Command="{Binding EditConversationCommand}" MinHeight="24" Padding="9,2" FontSize="11"
                           ToolTip.Tip="Open Edit Conversation" />
                 </Grid>
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" ToolTip.Tip="{Binding CurrentConversation.SummarizerToolTip, FallbackValue=''}">
+                  <TextBlock Text="Manual Compression&#x0a;and Auto-Summarize:" Foreground="{DynamicResource TextGreenBrush}"
+                             FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="1" Text="{Binding CurrentConversation.SummarizerLabel, FallbackValue=''}"
+                             Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" TextTrimming="CharacterEllipsis"
+                             VerticalAlignment="Center" />
+                </Grid>
+                <Border Height="1" Background="#2B4559" Margin="0,4,0,3" />
                 <TextBlock Text="{Binding CurrentConversation.ContextFilesHeaderLabel, FallbackValue=''}"
                            Foreground="{DynamicResource TextGreenBrush}" FontSize="11" FontWeight="SemiBold" />
                 <TextBlock Text="None enabled" IsVisible="{Binding !CurrentConversation.HasContextFiles, FallbackValue=False}"

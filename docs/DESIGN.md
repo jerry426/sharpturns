@@ -156,8 +156,9 @@ version.
 - **Compress** replays a turn as its user inputs plus a summary: a generated
   `## Work Summary`, then `## Final Assistant Response — Verbatim` (or
   `Partial` for a stopped or failed turn) with the last response unchanged.
-  The summary comes from a tool-less one-shot call with the summarizer model
-  and effort (Config → Preferences). A turn with no tool calls or
+  The summary comes from a tool-less one-shot call with the conversation's
+  summarizer model and effort (Edit Conversation), or else the default ones
+  (Config → Preferences). A turn with no tool calls or
   intermediate text gets a fixed summary without a call. On screen, the Work Summary is a collapsed
   card and the Final heading is hidden; the stored and replayed summary keeps
   both.

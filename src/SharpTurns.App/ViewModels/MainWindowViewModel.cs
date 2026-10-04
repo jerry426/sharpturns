@@ -94,6 +94,13 @@ public sealed partial class MainWindowViewModel : ObservableObject
         {
             foreach (var conversation in _openConversations.Values) _ = conversation.ReloadMcpServersAsync();
         };
+        // Open conversations without their own summarizer show the default's.
+        preferences.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(ApplicationPreferencesViewModel.SummarizerModel)
+                or nameof(ApplicationPreferencesViewModel.SummarizerEffort))
+                foreach (var conversation in _openConversations.Values) conversation.NotifySummarizerChanged();
+        };
         Projects.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(OtherProjects));
@@ -424,8 +431,13 @@ public sealed partial class MainWindowViewModel : ObservableObject
         if (replacement is not null)
             for (var i = 0; i < Conversations.Count; i++)
             {
-                if (Conversations[i].Model != replaced) continue;
-                var updated = Conversations[i] with { Model = replacement };
+                var listed = Conversations[i];
+                if (listed.Model != replaced && listed.SummarizerModel != replaced) continue;
+                var updated = listed with
+                {
+                    Model = listed.Model == replaced ? replacement : listed.Model,
+                    SummarizerModel = listed.SummarizerModel == replaced ? replacement : listed.SummarizerModel,
+                };
                 var selected = SelectedConversation?.Id == updated.Id;
                 Conversations[i] = updated;
                 if (selected) SelectedConversation = updated;
@@ -576,7 +588,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         {
             dialog = new(current, Projects, await _store.ListMcpServersAsync(),
                 (await _store.ListConversationMcpServersAsync(current.Id)).Select(s => s.Id).ToArray(),
-                await _store.ListContextFilesAsync(current.Id));
+                await _store.ListContextFilesAsync(current.Id), Preferences.ModelOptions, Preferences.SummarizerModel,
+                Preferences.SummarizerEffort);
         }
         catch (Exception e)
         {
@@ -587,7 +600,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         await RunAsync("save the conversation", async () =>
         {
             var saved = await _store.UpdateConversationAsync(current.Id, dialog.Title.Trim(), project.Id,
-                dialog.WorkingDirectoryOrNull, dialog.IsProtected, dialog.SelectedServerIds, dialog.ContextFileSettings);
+                dialog.WorkingDirectoryOrNull, dialog.IsProtected, dialog.SummarizerModelOrNull, dialog.SummarizerEffortOrNull,
+                dialog.SelectedServerIds, dialog.ContextFileSettings);
             if (_openConversations.TryGetValue(saved.Id, out var open))
                 open.ApplyEdit(saved, project, dialog.ContextFileSettings, dialog.SelectedServers);
             // A turn may have replaced the listed record meanwhile.
