@@ -158,15 +158,14 @@ public sealed partial class TurnViewModel : ObservableObject
     public string HydrationActionLabel => IsHydrated ? "Hide" : "Show";
 
     public string HydrationActionToolTip => IsHydrated
-        ? "Hide: leave this turn out of Claude's context. The next turn starts a new CLI session."
-        : "Show: put this turn back in Claude's context. The next turn starts a new CLI session.";
+        ? "Hide: leave this turn out of Claude's context."
+        : "Show: put this turn back in Claude's context.";
 
     public string CompressionActionLabel => IsCompressing ? "…" : IsCompressed ? "Expand" : "Compress";
 
     public string CompressionActionToolTip => IsCompressed
-        ? "Expand: replay this turn in full again and discard its work summary. The next turn starts a new CLI session."
-        : "Compress: replay this turn as its user inputs, a generated work summary, and its final response verbatim. "
-          + "The next turn starts a new CLI session.";
+        ? "Expand: replay this turn in full again and discard its work summary."
+        : "Compress: replay this turn as its user inputs, a generated work summary, and its final response verbatim.";
 
     public string CompressedLabel => Record switch
     {

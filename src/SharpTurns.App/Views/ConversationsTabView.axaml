@@ -83,9 +83,9 @@
               <ComboBox Grid.Row="6" Grid.Column="1" ItemsSource="{Binding CurrentConversation.OutputStyleOptions}"
                         SelectedItem="{Binding CurrentConversation.SelectedOutputStyle}" MinHeight="28" FontSize="11"
                         HorizontalAlignment="Stretch"
-                        ToolTip.Tip="The CLI's output style for this conversation. A change starts a new CLI session from the conversation history on the next turn." />
+                        ToolTip.Tip="The CLI's output style for this conversation." />
               <StackPanel Grid.Row="7" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="10"
-                          ToolTip.Tip="Compresses each turn that completes, using the summarizer model in a separate one-shot CLI call, before the next turn can be sent. The full turn stays saved. A compressed turn starts a new CLI session on the next turn, from the user inputs and Work Summaries rather than the tool activity.">
+                          ToolTip.Tip="Compresses each turn that completes, using the summarizer model in a separate one-shot CLI call, before the next turn can be sent. The full turn stays saved. Later turns see its user inputs, Work Summary and final response instead of its tool activity.">
                 <TextBlock Classes="settingLabel" Classes.on="{Binding CurrentConversation.AutoSummarize}" Text="Auto-Summarize"
                            VerticalAlignment="Center" />
                 <ToggleSwitch IsChecked="{Binding CurrentConversation.AutoSummarize}" OnContent="" OffContent=""

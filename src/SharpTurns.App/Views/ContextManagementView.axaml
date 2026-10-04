@@ -97,7 +97,7 @@
           <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="18"
                      TextWrapping="Wrap" />
           <TextBlock Text="{Binding ContextStatusLabel}" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" TextWrapping="Wrap" />
-          <TextBlock Text="Claude owns the live session context. Changing the included turns starts a new session on the next send, seeded with the retained dialogue, recorded answers, and work summaries. Hidden tool state and cache are not transferred; the old Claude session and the filesystem remain unchanged."
+          <TextBlock Text="Changes apply from the next send, which gives Claude the included turns' dialogue, recorded answers, and work summaries. Their tool activity isn't carried over, and files on disk aren't changed."
                      Foreground="{DynamicResource TextMutedBrush}" FontSize="12" TextWrapping="Wrap" />
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">

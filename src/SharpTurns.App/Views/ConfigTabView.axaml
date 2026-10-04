@@ -245,7 +245,7 @@
                             <TextBox Text="{Binding Name}" PlaceholderText="e.g., chrome-devtools"
                                      FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12" MinHeight="30" />
                             <TextBlock Classes="editorHelp"
-                                       Text="Unique identifier (no spaces). Renaming starts a fresh CLI session in conversations that use it." />
+                                       Text="Unique identifier (no spaces)." />
                           </StackPanel>
 
                           <StackPanel Spacing="4">
@@ -539,7 +539,7 @@
                   <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="14">
                     <TextBlock Classes="sectionTitle" Text="System Prompt" />
                     <TextBlock Grid.Row="1" Classes="sectionText"
-                               Text="Appended to the CLI's own system prompt for every turn. Your CLAUDE.md and AGENTS.md files still load. A saved change starts a new CLI session from the conversation history on each conversation's next turn." />
+                               Text="Appended to the CLI's own system prompt for every turn. Your CLAUDE.md and AGENTS.md files still load. A saved change applies from each conversation's next turn." />
                     <TextBox Grid.Row="2" Text="{Binding Preferences.SystemPromptText}" AcceptsReturn="True" TextWrapping="Wrap"
                              MinHeight="320" MaxLength="20000" FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12" />
                     <Grid Grid.Row="3" ColumnDefinitions="*,Auto" ColumnSpacing="18">

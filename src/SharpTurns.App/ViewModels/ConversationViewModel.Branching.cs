@@ -114,7 +114,7 @@ public sealed partial class ConversationViewModel
             var branch = await _store.BranchConversationAsync(Conversation.Id, turns.Select(t => t.Record!.Id).ToArray());
             Status = $"Branched {copied} into a new conversation.";
             _conversationBranched(branch, $"Branched from {copied} (now "
-                + (turns.Length == 1 ? "turn 1" : $"1–{turns.Length}") + "). The first turn starts a new CLI session.");
+                + (turns.Length == 1 ? "turn 1" : $"1–{turns.Length}") + ").");
             return true;
         }
         catch (Exception e)

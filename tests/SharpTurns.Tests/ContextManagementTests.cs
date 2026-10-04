@@ -41,7 +41,7 @@ public sealed class ContextManagementTests : IDisposable
         var hydrated = await HydratedAsync(store, saved.Id);
         Assert.Equal([false, false, true, true, true, true, true, true, true, true, true, true], hydrated);
         Assert.Equal(10, conversation.ShownTurns.Count);
-        Assert.Equal("12 stored turns · 10 replayed when a new CLI session starts", conversation.ContextStatusLabel);
+        Assert.Equal("12 stored turns · 10 in Claude's context", conversation.ContextStatusLabel);
 
         // A Shift-click selects the range from the last turn clicked; Hide leaves them out, and the list drops them.
         conversation.SelectContextTurn(conversation.ShownTurns[0], range: false);
@@ -49,7 +49,7 @@ public sealed class ContextManagementTests : IDisposable
         Assert.Equal("3 selected", conversation.SelectedTurnsLabel);
         Assert.Equal("Hide (3)", conversation.HideSelectedTurnsLabel);
         await conversation.HideSelectedTurnsCommand.ExecuteAsync(null);
-        Assert.Equal("Hid turns 3, 4, 5 from Claude's context. The next turn starts a new CLI session.", conversation.Status);
+        Assert.Equal("Hid turns 3, 4, 5 from Claude's context.", conversation.Status);
         Assert.Equal(5, (await HydratedAsync(store, saved.Id)).Count(h => !h));
         Assert.Equal(7, conversation.ShownTurns.Count);
         Assert.Equal("0 selected", conversation.SelectedTurnsLabel);
@@ -60,7 +60,7 @@ public sealed class ContextManagementTests : IDisposable
         conversation.SelectContextTurn(conversation.ShownTurns[0], range: false);
         conversation.SelectContextTurn(conversation.ShownTurns[5], range: false);
         await conversation.ShowSelectedTurnsCommand.ExecuteAsync(null);
-        Assert.Equal("Put turn 1 back in Claude's context. The next turn starts a new CLI session.", conversation.Status);
+        Assert.Equal("Put turn 1 back in Claude's context.", conversation.Status);
         Assert.True((await HydratedAsync(store, saved.Id))[0]);
 
         // Delete asks first, then removes the selected turns together.

@@ -47,7 +47,7 @@
         </Grid>
         <TextBlock Text="{Binding WorkspaceError}" IsVisible="{Binding WorkspaceError, Converter={x:Static ObjectConverters.IsNotNull}}"
                    Foreground="{DynamicResource TextDangerBrush}" FontSize="11" />
-        <TextBlock Text="Optional. The CLI runs this conversation's turns in this folder, and reads its CLAUDE.md, instead of the project's working directory. A change starts a new CLI session from the conversation history on the next turn."
+        <TextBlock Text="Optional. The CLI runs this conversation's turns in this folder, and reads its CLAUDE.md, instead of the project's working directory."
                    Foreground="{DynamicResource TextSubtleBrush}" FontSize="11" TextWrapping="Wrap" />
       </StackPanel>
 
@@ -75,7 +75,7 @@
       <StackPanel Spacing="8">
         <TextBlock Text="{Binding McpServersHeaderLabel}" Foreground="{DynamicResource TextStrongBrush}" FontSize="13"
                    FontWeight="SemiBold" />
-        <TextBlock Text="Selected servers start with each turn, and their tools run without asking. Every tool definition is sent with every request, so select only what this conversation needs. Changing the selection starts a new CLI session from the conversation history on the next turn. Configure servers in Config → MCP Servers."
+        <TextBlock Text="Selected servers start with each turn, and their tools run without asking. Every tool definition is sent with every request, so select only what this conversation needs. Configure servers in Config → MCP Servers."
                    Foreground="{DynamicResource TextSubtleBrush}" FontSize="11" TextWrapping="Wrap" />
         <ScrollViewer MaxHeight="280" IsVisible="{Binding HasMcpServers}" HorizontalScrollBarVisibility="Disabled">
           <ItemsControl ItemsSource="{Binding McpServers}">
@@ -96,7 +96,7 @@
                      FontWeight="SemiBold" VerticalAlignment="Center" />
           <Button Grid.Column="1" Classes="secondaryActionButton" Content="Add files…" Click="AddContextFiles_Click" MinWidth="104" />
         </Grid>
-        <TextBlock Text="Selected text files are read before each turn and shared with Claude when a new CLI session starts. A changed file starts a new CLI session from the conversation history on the next turn; unchanged files stay in a resumed session. Changes made during a turn reach Claude only when it reads the file or on the next turn."
+        <TextBlock Text="Selected text files are read before each turn, so Claude starts every turn with their current contents. Changes made during a turn reach Claude only when it reads the file or on the next turn."
                    Foreground="{DynamicResource TextSubtleBrush}" FontSize="11" TextWrapping="Wrap" />
         <TextBlock Text="{Binding ContextFilesRootLabel}" Foreground="{DynamicResource TextBlueMutedBrush}"
                    FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="11" TextWrapping="Wrap" />

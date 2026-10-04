@@ -633,8 +633,7 @@ public sealed partial class ConversationViewModel : ObservableObject
     {
         var number = turn.Record!.TurnNumber;
         if (ConfirmAsync is null || !await ConfirmAsync($"Delete Turn {number}",
-                $"Delete turn {number} and everything saved with it? This can't be undone. "
-                + "The next turn starts a new CLI session from the remaining history."))
+                $"Delete turn {number} and everything saved with it? This can't be undone."))
             return;
         try
         {
@@ -659,8 +658,8 @@ public sealed partial class ConversationViewModel : ObservableObject
             await _store.SetTurnHydratedAsync(record.Id, !record.IsHydrated);
             turn.ApplyRecord(record with { IsHydrated = !record.IsHydrated });
             NotifyContextChanged();
-            Status = (record.IsHydrated ? $"Hid turn {record.TurnNumber} from Claude's context."
-                : $"Turn {record.TurnNumber} is back in Claude's context.") + " The next turn starts a new CLI session.";
+            Status = record.IsHydrated ? $"Hid turn {record.TurnNumber} from Claude's context."
+                : $"Turn {record.TurnNumber} is back in Claude's context.";
         }
         catch (Exception e) { Status = $"Couldn't change turn {record.TurnNumber}: {e.Message}"; }
     }
@@ -676,7 +675,7 @@ public sealed partial class ConversationViewModel : ObservableObject
                 await _store.SetTurnSummaryAsync(record.Id, null, null);
                 turn.ApplyRecord(record with { Summary = null, SummaryModel = null });
                 NotifyContextChanged();
-                Status = $"Expanded turn {record.TurnNumber}. The next turn starts a new CLI session.";
+                Status = $"Expanded turn {record.TurnNumber}.";
             }
             catch (Exception e) { Status = $"Couldn't expand turn {record.TurnNumber}: {e.Message}"; }
             return;
@@ -700,7 +699,7 @@ public sealed partial class ConversationViewModel : ObservableObject
             Status = (automatic ? "Auto-summarized" : "Compressed") + $" turn {record.TurnNumber}"
                 + (TurnCompression.Reduction(compressed) is { } reduction
                     ? string.Create(CultureInfo.CurrentCulture, $" ({reduction:0.0}x replay reduction)") : "")
-                + ". The next turn starts a new CLI session.";
+                + ".";
         }
         catch (Win32Exception)
         {
@@ -744,7 +743,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         });
         NotifyContextChanged();
         Status = record is { IsHydrated: true, IsCompressed: true }
-            ? $"Turn {record.TurnNumber}'s image is {(include ? "now" : "no longer")} replayed. The next turn starts a new CLI session."
+            ? $"Turn {record.TurnNumber}'s image is {(include ? "now" : "no longer")} replayed."
             : $"Turn {record.TurnNumber}'s image {(include ? "will stay" : "won't stay")} in the replay when the turn is compressed.";
     }
 

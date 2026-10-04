@@ -321,7 +321,7 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
         {
             await _store.SetSettingAsync(SystemPromptSetting, prompt == ClaudeCliCodingPolicy.DefaultSystemPrompt ? null : prompt);
             ApplySystemPrompt(prompt);
-            SystemPromptMessage = "Saved. Each conversation's next turn starts a new CLI session with this prompt.";
+            SystemPromptMessage = "Saved. Each conversation uses this prompt from its next turn.";
         }
         catch (Exception e) { SystemPromptMessage = "Couldn't save the system prompt: " + e.Message; }
     }

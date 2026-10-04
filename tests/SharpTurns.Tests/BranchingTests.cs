@@ -85,7 +85,7 @@ public sealed class BranchingTests : IDisposable
         var branch = main.CurrentConversation!;
         Assert.NotSame(conversation, branch);
         Assert.Equal(main.Conversations[0], main.SelectedConversation);
-        Assert.Equal("Branched from turns 3–5 (now 1–3). The first turn starts a new CLI session.", branch.Status);
+        Assert.Equal("Branched from turns 3–5 (now 1–3).", branch.Status);
         await WaitAsync(() => branch.Turns.Count == 3);
         Assert.Equal([true, false, true], branch.Turns.Select(t => t.IsHydrated));
 

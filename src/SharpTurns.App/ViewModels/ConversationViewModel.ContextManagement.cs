@@ -25,7 +25,7 @@ public sealed partial class ConversationViewModel
     public IReadOnlyList<string> SmartCleanupOptions => SharedSmartCleanupOptions;
 
     public string ContextStatusLabel => string.Create(CultureInfo.CurrentCulture,
-        $"{SavedTurns().Count():N0} stored turns · {SavedTurns().Count(t => t.IsHydrated):N0} replayed when a new CLI session starts");
+        $"{SavedTurns().Count():N0} stored turns · {SavedTurns().Count(t => t.IsHydrated):N0} in Claude's context");
 
     public string ContextTurnsHeaderLabel => string.Create(CultureInfo.CurrentCulture, $"Turns ({Turns.Count:N0} total)");
 
@@ -107,8 +107,7 @@ public sealed partial class ConversationViewModel
             await _store.SetTurnsHydratedAsync(changed.Select(t => (t.Record!.Id, isHydrated)).ToArray());
             foreach (var turn in changed) turn.ApplyRecord(turn.Record! with { IsHydrated = isHydrated });
             NotifyContextChanged();
-            Status = (isHydrated ? $"Put {TurnsLabel(changed)} back in Claude's context." : $"Hid {TurnsLabel(changed)} from Claude's context.")
-                + " The next turn starts a new CLI session.";
+            Status = isHydrated ? $"Put {TurnsLabel(changed)} back in Claude's context." : $"Hid {TurnsLabel(changed)} from Claude's context.";
         }
         catch (Exception e) { Status = $"Couldn't change the selected turns: {e.Message}"; }
     }
@@ -120,7 +119,7 @@ public sealed partial class ConversationViewModel
         var count = selected.Length.ToString("N0", CultureInfo.CurrentCulture);
         if (ConfirmAsync is null || !await ConfirmAsync(selected.Length == 1 ? "Delete 1 Turn" : $"Delete {count} Turns",
                 $"Delete {TurnsLabel(selected)} and everything saved with {(selected.Length == 1 ? "it" : "them")}? "
-                + "This can't be undone. The next turn starts a new CLI session from the remaining history."))
+                + "This can't be undone."))
             return;
         try
         {
@@ -152,7 +151,7 @@ public sealed partial class ConversationViewModel
             NotifyContextChanged();
             var hidden = changed.Count(t => !t.IsHydrated);
             Status = string.Create(CultureInfo.CurrentCulture,
-                $"Kept the {count} most recent turns: hid {hidden:N0}, showed {changed.Length - hidden:N0}. The next turn starts a new CLI session.");
+                $"Kept the {count} most recent turns: hid {hidden:N0}, showed {changed.Length - hidden:N0}.");
         }
         catch (Exception e) { Status = "Couldn't apply Smart Cleanup: " + e.Message; }
     }
