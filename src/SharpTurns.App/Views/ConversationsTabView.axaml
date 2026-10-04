@@ -84,7 +84,7 @@
                         SelectedItem="{Binding CurrentConversation.SelectedOutputStyle}" MinHeight="28" FontSize="11"
                         HorizontalAlignment="Stretch"
                         ToolTip.Tip="The CLI's output style for this conversation." />
-              <StackPanel Grid.Row="7" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="10"
+              <StackPanel Grid.Row="7" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center"
                           ToolTip.Tip="Compresses each turn that completes, using the summarizer model in a separate one-shot CLI call, before the next turn can be sent. The full turn stays saved. Later turns see its user inputs, Work Summary and final response instead of its tool activity.">
                 <TextBlock Classes="settingLabel" Classes.on="{Binding CurrentConversation.AutoSummarize}" Text="Auto-Summarize"
                            VerticalAlignment="Center" />
