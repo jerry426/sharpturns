@@ -89,6 +89,10 @@
                            VerticalAlignment="Center" />
                 <ToggleSwitch IsChecked="{Binding CurrentConversation.AutoSummarize}" OnContent="" OffContent=""
                               VerticalAlignment="Center" />
+                <TextBlock Classes="cardValue" VerticalAlignment="Center">
+                  <Run Text="{Binding Preferences.SummarizerModel, Mode=OneWay}" />
+                  <Run Text="{Binding Preferences.SummarizerEffort, Mode=OneWay, StringFormat=' ({0})'}" />
+                </TextBlock>
               </StackPanel>
             </Grid>
           </StackPanel>
