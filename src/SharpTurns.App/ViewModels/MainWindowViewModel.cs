@@ -90,6 +90,10 @@ public sealed partial class MainWindowViewModel : ObservableObject
             if (e.PropertyName == nameof(ApiKeysConfigViewModel.IsConfigured)) _dictation.NotifyConfigurationChanged();
         };
         preferences.Models.ModelsChanged += OnModelsChanged;
+        preferences.McpServers.ServersChanged += () =>
+        {
+            foreach (var conversation in _openConversations.Values) _ = conversation.ReloadMcpServersAsync();
+        };
         Projects.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(OtherProjects));

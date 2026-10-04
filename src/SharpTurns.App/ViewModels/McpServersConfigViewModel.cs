@@ -49,6 +49,9 @@ public sealed partial class McpServersConfigViewModel : ObservableObject
     /// <summary>Title and message; returns true when confirmed.</summary>
     public Func<string, string, Task<bool>>? ConfirmAsync { get; set; }
 
+    /// <summary>Raised after a server is saved or deleted, so views of conversations' selections can reload.</summary>
+    public event Action? ServersChanged;
+
     // Choosing another server discards unsaved edits.
     partial void OnSelectedServerChanged(McpServerRowViewModel? value)
     {
@@ -99,6 +102,7 @@ public sealed partial class McpServersConfigViewModel : ObservableObject
                     fields.EnvJson, fields.WorkingDirectory, edit.Enabled);
             await ReloadAsync(saved.Name);
             Status = edit.IsNew ? $"Created {saved.Name}." : $"Saved {saved.Name}.";
+            ServersChanged?.Invoke();
         }
         catch (Exception e) { Status = "Couldn't save the MCP server: " + e.Message; }
     }
@@ -116,6 +120,7 @@ public sealed partial class McpServersConfigViewModel : ObservableObject
             await _store.DeleteMcpServerAsync(id);
             await ReloadAsync(null);
             Status = $"Deleted {edit.Name}.";
+            ServersChanged?.Invoke();
         }
         catch (Exception e) { Status = "Couldn't delete the MCP server: " + e.Message; }
     }

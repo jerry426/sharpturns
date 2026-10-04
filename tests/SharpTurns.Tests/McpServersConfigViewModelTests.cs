@@ -1,3 +1,4 @@
+using SharpTurns.App.Services;
 using SharpTurns.App.ViewModels;
 using SharpTurns.Core.Persistence;
 using Xunit;
@@ -98,6 +99,42 @@ public sealed class McpServersConfigViewModelTests : IDisposable
         Assert.Empty(await store.ListMcpServersAsync());
         Assert.Equal(("Deleted chrome-devtools.", false), (servers.Status, servers.HasServers));
         Assert.Null(servers.Editor);
+    }
+
+    [Fact]
+    public async Task OpenConversationsFollowServerChanges()
+    {
+        Directory.CreateDirectory(_directory);
+        var store = new ConversationStore(Path.Combine(_directory, "test.db"));
+        await store.InitializeAsync();
+        var project = await store.CreateProjectAsync("Project", _directory);
+        var conversation = await store.CreateConversationAsync(project.Id, "Conversation", "claude-opus-5-5");
+        var server = await store.CreateMcpServerAsync("chrome-devtools", "Chrome DevTools", null, """["npx"]""", null, null, true);
+        await store.UpdateConversationAsync(conversation.Id, conversation.Title, project.Id, null, false, [server.Id], []);
+        var preferences = new ApplicationPreferencesViewModel(store);
+        var main = new MainWindowViewModel(store, new ClaudeTurnRunner(store), new TurnSummarizer(store), preferences);
+        await main.InitializeAsync();
+        await WaitAsync(() => main.Conversations.Count == 1);
+        main.SelectedConversation = main.Conversations[0];
+        var open = main.CurrentConversation!;
+        await WaitAsync(() => open.McpServersLabel == "chrome-devtools");
+
+        var servers = preferences.McpServers;
+        servers.SelectedServer = servers.Servers[0];
+        servers.Editor!.Name = "browser";
+        servers.Editor.Enabled = false;
+        await servers.SaveCommand.ExecuteAsync(null);
+        await WaitAsync(() => open.McpServersLabel == "browser (disabled)");
+
+        servers.ConfirmAsync = (_, _) => Task.FromResult(true);
+        await servers.DeleteCommand.ExecuteAsync(null);
+        await WaitAsync(() => !open.HasMcpServers);
+    }
+
+    private static async Task WaitAsync(Func<bool> condition)
+    {
+        for (var i = 0; i < 100 && !condition(); i++) await Task.Delay(20);
+        Assert.True(condition());
     }
 
     public void Dispose()

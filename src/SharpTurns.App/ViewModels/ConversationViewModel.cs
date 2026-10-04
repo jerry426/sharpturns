@@ -351,6 +351,17 @@ public sealed partial class ConversationViewModel : ObservableObject
         catch (Exception e) { Status = "Couldn't load this conversation: " + e.Message; }
     }
 
+    /// <summary>Owns its errors so the Config tab's event can fire and forget it: a renamed, toggled or deleted server.</summary>
+    internal async Task ReloadMcpServersAsync()
+    {
+        try
+        {
+            ShowConfiguration(await _store.ListContextFilesAsync(Conversation.Id),
+                await _store.ListConversationMcpServersAsync(Conversation.Id));
+        }
+        catch (Exception e) { Status = "Couldn't load this conversation's MCP servers: " + e.Message; }
+    }
+
     private void ShowConfiguration(IReadOnlyList<ContextFile> contextFiles, IReadOnlyList<McpServer> mcpServers)
     {
         ContextFiles = contextFiles.Where(f => f.Enabled).Select(ContextFileSummaryViewModel.From).ToArray();
