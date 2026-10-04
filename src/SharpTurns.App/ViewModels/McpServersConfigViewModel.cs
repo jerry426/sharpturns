@@ -93,8 +93,8 @@ public sealed partial class McpServersConfigViewModel : ObservableObject
         try
         {
             var saved = edit.Id is { } id
-                ? await _store.UpdateMcpServerAsync(id, fields.DisplayName, fields.Description, fields.CommandJson, fields.EnvJson,
-                    fields.WorkingDirectory, edit.Enabled)
+                ? await _store.UpdateMcpServerAsync(id, fields.Name, fields.DisplayName, fields.Description, fields.CommandJson,
+                    fields.EnvJson, fields.WorkingDirectory, edit.Enabled)
                 : await _store.CreateMcpServerAsync(fields.Name, fields.DisplayName, fields.Description, fields.CommandJson,
                     fields.EnvJson, fields.WorkingDirectory, edit.Enabled);
             await ReloadAsync(saved.Name);
@@ -143,7 +143,8 @@ public sealed partial class McpServersConfigViewModel : ObservableObject
             error = "Enter a name (slug), such as chrome-devtools.";
         else if (name.Any(char.IsWhiteSpace))
             error = "The name (slug) can't contain spaces.";
-        else if (edit.IsNew && Servers.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase)) is { } existing)
+        else if (Servers.FirstOrDefault(s => s.Server.Id != edit.Id
+                     && string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase)) is { } existing)
             error = $"An MCP server named {existing.Name} already exists.";
         else if (displayName.Length == 0)
             error = "Enter a display name.";
@@ -212,8 +213,7 @@ public sealed class McpServerRowViewModel(McpServer server)
 }
 
 /// <summary>
-/// The editor for a new or saved server. The name is the server's key, so it can't change once saved;
-/// the command and environment are edited as JSON text.
+/// The editor for a new or saved server. The command and environment are edited as JSON text.
 /// </summary>
 public sealed partial class McpServerEditViewModel : ObservableObject
 {

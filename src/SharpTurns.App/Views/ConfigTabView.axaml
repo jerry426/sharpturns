@@ -242,9 +242,10 @@
 
                           <StackPanel Spacing="4">
                             <TextBlock Classes="editorLabel" Text="Name (Slug) *" />
-                            <TextBox Text="{Binding Name}" PlaceholderText="e.g., chrome-devtools" IsReadOnly="{Binding IsExisting}"
+                            <TextBox Text="{Binding Name}" PlaceholderText="e.g., chrome-devtools"
                                      FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12" MinHeight="30" />
-                            <TextBlock Classes="editorHelp" Text="Unique identifier (no spaces). Can't be changed after creation." />
+                            <TextBlock Classes="editorHelp"
+                                       Text="Unique identifier (no spaces). Renaming starts a fresh CLI session in conversations that use it." />
                           </StackPanel>
 
                           <StackPanel Spacing="4">

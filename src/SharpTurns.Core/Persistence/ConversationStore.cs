@@ -388,19 +388,20 @@ public sealed class ConversationStore
             ("$now", Now())).ConfigureAwait(false);
     }
 
-    /// <summary>The name can't change after creation.</summary>
-    public async Task<McpServer> UpdateMcpServerAsync(long serverId, string displayName, string? description, string commandJson,
-        string? envJson, string? workingDirectory, bool enabled, CancellationToken cancellationToken = default)
+    /// <summary>Conversations select servers by ID, so a rename keeps their selections.</summary>
+    public async Task<McpServer> UpdateMcpServerAsync(long serverId, string name, string displayName, string? description,
+        string commandJson, string? envJson, string? workingDirectory, bool enabled, CancellationToken cancellationToken = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
         ArgumentException.ThrowIfNullOrWhiteSpace(commandJson);
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
         return await ReadSingleMcpServerAsync(connection, $"""
-            UPDATE mcp_servers SET display_name = $display, description = $description, command = $command, env = $env,
-                working_directory = $directory, enabled = $enabled, updated_at = $now
+            UPDATE mcp_servers SET name = $name, display_name = $display, description = $description, command = $command,
+                env = $env, working_directory = $directory, enabled = $enabled, updated_at = $now
             WHERE id = $id
             RETURNING {McpServerColumns}
-            """, cancellationToken, ("$id", serverId), ("$display", displayName), ("$description", description),
+            """, cancellationToken, ("$id", serverId), ("$name", name), ("$display", displayName), ("$description", description),
             ("$command", commandJson), ("$env", envJson), ("$directory", workingDirectory), ("$enabled", enabled),
             ("$now", Now())).ConfigureAwait(false);
     }

@@ -79,6 +79,15 @@ public sealed class McpServersConfigViewModelTests : IDisposable
         await reloaded.LoadAsync();
         Assert.Equal("Browser automation", Assert.Single(reloaded.McpServers.Servers).Description);
 
+        // A saved server can be renamed.
+        var id = servers.Editor!.Id;
+        servers.Editor.Name = "browser";
+        await servers.SaveCommand.ExecuteAsync(null);
+        Assert.Equal(("Saved browser.", "browser"), (servers.Status, servers.SelectedServer?.Name));
+        Assert.Equal(id, Assert.Single(await store.ListMcpServersAsync()).Id);
+        servers.Editor!.Name = "chrome-devtools";
+        await servers.SaveCommand.ExecuteAsync(null);
+
         // Delete asks first.
         var confirmed = false;
         servers.ConfirmAsync = (_, _) => Task.FromResult(confirmed);
