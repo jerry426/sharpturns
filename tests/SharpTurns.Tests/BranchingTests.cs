@@ -18,16 +18,18 @@ public sealed class BranchingTests : IDisposable
         await store.SetTurnSummaryAsync(turns[3].Id, "## Work Summary\nDid it.", "claude-sonnet-5-5");
         await store.SetConversationOutputStyleAsync(source.Id, "Concise");
         var server = await store.CreateMcpServerAsync("browser", "Browser", null, """["npx", "browser"]""", null, null, true);
-        await store.UpdateConversationAsync(source.Id, "Conversation", source.ProjectId, _directory, true, [server.Id]);
+        await store.UpdateConversationAsync(source.Id, "Conversation", source.ProjectId, _directory, true, [server.Id],
+            [new("docs/plan.md", ContextFileRoles.ActiveOperationalDocument, "The plan", true, true, false)]);
         await store.SaveClaudeCodeSessionAsync(source.Id, new(Guid.NewGuid().ToString(), _directory, "fingerprint", false));
 
         var branch = await store.BranchConversationAsync(source.Id, [turns[3].Id, turns[1].Id, turns[2].Id]);
 
         Assert.Equal((source.ProjectId, "Conversation", "claude-opus-5-5", "Concise", true),
             (branch.ProjectId, branch.Title, branch.Model, branch.OutputStyle, branch.AutoSummarize));
-        // The workspace and MCP servers carry over; protection doesn't.
+        // The workspace, MCP servers, and context files carry over; protection doesn't.
         Assert.Equal((_directory, false), (branch.WorkingDirectory, branch.IsProtected));
         Assert.Equal(["browser"], (await store.ListConversationMcpServersAsync(branch.Id)).Select(s => s.Name));
+        Assert.Equal(await store.ListContextFilesAsync(source.Id), await store.ListContextFilesAsync(branch.Id));
         Assert.Null(await store.LoadClaudeCodeSessionAsync(branch.Id));
         var copied = await store.LoadTurnsAsync(branch.Id);
         Assert.Equal([1, 2, 3], copied.Select(t => t.TurnNumber));

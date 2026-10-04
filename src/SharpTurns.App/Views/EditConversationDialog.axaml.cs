@@ -30,4 +30,16 @@ public sealed partial class EditConversationDialog : Window
         });
         if (folders.FirstOrDefault()?.Path.LocalPath is { Length: > 0 } path) viewModel.WorkingDirectory = path;
     }
+
+    private async void AddContextFiles_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not EditConversationDialogViewModel viewModel) return;
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Add Conversation Context Files",
+            AllowMultiple = true,
+        });
+        foreach (var file in files)
+            if (file.Path.LocalPath is { Length: > 0 } path) viewModel.TryAddContextFile(path);
+    }
 }

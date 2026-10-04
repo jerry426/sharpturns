@@ -153,6 +153,9 @@ Before you use it, know that:
   MCP Servers, then select them for a conversation in Edit Conversation. The
   CLI starts them with each of its turns, and their tools run without asking.
   Your own CLI MCP configuration isn't used.
+- **Context files go with fresh sessions.** Files you add in Edit Conversation
+  are read before each turn and sent to Claude whenever a new CLI session
+  starts. Changing one starts a new session on the next turn.
 - **Your CLI setup still applies.** The CLI discovers the project's `CLAUDE.md`
   (or `AGENTS.md`) and loads your settings files. SharpTurns overrides them to
   turn off hooks, auto-compact, and the fallback model.

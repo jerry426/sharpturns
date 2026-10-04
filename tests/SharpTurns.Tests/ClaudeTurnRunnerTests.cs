@@ -173,7 +173,7 @@ public sealed class ClaudeTurnRunnerTests : IDisposable
             """{"PORT": 9222, "MODE": "headless"}""", null, true);
         var db = await _store.CreateMcpServerAsync("db", "Database", null, """["db-mcp"]""", null, null, false);
         conversation = await _store.UpdateConversationAsync(conversation.Id, conversation.Title, project.Id, workspace, false,
-            [browser.Id, db.Id]);
+            [browser.Id, db.Id], []);
         var approvals = new List<string>();
 
         var result = await RunAsync(runner, project, conversation, Callbacks(approve: (tool, _, _) =>
@@ -196,6 +196,52 @@ public sealed class ClaudeTurnRunnerTests : IDisposable
         var state = (await _store.LoadClaudeCodeSessionAsync(conversation.Id))!;
         Assert.Equal(workspace, state.WorkingDirectory);
         Assert.Equal(ClaudeCliCodingPolicy.VersionFor("Host rules.", null, ["browser"]), state.PolicyVersion);
+    }
+
+    [Fact]
+    public async Task ContextFilesAreSentToFreshSessionsAndAChangedFileStartsOne()
+    {
+        if (OperatingSystem.IsWindows()) return; // The fake CLI is a POSIX shell script.
+        var runner = new ClaudeTurnRunner(_store, CreateFakeCli(Handshake + "printf '%s\\n' \"$user\" >> user.jsonl\n" + Lines(
+            $$$"""{"type":"result","session_id":"{{{Session}}}","is_error":false,"result":"Done."}""") + "cat > /dev/null\n"));
+        var (project, conversation) = await CreateConversationAsync();
+        var plan = Path.Combine(Directory.CreateDirectory(Path.Combine(_directory, "docs")).FullName, "plan.md");
+        await File.WriteAllTextAsync(plan, "Plan v1");
+        await File.WriteAllTextAsync(Path.Combine(_directory, "notes.md"), "Off");
+        conversation = await _store.UpdateConversationAsync(conversation.Id, conversation.Title, project.Id, null, false, [],
+        [
+            new("docs/plan.md", ContextFileRoles.ActiveOperationalDocument, "Track progress", true, true, false),
+            new("missing.md", ContextFileRoles.ReferenceSource, null, true, false, false),
+            new("notes.md", ContextFileRoles.ReferenceSource, null, false, false, false),
+        ]);
+
+        var first = await RunAsync(runner, project, conversation, Callbacks());
+        var unchanged = await RunAsync(runner, project, conversation, Callbacks());
+        await File.WriteAllTextAsync(plan, "Plan v2");
+        var changed = await RunAsync(runner, project, conversation, Callbacks());
+        File.Delete(plan);
+        var required = await RunAsync(runner, project, conversation, Callbacks());
+
+        Assert.Equal([TurnStatus.Completed, TurnStatus.Completed, TurnStatus.Completed],
+            new[] { first, unchanged, changed }.Select(r => r.Turn.Status));
+        // An optional file that can't be read is left out and reported; a disabled one is skipped.
+        Assert.Equal(["missing.md: The file doesn't exist."], first.OmittedContextFiles);
+        var messages = (await File.ReadAllLinesAsync(Path.Combine(_directory, "user.jsonl")))
+            .Select(line => JsonDocument.Parse(line).RootElement.GetProperty("message").GetProperty("content")).ToArray();
+        // The required file failed the fourth turn before the CLI started.
+        Assert.Equal(3, messages.Length);
+        var sent = messages[0].EnumerateArray().Select(b => b.GetProperty("text").GetString()!).ToArray();
+        Assert.Equal(2, sent.Length);
+        Assert.Contains("Path: docs/plan.md", sent[0]);
+        Assert.Contains("User-provided purpose: Track progress", sent[0]);
+        Assert.Contains("[BEGIN USER-CONFIGURED FILE CONTENT]\nPlan v1\n[END USER-CONFIGURED FILE CONTENT]", sent[0]);
+        Assert.Equal("Current user request:\nprompt", sent[1]);
+        // Unchanged files stay in the resumed session.
+        Assert.Equal("prompt", messages[1].GetString());
+        Assert.Contains(messages[2].EnumerateArray(), b => b.GetProperty("text").GetString()!.Contains("Plan v2"));
+        Assert.Equal(TurnStatus.Failed, required.Turn.Status);
+        Assert.StartsWith("A required context file couldn't be included. docs/plan.md: The file doesn't exist.",
+            required.Turn.ErrorMessage);
     }
 
     private async Task<(Project, Conversation)> CreateConversationAsync()

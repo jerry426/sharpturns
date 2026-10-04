@@ -160,14 +160,16 @@ public sealed class ConversationStore
 
     /// <summary>
     /// Saves the Edit Conversation dialog: the title, the project (a different one moves the conversation), the
-    /// workspace (null uses the project's), protection, and the MCP servers its turns start.
+    /// workspace (null uses the project's), protection, the MCP servers its turns start, and its context files in order.
     /// </summary>
     public async Task<Conversation> UpdateConversationAsync(long conversationId, string title, long projectId,
         string? workingDirectory, bool isProtected, IReadOnlyCollection<long> mcpServerIds,
-        CancellationToken cancellationToken = default)
+        IReadOnlyList<ContextFile> contextFiles, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         if (workingDirectory is not null) ArgumentException.ThrowIfNullOrWhiteSpace(workingDirectory);
+        if (contextFiles.Count > ContextFiles.MaxFiles)
+            throw new ArgumentException($"A conversation can have at most {ContextFiles.MaxFiles} context files.", nameof(contextFiles));
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var transaction = connection.BeginTransaction();
         Conversation conversation;
@@ -190,8 +192,41 @@ public sealed class ConversationStore
             await ExecuteAsync(connection, transaction,
                 "INSERT INTO conversation_mcp_servers (conversation_id, mcp_server_id) VALUES ($id, $server)",
                 cancellationToken, ("$id", conversationId), ("$server", serverId)).ConfigureAwait(false);
+        await ExecuteAsync(connection, transaction, "DELETE FROM conversation_context_files WHERE conversation_id = $id",
+            cancellationToken, ("$id", conversationId)).ConfigureAwait(false);
+        for (var i = 0; i < contextFiles.Count; i++)
+        {
+            var file = contextFiles[i];
+            ArgumentException.ThrowIfNullOrWhiteSpace(file.Path, nameof(contextFiles));
+            if (!ContextFileRoles.All.Contains(file.Role))
+                throw new ArgumentException($"Unsupported context file role '{file.Role}'.", nameof(contextFiles));
+            await ExecuteAsync(connection, transaction, """
+                INSERT INTO conversation_context_files
+                    (conversation_id, position, path, role, purpose, enabled, required, allow_model_maintenance)
+                VALUES ($id, $position, $path, $role, $purpose, $enabled, $required, $maintain)
+                """, cancellationToken, ("$id", conversationId), ("$position", i), ("$path", file.Path), ("$role", file.Role),
+                ("$purpose", string.IsNullOrWhiteSpace(file.Purpose) ? null : file.Purpose.Trim()), ("$enabled", file.Enabled),
+                ("$required", file.Required), ("$maintain", file.AllowModelMaintenance)).ConfigureAwait(false);
+        }
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         return conversation;
+    }
+
+    /// <summary>The conversation's context files in order, including disabled ones.</summary>
+    public async Task<IReadOnlyList<ContextFile>> ListContextFilesAsync(long conversationId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = Command(connection, null, """
+            SELECT path, role, purpose, enabled, required, allow_model_maintenance FROM conversation_context_files
+            WHERE conversation_id = $conversation ORDER BY position
+            """, ("$conversation", conversationId));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        var files = new List<ContextFile>();
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            files.Add(new(reader.GetString(0), reader.GetString(1), reader.IsDBNull(2) ? null : reader.GetString(2),
+                reader.GetBoolean(3), reader.GetBoolean(4), reader.GetBoolean(5)));
+        return files;
     }
 
     public async Task SetConversationModelAsync(long conversationId, string? model, string? effort,
@@ -601,7 +636,8 @@ public sealed class ConversationStore
 
     /// <summary>
     /// Copies a contiguous run of the conversation's turns, renumbered from 1, with their parts and
-    /// context state into a new conversation with the same project, title, workspace, MCP servers, and settings. The
+    /// context state into a new conversation with the same project, title, workspace, MCP servers, context files, and
+    /// settings. The
     /// branch starts unprotected, and the source is unchanged. The
     /// branch has no CLI session, so its first turn reseeds from the copied history. Throws unless turnIds are every
     /// turn between the first and last of them, none still running.
@@ -646,6 +682,12 @@ public sealed class ConversationStore
         await ExecuteAsync(connection, transaction, """
             INSERT INTO conversation_mcp_servers (conversation_id, mcp_server_id)
             SELECT $branch, mcp_server_id FROM conversation_mcp_servers WHERE conversation_id = $source
+            """, cancellationToken, ("$branch", branch.Id), ("$source", conversationId)).ConfigureAwait(false);
+        await ExecuteAsync(connection, transaction, """
+            INSERT INTO conversation_context_files
+                (conversation_id, position, path, role, purpose, enabled, required, allow_model_maintenance)
+            SELECT $branch, position, path, role, purpose, enabled, required, allow_model_maintenance
+            FROM conversation_context_files WHERE conversation_id = $source
             """, cancellationToken, ("$branch", branch.Id), ("$source", conversationId)).ConfigureAwait(false);
         for (var i = 0; i < run.Length; i++)
         {

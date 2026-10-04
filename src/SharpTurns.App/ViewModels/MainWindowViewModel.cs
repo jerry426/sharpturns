@@ -571,7 +571,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         try
         {
             dialog = new(current, Projects, await _store.ListMcpServersAsync(),
-                (await _store.ListConversationMcpServersAsync(current.Id)).Select(s => s.Id).ToArray());
+                (await _store.ListConversationMcpServersAsync(current.Id)).Select(s => s.Id).ToArray(),
+                await _store.ListContextFilesAsync(current.Id));
         }
         catch (Exception e)
         {
@@ -582,8 +583,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
         await RunAsync("save the conversation", async () =>
         {
             var saved = await _store.UpdateConversationAsync(current.Id, dialog.Title.Trim(), project.Id,
-                dialog.WorkingDirectoryOrNull, dialog.IsProtected, dialog.SelectedServerIds);
-            if (_openConversations.TryGetValue(saved.Id, out var open)) open.ApplyEdit(saved, project);
+                dialog.WorkingDirectoryOrNull, dialog.IsProtected, dialog.SelectedServerIds, dialog.ContextFileSettings);
+            if (_openConversations.TryGetValue(saved.Id, out var open))
+                open.ApplyEdit(saved, project, dialog.ContextFileSettings, dialog.SelectedServers);
             // A turn may have replaced the listed record meanwhile.
             if (Conversations.FirstOrDefault(c => c.Id == saved.Id) is not { } listed) return;
             var selected = SelectedConversation?.Id == saved.Id;

@@ -147,5 +147,19 @@ internal static class Migrations
             PRIMARY KEY (conversation_id, mcp_server_id)
         );
         """,
+        """
+        CREATE TABLE conversation_context_files (
+            conversation_id INTEGER NOT NULL REFERENCES conversations (id) ON DELETE CASCADE,
+            position INTEGER NOT NULL,
+            path TEXT NOT NULL COLLATE NOCASE,
+            role TEXT NOT NULL,
+            purpose TEXT,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            required INTEGER NOT NULL DEFAULT 0,
+            allow_model_maintenance INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (conversation_id, position),
+            UNIQUE (conversation_id, path)
+        );
+        """,
     ];
 }

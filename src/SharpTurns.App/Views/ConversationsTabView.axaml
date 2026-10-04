@@ -3,6 +3,7 @@
              xmlns:core="using:SharpTurns.Core"
              xmlns:views="using:SharpTurns.App.Views"
              xmlns:vm="using:SharpTurns.App.ViewModels"
+             xmlns:fonts="using:SharpTurns.Markdown.Rendering.Styling"
              x:Class="SharpTurns.App.Views.ConversationsTabView"
              x:DataType="vm:MainWindowViewModel">
   <UserControl.DataTemplates>
@@ -51,7 +52,7 @@
                          ToolTip.Tip="Protected: it can't be deleted until protection is cleared in Edit Conversation" />
               <Button Grid.Column="2" Classes="secondaryActionButton dictationLocked" Command="{Binding EditConversationCommand}"
                       Width="34" Height="34" Padding="0"
-                      ToolTip.Tip="Edit this conversation: title, project, workspace, protection, and MCP servers">
+                      ToolTip.Tip="Edit this conversation: title, project, workspace, protection, MCP servers, and context files">
                 <PathIcon Width="16" Height="16" Data="{StaticResource EditIconGeometry}" />
               </Button>
               <Button Grid.Column="3" Classes="dangerActionButton dictationLocked" Command="{Binding DeleteConversationCommand}"
@@ -95,6 +96,48 @@
                 </TextBlock>
               </StackPanel>
             </Grid>
+
+            <Border Background="#101D2A" BorderBrush="#334E68" BorderThickness="1" CornerRadius="10" Padding="10">
+              <StackPanel Spacing="5">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBlock Text="Conversation Configuration:" Foreground="{DynamicResource TextGreenBrush}" FontSize="12"
+                             FontWeight="SemiBold" VerticalAlignment="Center" />
+                  <Button Grid.Column="1" Classes="secondaryActionButton dictationLocked" Content="Edit"
+                          Command="{Binding EditConversationCommand}" MinHeight="24" Padding="9,2" FontSize="11"
+                          ToolTip.Tip="Open Edit Conversation" />
+                </Grid>
+                <TextBlock Text="{Binding CurrentConversation.ContextFilesHeaderLabel, FallbackValue=''}"
+                           Foreground="{DynamicResource TextGreenBrush}" FontSize="11" FontWeight="SemiBold" />
+                <TextBlock Text="None enabled" IsVisible="{Binding !CurrentConversation.HasContextFiles, FallbackValue=False}"
+                           Foreground="{DynamicResource TextMutedBrush}" FontSize="11" />
+                <ItemsControl ItemsSource="{Binding CurrentConversation.ContextFiles, FallbackValue={x:Null}}"
+                              IsVisible="{Binding CurrentConversation.HasContextFiles, FallbackValue=False}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ContextFileSummaryViewModel">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,1">
+                        <StackPanel Spacing="1">
+                          <TextBlock Text="{Binding FileName}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12"
+                                     TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}" />
+                          <TextBlock Text="{Binding Path}" Foreground="{DynamicResource TextSubtleBrush}"
+                                     FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="10"
+                                     TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}" />
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="{Binding DetailLabel}" Foreground="{DynamicResource TextGreenBrush}"
+                                   FontSize="10" VerticalAlignment="Center" />
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Border Height="1" Background="#2B4559" Margin="0,4,0,3" />
+                <TextBlock Text="{Binding CurrentConversation.McpServersHeaderLabel, FallbackValue=''}"
+                           Foreground="{DynamicResource TextGreenBrush}" FontSize="11" FontWeight="SemiBold" />
+                <TextBlock Text="None selected" IsVisible="{Binding !CurrentConversation.HasMcpServers, FallbackValue=False}"
+                           Foreground="{DynamicResource TextMutedBrush}" FontSize="11" />
+                <TextBlock Text="{Binding CurrentConversation.McpServersLabel, FallbackValue=''}"
+                           IsVisible="{Binding CurrentConversation.HasMcpServers, FallbackValue=False}"
+                           Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
           </StackPanel>
         </Border>
 

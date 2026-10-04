@@ -26,8 +26,12 @@ internal sealed record TurnCallbacks(
     Func<ClaudeCliQuestion, CancellationToken, Task<string?>> AskAsync,
     Func<string, string, CancellationToken, Task<bool>> ApproveAsync);
 
-/// <summary>The saved turn, and any messages queued during it that never reached the CLI.</summary>
-internal sealed record TurnRunResult(ConversationTurn Turn, IReadOnlyList<string> UndeliveredMessages);
+/// <summary>
+/// The saved turn, any messages queued during it that never reached the CLI, and why each optional context file that
+/// couldn't be read was left out.
+/// </summary>
+internal sealed record TurnRunResult(ConversationTurn Turn, IReadOnlyList<string> UndeliveredMessages,
+    IReadOnlyList<string> OmittedContextFiles);
 
 /// <summary>
 /// Runs one turn through the CLI: saves the prompt, resumes the conversation's CLI session or seeds a fresh one
@@ -67,6 +71,8 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, Func<string?> ex
         string? model = null;
         ClaudeCodeSessionState? state = null;
         string[] mcpServerNames = [];
+        string? contextFilesFingerprint = null;
+        string[] omittedContextFiles = [];
         TurnStatus status;
         string? error = null;
 
@@ -276,14 +282,24 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, Func<string?> ex
                 .Where(server => server.Enabled).OrderBy(server => server.Name, StringComparer.Ordinal).Select(ToCli).ToArray();
             // Set before the CLI starts, so permission requests always see it.
             mcpServerNames = mcpServers.Select(server => server.Name).ToArray();
+            // Read on every turn, before the session is chosen: a changed file starts a fresh session that sends it.
+            var contextFiles = await ContextFiles.ResolveAsync(
+                await store.ListContextFilesAsync(conversation.Id, token).ConfigureAwait(false), directory, token).ConfigureAwait(false);
+            ContextFiles.ThrowIfRequiredFailed(contextFiles);
+            contextFilesFingerprint = ContextFiles.Fingerprint(contextFiles);
+            omittedContextFiles = contextFiles.Where(f => f.Content is null).Select(f => $"{f.File.Path}: {f.Error}").ToArray();
             var history = (await store.LoadTurnsAsync(conversation.Id, token).ConfigureAwait(false))
                 .Where(t => t.Id != turn.Id).ToArray();
             var previous = await store.LoadClaudeCodeSessionAsync(conversation.Id, token).ConfigureAwait(false);
-            var fingerprint = ClaudeCodeContext.Fingerprint(history);
+            var fingerprint = ClaudeCodeContext.Fingerprint(history, contextFilesFingerprint);
             var policyVersion = ClaudeCliCodingPolicy.VersionFor(systemPrompt, conversation.OutputStyle, mcpServerNames);
             var resume = ClaudeCodeContext.CanResume(previous, directory, fingerprint, policyVersion) ? previous!.SessionId : null;
             var retainedHistory = resume is null
                 ? ClaudeCodeContext.SeedHistoryBlocks(history).Select(block => new ClaudeCliHistoryBlock(block.Text, ToCli(block.Images))).ToArray()
+                : null;
+            // A resumed session already holds the unchanged files.
+            var contextFileBlocks = resume is null
+                ? contextFiles.Where(f => f.Content is not null).Select(f => ContextFiles.Format(f.File, f.Content!)).ToArray()
                 : null;
             state = new(resume, directory, fingerprint, InFlight: true, policyVersion);
             // Persist the uncertainty before launch. A crash cannot silently resume stale native context.
@@ -294,7 +310,8 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, Func<string?> ex
 
             var result = await new ClaudeCliClient(executable()).RunTurnAsync(directory, prompt, resume, OnEvent, AnswerAsync,
                 systemPrompt, token, conversation.Model, conversation.Effort, sessionName: conversation.Title,
-                retainedHistory: retainedHistory, images: ToCli(images), queuedInput: queue.ToTurnInput(TakeQueued),
+                retainedHistory: retainedHistory, images: ToCli(images), contextFiles: contextFileBlocks,
+                queuedInput: queue.ToTurnInput(TakeQueued),
                 outputStyle: conversation.OutputStyle, mcpServers: mcpServers).ConfigureAwait(false);
             state = state with { SessionId = result.SessionId };
             status = result.IsError ? TurnStatus.Failed : TurnStatus.Completed;
@@ -343,13 +360,14 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, Func<string?> ex
         await store.FinishTurnAsync(turn.Id, status, error, parts, turnUsage, model, CancellationToken.None).ConfigureAwait(false);
         var turns = await store.LoadTurnsAsync(conversation.Id, CancellationToken.None).ConfigureAwait(false);
         // Reuse the session next turn only after a clean finish, and only if the history the CLI saw is unchanged.
-        // Otherwise InFlight stays set and the next turn reseeds from the saved history.
+        // Otherwise InFlight stays set and the next turn reseeds from the saved history. The files are the ones sent; the
+        // next turn reads them again and reseeds if they changed.
         if (status == TurnStatus.Completed && state is not null
-            && ClaudeCodeContext.Fingerprint(turns.Where(t => t.Id != turn.Id).ToArray()) == state.ContextFingerprint)
+            && ClaudeCodeContext.Fingerprint(turns.Where(t => t.Id != turn.Id).ToArray(), contextFilesFingerprint) == state.ContextFingerprint)
             await store.SaveClaudeCodeSessionAsync(conversation.Id,
-                state with { ContextFingerprint = ClaudeCodeContext.Fingerprint(turns), InFlight = false },
+                state with { ContextFingerprint = ClaudeCodeContext.Fingerprint(turns, contextFilesFingerprint), InFlight = false },
                 CancellationToken.None).ConfigureAwait(false);
-        return new(turns.Single(t => t.Id == turn.Id), undelivered);
+        return new(turns.Single(t => t.Id == turn.Id), undelivered, omittedContextFiles);
     }
 
     /// <summary>The question as shown on its card and replayed in later context.</summary>

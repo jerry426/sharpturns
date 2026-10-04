@@ -110,8 +110,17 @@ public static class ClaudeCodeContext
     private static long DecodedLength(string base64) =>
         base64.Length / 4 * 3L - (base64.EndsWith("==", StringComparison.Ordinal) ? 2 : base64.EndsWith('=') ? 1 : 0);
 
-    public static string Fingerprint(IReadOnlyList<ConversationTurn> turns) =>
-        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(SelectedDialogue(turns))));
+    /// <summary>
+    /// Covers the replayed dialogue and, when given, the context files (see ContextFiles.Fingerprint). Without files
+    /// the fingerprint is the dialogue's alone, as before context files existed.
+    /// </summary>
+    public static string Fingerprint(IReadOnlyList<ConversationTurn> turns, string? contextFilesFingerprint = null)
+    {
+        var dialogue = SelectedDialogue(turns);
+        var context = contextFilesFingerprint is null ? dialogue
+            : JsonSerializer.Serialize(new { dialogue, contextFilesFingerprint });
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(context)));
+    }
 
     public static bool CanResume(ClaudeCodeSessionState? state, string directory, string fingerprint, string policyVersion) =>
         state is { InFlight: false, SessionId: not null }

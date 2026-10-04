@@ -198,6 +198,30 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     public bool IsProtected => Conversation.IsProtected;
 
+    /// <summary>The sidebar's Conversation Configuration card: the enabled context files, in the order they're sent.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasContextFiles), nameof(ContextFilesHeaderLabel))]
+    private IReadOnlyList<ContextFileSummaryViewModel> _contextFiles = [];
+
+    public bool HasContextFiles => ContextFiles.Count > 0;
+
+    public string ContextFilesHeaderLabel => ContextFiles.Count == 1
+        ? "Additional Context File:"
+        : string.Create(CultureInfo.CurrentCulture, $"Additional Context Files ({ContextFiles.Count:N0}):");
+
+    /// <summary>The selected MCP servers' names; a disabled one is marked, since it isn't started.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasMcpServers), nameof(McpServersHeaderLabel), nameof(McpServersLabel))]
+    private IReadOnlyList<string> _mcpServers = [];
+
+    public bool HasMcpServers => McpServers.Count > 0;
+
+    public string McpServersHeaderLabel => McpServers.Count <= 1
+        ? "MCP Servers:"
+        : string.Create(CultureInfo.CurrentCulture, $"MCP Servers ({McpServers.Count:N0}):");
+
+    public string McpServersLabel => string.Join(", ", McpServers);
+
     public ConversationDisplayViewModel Display { get; }
 
     /// <summary>The composer's Voice, confidence, and Undo.</summary>
@@ -321,8 +345,16 @@ public sealed partial class ConversationViewModel : ObservableObject
             foreach (var turn in turns) Turns.Add(new TurnViewModel(turn) { IsWorkSummaryExpanded = Display.IsWorkSummaryExpanded });
             TurnContentChanged?.Invoke(this, EventArgs.Empty);
             NotesCount = await _store.CountNotesAsync(Conversation.Id);
+            ShowConfiguration(await _store.ListContextFilesAsync(Conversation.Id),
+                await _store.ListConversationMcpServersAsync(Conversation.Id));
         }
         catch (Exception e) { Status = "Couldn't load this conversation: " + e.Message; }
+    }
+
+    private void ShowConfiguration(IReadOnlyList<ContextFile> contextFiles, IReadOnlyList<McpServer> mcpServers)
+    {
+        ContextFiles = contextFiles.Where(f => f.Enabled).Select(ContextFileSummaryViewModel.From).ToArray();
+        McpServers = mcpServers.Select(s => s.Enabled ? s.Name : $"{s.Name} (disabled)").ToArray();
     }
 
     /// <summary>
@@ -346,8 +378,10 @@ public sealed partial class ConversationViewModel : ObservableObject
     }
 
     /// <summary>The Edit Conversation dialog's saved changes; project is the conversation's project after them.</summary>
-    public void ApplyEdit(Conversation conversation, Project project)
+    public void ApplyEdit(Conversation conversation, Project project, IReadOnlyList<ContextFile> contextFiles,
+        IReadOnlyList<McpServer> mcpServers)
     {
+        ShowConfiguration(contextFiles, mcpServers);
         Conversation = Conversation with
         {
             Title = conversation.Title, ProjectId = conversation.ProjectId, WorkingDirectory = conversation.WorkingDirectory,
@@ -481,6 +515,9 @@ public sealed partial class ConversationViewModel : ObservableObject
                 ComposerText = string.Join("\n\n", result.UndeliveredMessages.Append(ComposerText).Where(t => !string.IsNullOrWhiteSpace(t)));
                 Status = (Status is null ? "" : Status + " ") + "Messages that weren't delivered are back in the composer.";
             }
+            if (result.OmittedContextFiles.Count > 0)
+                Status = (Status is null ? "" : Status + " ") + "Left out optional context files: "
+                    + string.Join("; ", result.OmittedContextFiles);
         }
         catch (Exception e)
         {

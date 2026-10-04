@@ -306,8 +306,16 @@ running instances and docks their windows beside its own.
 - **Edit Conversation** (the sidebar card's edit button) sets the title, moves
   the conversation to another project, sets a workspace in place of the
   project's working directory, protects it from deletion, and selects its MCP
-  servers. A protected conversation can't be deleted, and neither can a
-  project that holds one.
+  servers and context files. A protected conversation can't be deleted, and
+  neither can a project that holds one.
+- **Context files** are text files in the workspace, stored by relative path
+  with a role, an optional purpose, and Required and model-may-maintain flags.
+  Each turn reads the enabled ones (up to 256 KiB each, 512 KiB in all) before
+  choosing a session. Their content and settings are part of the session
+  fingerprint, so a change starts a fresh session, which receives each file
+  after the seeded history and its cache marker; a resumed session already has
+  them. A required file that can't be read fails the turn before the CLI
+  starts; an optional one is left out and named in the status line.
 - **MCP servers** are defined in Config → MCP Servers and selected per
   conversation. A disabled server stays selected but isn't started. Deleting a
   server removes it from every conversation. There's no Test Connection, since

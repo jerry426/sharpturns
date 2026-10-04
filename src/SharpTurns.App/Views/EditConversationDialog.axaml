@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:core="using:SharpTurns.Core"
         xmlns:vm="using:SharpTurns.App.ViewModels"
+        xmlns:fonts="using:SharpTurns.Markdown.Rendering.Styling"
         x:Class="SharpTurns.App.Views.EditConversationDialog"
         x:DataType="vm:EditConversationDialogViewModel"
         Title="Edit Conversation"
@@ -68,6 +69,91 @@
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:McpServerOptionViewModel">
                 <CheckBox IsChecked="{Binding IsSelected}" Content="{Binding Label}" ToolTip.Tip="{Binding ToolTip}" FontSize="12" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </StackPanel>
+    </Border>
+
+    <Border Background="#121620" BorderBrush="#2D3548" BorderThickness="1" CornerRadius="8" Padding="10">
+      <StackPanel Spacing="8">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+          <TextBlock Text="{Binding ContextFilesHeaderLabel}" Foreground="{DynamicResource TextStrongBrush}" FontSize="13"
+                     FontWeight="SemiBold" VerticalAlignment="Center" />
+          <Button Grid.Column="1" Classes="secondaryActionButton" Content="Add files…" Click="AddContextFiles_Click" MinWidth="104" />
+        </Grid>
+        <TextBlock Text="Selected text files are read before each turn and shared with Claude when a new CLI session starts. A changed file starts a new CLI session from the conversation history on the next turn; unchanged files stay in a resumed session. Changes made during a turn reach Claude only when it reads the file or on the next turn."
+                   Foreground="{DynamicResource TextSubtleBrush}" FontSize="11" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding ContextFilesRootLabel}" Foreground="{DynamicResource TextBlueMutedBrush}"
+                   FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="11" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding ContextFilesError}" IsVisible="{Binding HasContextFilesError}"
+                   Foreground="{DynamicResource TextDangerBrush}" FontSize="11" TextWrapping="Wrap" />
+        <ScrollViewer MaxHeight="360" IsVisible="{Binding HasContextFiles}" HorizontalScrollBarVisibility="Disabled">
+          <ItemsControl ItemsSource="{Binding ContextFiles}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ContextFileEditViewModel">
+                <Border Background="#171D2A" BorderBrush="#30394E" BorderThickness="1" CornerRadius="7" Padding="9" Margin="0,0,0,8">
+                  <StackPanel Spacing="7">
+                    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="7">
+                      <CheckBox IsChecked="{Binding Enabled}" VerticalAlignment="Center"
+                                ToolTip.Tip="Share this file with Claude. A cleared file stays listed but isn't sent." />
+                      <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding FileName}" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"
+                                   FontSize="12" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}" />
+                        <TextBlock Text="{Binding Path}" Foreground="{DynamicResource TextSubtleBrush}"
+                                   FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="10"
+                                   TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}" />
+                      </StackPanel>
+                      <Button Grid.Column="2" Classes="secondaryActionButton" Command="{Binding MoveUpCommand}" MinWidth="30"
+                              Padding="6,2" ToolTip.Tip="Move earlier">
+                        <PathIcon Width="10" Height="8" Data="{StaticResource UpTriangleIconGeometry}" />
+                      </Button>
+                      <Button Grid.Column="3" Classes="secondaryActionButton" Command="{Binding MoveDownCommand}" MinWidth="30"
+                              Padding="6,2" ToolTip.Tip="Move later">
+                        <PathIcon Width="10" Height="8" Data="{StaticResource DownTriangleIconGeometry}" />
+                      </Button>
+                      <Button Grid.Column="4" Classes="secondaryActionButton" Content="Remove" Command="{Binding RemoveCommand}"
+                              Padding="8,2" ToolTip.Tip="Remove from this conversation's context. The file isn't deleted." />
+                    </Grid>
+
+                    <Grid ColumnDefinitions="2*,*" ColumnSpacing="10">
+                      <StackPanel Spacing="3">
+                        <TextBlock Text="Context role" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" />
+                        <ComboBox ItemsSource="{Binding RoleOptions}" SelectedItem="{Binding SelectedRole}" HorizontalAlignment="Stretch">
+                          <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ContextFileRoleOption">
+                              <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                            </DataTemplate>
+                          </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <TextBlock Text="{Binding RoleDescription}" Foreground="{DynamicResource TextSubtleBrush}" FontSize="11"
+                                   TextWrapping="Wrap" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="1" Spacing="3">
+                        <TextBlock Text="Current file state" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" />
+                        <TextBlock Text="{Binding AvailabilityLabel}" IsVisible="{Binding IsAvailable}"
+                                   Foreground="{DynamicResource TextGreenBrush}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding AvailabilityLabel}" IsVisible="{Binding !IsAvailable}"
+                                   Foreground="{DynamicResource TextDangerBrush}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" />
+                      </StackPanel>
+                    </Grid>
+
+                    <StackPanel Spacing="3">
+                      <TextBlock Text="Purpose supplied to the model (optional)" Foreground="{DynamicResource TextSecondaryBrush}"
+                                 FontSize="11" />
+                      <TextBox Text="{Binding Purpose}" MaxLength="1000"
+                               PlaceholderText="Why this file is included and how it should be used" />
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="18">
+                      <CheckBox Content="Required; fail the turn when it can't be read" IsChecked="{Binding Required}"
+                                Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" />
+                      <CheckBox Content="Model may maintain this file when the task requires it" IsChecked="{Binding AllowModelMaintenance}"
+                                Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" />
+                    </StackPanel>
+                  </StackPanel>
+                </Border>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
