@@ -21,6 +21,10 @@ public sealed record ClaudeCliHistoryBlock(string Text, IReadOnlyList<ClaudeCliI
 
 public sealed record ClaudeCliUserMessage(string Uuid, string Text);
 
+/// <summary>A stdio MCP server for a turn to start. Command is the argv; WorkingDirectory null keeps the turn's.</summary>
+public sealed record ClaudeCliMcpServer(string Name, IReadOnlyList<string> Command,
+    IReadOnlyDictionary<string, string> Environment, string? WorkingDirectory = null);
+
 /// <summary>Host-owned input queue. Take and TryClose are serialized with CLI submission/completion.</summary>
 public sealed record ClaudeCliTurnInput(
     Func<CancellationToken, Task> WaitAsync,

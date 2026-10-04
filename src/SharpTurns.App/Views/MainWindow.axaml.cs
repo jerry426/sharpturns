@@ -48,6 +48,8 @@ public sealed partial class MainWindow : Window
         base.OnDataContextChanged(e);
         if (DataContext is not MainWindowViewModel viewModel) return;
         viewModel.ShowProjectDialogAsync = dialog => new ProjectDialog { DataContext = dialog }.ShowDialog<bool>(this);
+        viewModel.ShowEditConversationDialogAsync = dialog =>
+            new EditConversationDialog { DataContext = dialog }.ShowDialog<bool>(this);
         viewModel.PromptAsync = (title, message, text) =>
             new PromptDialog(title, message, text, "OK", destructive: false).ShowDialog<string?>(this);
         viewModel.ConfirmAsync = async (title, message) =>

@@ -150,6 +150,54 @@ public sealed class ClaudeTurnRunnerTests : IDisposable
         Assert.True((await _store.LoadClaudeCodeSessionAsync(conversation.Id))!.InFlight);
     }
 
+    [Fact]
+    public async Task TurnsRunInTheConversationsWorkspaceWithItsEnabledMcpServers()
+    {
+        if (OperatingSystem.IsWindows()) return; // The fake CLI is a POSIX shell script.
+        var runner = new ClaudeTurnRunner(_store, CreateFakeCli(Handshake + """
+            previous=
+            for argument in "$@"; do
+              if [ "$previous" = "--mcp-config" ]; then cp "$argument" mcp.json; fi
+              previous=$argument
+            done
+            """ + "\n" + Lines(
+            """{"type":"control_request","request_id":"mcp-1","request":{"subtype":"can_use_tool","tool_name":"mcp__browser__navigate","tool_use_id":"toolu_1","input":{"url":"https://example.com"}}}""")
+            + "IFS= read -r reply\nprintf '%s' \"$reply\" > selected-reply.json\n" + Lines(
+            """{"type":"control_request","request_id":"mcp-2","request":{"subtype":"can_use_tool","tool_name":"mcp__db__query","tool_use_id":"toolu_2","input":{}}}""")
+            + "IFS= read -r reply\nprintf '%s' \"$reply\" > disabled-reply.json\n" + Lines(
+            $$$"""{"type":"result","session_id":"{{{Session}}}","is_error":false,"result":"Done."}""")
+            + "cat > remaining-input.txt\n"));
+        var (project, conversation) = await CreateConversationAsync();
+        var workspace = Directory.CreateDirectory(Path.Combine(_directory, "workspace")).FullName;
+        var browser = await _store.CreateMcpServerAsync("browser", "Browser", null, """["npx", "browser-mcp"]""",
+            """{"PORT": 9222, "MODE": "headless"}""", null, true);
+        var db = await _store.CreateMcpServerAsync("db", "Database", null, """["db-mcp"]""", null, null, false);
+        conversation = await _store.UpdateConversationAsync(conversation.Id, conversation.Title, project.Id, workspace, false,
+            [browser.Id, db.Id]);
+        var approvals = new List<string>();
+
+        var result = await RunAsync(runner, project, conversation, Callbacks(approve: (tool, _, _) =>
+        {
+            approvals.Add(tool);
+            return Task.FromResult(true);
+        }));
+
+        Assert.Equal(TurnStatus.Completed, result.Turn.Status);
+        // The disabled server isn't started; an environment value that isn't a string passes as its JSON.
+        using var config = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(workspace, "mcp.json")));
+        var servers = config.RootElement.GetProperty("mcpServers");
+        Assert.Equal(["browser"], servers.EnumerateObject().Select(p => p.Name));
+        Assert.Equal(("9222", "headless"), (servers.GetProperty("browser").GetProperty("env").GetProperty("PORT").GetString(),
+            servers.GetProperty("browser").GetProperty("env").GetProperty("MODE").GetString()));
+        // A started server's tool goes to the user like a native one the CLI asks about; a disabled server's is refused.
+        Assert.Equal(["mcp__browser__navigate"], approvals);
+        Assert.Contains("\"allow\"", await File.ReadAllTextAsync(Path.Combine(workspace, "selected-reply.json")));
+        Assert.Contains("outside the enabled coding scope", await File.ReadAllTextAsync(Path.Combine(workspace, "disabled-reply.json")));
+        var state = (await _store.LoadClaudeCodeSessionAsync(conversation.Id))!;
+        Assert.Equal(workspace, state.WorkingDirectory);
+        Assert.Equal(ClaudeCliCodingPolicy.VersionFor("Host rules.", null, ["browser"]), state.PolicyVersion);
+    }
+
     private async Task<(Project, Conversation)> CreateConversationAsync()
     {
         await _store.InitializeAsync();

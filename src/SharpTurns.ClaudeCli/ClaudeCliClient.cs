@@ -7,8 +7,8 @@ namespace SharpTurns.ClaudeCli;
 
 /// <summary>
 /// One process per turn; callers retain SessionId and working directory between turns.
-/// Turns run the reviewed native coding tools and append the host's system prompt; the CLI discovers the
-/// project's CLAUDE.md itself.
+/// Turns run the reviewed native coding tools, and any MCP servers the caller selects, and append the host's system
+/// prompt; the CLI discovers the project's CLAUDE.md itself.
 /// Callbacks run off the UI thread; UI hosts must marshal observable changes.
 /// </summary>
 public sealed class ClaudeCliClient
@@ -38,11 +38,14 @@ public sealed class ClaudeCliClient
         IReadOnlyList<ClaudeCliImage>? images = null,
         IReadOnlyList<string>? contextFiles = null,
         ClaudeCliTurnInput? queuedInput = null,
-        string? outputStyle = null)
+        string? outputStyle = null,
+        IReadOnlyList<ClaudeCliMcpServer>? mcpServers = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(systemPrompt);
         if (model is not null) ArgumentException.ThrowIfNullOrWhiteSpace(model);
         var settings = ClaudeCliCodingPolicy.SettingsFor(outputStyle);
+        if (mcpServers is { Count: 0 }) mcpServers = null;
+        var mcpConfig = mcpServers is null ? null : McpConfig(mcpServers);
         if (sessionName is not null) ArgumentException.ThrowIfNullOrWhiteSpace(sessionName);
         if (effort is not null && effort is not ("low" or "medium" or "high" or "xhigh" or "max"))
             throw new ArgumentException("Unsupported Claude CLI effort level.", nameof(effort));
@@ -59,13 +62,58 @@ public sealed class ClaudeCliClient
         if (Interlocked.Exchange(ref _running, 1) != 0)
             throw new InvalidOperationException("A turn is already running on this client.");
 
+        string? mcpConfigPath = null;
         try
         {
+            // A file keeps server environment values out of the process list; only this user can read it.
+            if (mcpConfig is not null)
+            {
+                mcpConfigPath = Path.Combine(Path.GetTempPath(), $"sharpturns-mcp-{Guid.NewGuid():N}.json");
+                var options = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write };
+                if (!OperatingSystem.IsWindows()) options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+                await using (var file = new StreamWriter(mcpConfigPath, new UTF8Encoding(false), options))
+                    await file.WriteAsync(mcpConfig).ConfigureAwait(false);
+            }
             return await RunProcessAsync(workingDirectory, userMessage, initialUuid, sessionId, onEvent, onPermission, cancellationToken, model, effort, sessionName, onInputPayloadSent, queuedInput,
-                    systemPrompt: systemPrompt, settings: settings)
+                    systemPrompt: systemPrompt, settings: settings,
+                    mcp: mcpConfigPath is null ? null : new(mcpConfigPath, mcpServers!.Select(s => s.Name).ToArray()))
                 .ConfigureAwait(false);
         }
-        finally { Volatile.Write(ref _running, 0); }
+        finally
+        {
+            // The process has exited or been killed here; it reads the configuration only at startup.
+            if (mcpConfigPath is not null)
+                try { File.Delete(mcpConfigPath); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+            Volatile.Write(ref _running, 0);
+        }
+    }
+
+    private sealed record McpLaunch(string ConfigPath, IReadOnlyList<string> ServerNames);
+
+    private static string McpConfig(IReadOnlyList<ClaudeCliMcpServer> servers)
+    {
+        var entries = new Dictionary<string, object>(StringComparer.Ordinal);
+        var prefixes = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var server in servers)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(server.Name);
+            if (server.Command.Count == 0 || string.IsNullOrWhiteSpace(server.Command[0]))
+                throw new ArgumentException($"MCP server {server.Name} has no command.");
+            if (!prefixes.Add(ClaudeCliCodingPolicy.McpToolPrefix(server.Name)))
+                throw new ArgumentException($"MCP server {server.Name}'s tool names would clash with another selected server's.");
+            IEnumerable<string> command = server.Command;
+            if (server.WorkingDirectory is { } directory)
+            {
+                // The CLI's stdio configuration has no working directory (verified with CLI 2.1.288, which ignores
+                // "cwd"); env -C sets it without a shell.
+                if (OperatingSystem.IsWindows())
+                    throw new NotSupportedException($"MCP server {server.Name} sets a working directory, which isn't supported on Windows. Clear it in Config → MCP Servers.");
+                command = new[] { "/usr/bin/env", "-C", directory }.Concat(command);
+            }
+            var argv = command.ToArray();
+            entries[server.Name] = new { type = "stdio", command = argv[0], args = argv[1..], env = server.Environment };
+        }
+        return JsonSerializer.Serialize(new { mcpServers = entries });
     }
 
     /// <summary>
@@ -115,14 +163,14 @@ public sealed class ClaudeCliClient
         Func<ClaudeCliPermissionRequest, CancellationToken, Task<ClaudeCliPermissionDecision>> onPermission,
         CancellationToken cancellationToken, string? model, string? effort, string? sessionName,
         Action<long>? onInputPayloadSent, ClaudeCliTurnInput? queuedInput, string? systemPrompt = null,
-        OneShotOptions? oneShot = null, string? settings = null)
+        OneShotOptions? oneShot = null, string? settings = null, McpLaunch? mcp = null)
     {
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         using var stderrLifetime = new CancellationTokenSource();
         var token = lifetime.Token;
         using var writeLock = new SemaphoreSlim(1, 1);
         using var inputLock = new SemaphoreSlim(1, 1);
-        using var process = new Process { StartInfo = CreateStartInfo(directory, sessionId, model, effort, sessionName, systemPrompt, oneShot, settings) };
+        using var process = new Process { StartInfo = CreateStartInfo(directory, sessionId, model, effort, sessionName, systemPrompt, oneShot, settings, mcp) };
         var pending = new ConcurrentDictionary<string, CancellationTokenSource>();
         var handlers = new List<Task>();
         var stderr = new StringBuilder();
@@ -378,7 +426,7 @@ public sealed class ClaudeCliClient
     }
 
     private ProcessStartInfo CreateStartInfo(string directory, string? sessionId, string? model, string? effort,
-        string? sessionName, string? systemPrompt, OneShotOptions? oneShot, string? settings)
+        string? sessionName, string? systemPrompt, OneShotOptions? oneShot, string? settings, McpLaunch? mcp)
     {
         var info = new ProcessStartInfo(_executable)
         {
@@ -426,11 +474,20 @@ public sealed class ClaudeCliClient
             info.Environment.Remove("CLAUDE_CODE_SAFE_MODE");
             info.Environment.Remove("CLAUDE_CODE_DISABLE_CLAUDE_MDS");
             // Availability and automatic approval are separate. Questions still reach the host.
-            foreach (var argument in new[] { "--allowed-tools", ClaudeCliCodingPolicy.AutomaticTools,
-                         "--disallowed-tools", ClaudeCliCodingPolicy.DeniedTools,
+            // A selected MCP server's tools are approved by its tool-name prefix.
+            foreach (var argument in new[] { "--allowed-tools", mcp is null ? ClaudeCliCodingPolicy.AutomaticTools
+                             : string.Join(',', mcp.ServerNames.Select(ClaudeCliCodingPolicy.McpToolPrefix).Prepend(ClaudeCliCodingPolicy.AutomaticTools)),
+                         "--disallowed-tools", mcp is null ? ClaudeCliCodingPolicy.DeniedTools : ClaudeCliCodingPolicy.DeniedNativeTools,
                          "--settings", settings ?? ClaudeCliCodingPolicy.Settings,
                          "--append-system-prompt", systemPrompt! })
                 info.ArgumentList.Add(argument);
+            // --strict-mcp-config limits the turn to these servers. Their tools load eagerly while experimental
+            // betas are off, so --tools needn't name them (verified with CLI 2.1.288).
+            if (mcp is not null)
+            {
+                info.ArgumentList.Add("--mcp-config");
+                info.ArgumentList.Add(mcp.ConfigPath);
+            }
         }
         if (sessionId is not null) info.ArgumentList.Add($"--resume={sessionId}");
         if (model is not null) info.ArgumentList.Add($"--model={model}");

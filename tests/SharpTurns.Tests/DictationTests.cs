@@ -242,14 +242,13 @@ public sealed class DictationTests : IDisposable
         ICommand[] switching =
         [
             main.SelectConversationCommand, main.SelectProjectCommand, main.NewProjectCommand, main.DeleteProjectCommand,
-            main.NewConversationCommand, main.DeleteConversationCommand,
+            main.NewConversationCommand, main.EditConversationCommand, main.DeleteConversationCommand,
         ];
         Assert.All(switching, command => Assert.True(command.CanExecute(null)));
 
         await conversation.Dictation.ToggleRecordingCommand.ExecuteAsync(null);
         Assert.True(main.IsDictationBusy);
         Assert.All(switching, command => Assert.False(command.CanExecute(null)));
-        Assert.True(main.RenameConversationCommand.CanExecute(null));
 
         await conversation.Dictation.ToggleRecordingCommand.ExecuteAsync(null);
         Assert.False(main.IsDictationBusy);

@@ -238,6 +238,69 @@ public sealed class ClaudeCliTests : IDisposable
     }
 
     [Fact]
+    public async Task SelectedMcpServersStartFromAPrivateConfigFileWithTheirToolsApproved()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        var executable = CreateFakeCli(Handshake + """
+            printf '%s\0' "$@" > args.bin
+            previous=
+            for argument in "$@"; do
+              if [ "$previous" = "--mcp-config" ]; then
+                cp "$argument" mcp.json
+                ls -l "$argument" | cut -c1-10 > mode.txt
+                printf '%s' "$argument" > path.txt
+              fi
+              previous=$argument
+            done
+            printf '%s\n' '{"type":"result","session_id":"700c7fa5-e552-450e-8712-3ebb74e2857c","is_error":false}'
+            cat > remaining-input.txt
+            """);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await new ClaudeCliClient(executable).RunTurnAsync(_directory, "prompt", null, _ => { }, Deny, SystemPrompt,
+            deadline.Token, mcpServers:
+            [
+                new("chrome.devtools", ["npx", "-y", "chrome-devtools-mcp"], new Dictionary<string, string> { ["TOKEN"] = "secret" }),
+                new("db", ["db-mcp"], new Dictionary<string, string>(), "/srv/db"),
+            ]);
+
+        var args = (await File.ReadAllTextAsync(Path.Combine(_directory, "args.bin"))).Split('\0');
+        string Value(string name) => args[Array.IndexOf(args, name) + 1];
+        // The CLI names a server's tools with unsupported characters replaced, so its allow rule does too.
+        Assert.Equal(ClaudeCliCodingPolicy.AutomaticTools + ",mcp__chrome_devtools,mcp__db", Value("--allowed-tools"));
+        Assert.Equal(ClaudeCliCodingPolicy.DeniedNativeTools, Value("--disallowed-tools"));
+        Assert.Contains("--strict-mcp-config", args);
+        Assert.DoesNotContain(args, a => a.Contains("secret"));
+        Assert.Equal("-rw-------", (await File.ReadAllTextAsync(Path.Combine(_directory, "mode.txt"))).Trim());
+        Assert.False(File.Exists(await File.ReadAllTextAsync(Path.Combine(_directory, "path.txt"))));
+        using var config = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(_directory, "mcp.json")));
+        var chrome = config.RootElement.GetProperty("mcpServers").GetProperty("chrome.devtools");
+        Assert.Equal(("stdio", "npx", "secret"), (chrome.GetProperty("type").GetString(), chrome.GetProperty("command").GetString(),
+            chrome.GetProperty("env").GetProperty("TOKEN").GetString()));
+        Assert.Equal(["-y", "chrome-devtools-mcp"], chrome.GetProperty("args").EnumerateArray().Select(a => a.GetString()));
+        // The CLI has no working directory setting for a server, so env -C sets it.
+        var db = config.RootElement.GetProperty("mcpServers").GetProperty("db");
+        Assert.Equal("/usr/bin/env", db.GetProperty("command").GetString());
+        Assert.Equal(["-C", "/srv/db", "db-mcp"], db.GetProperty("args").EnumerateArray().Select(a => a.GetString()));
+
+        // Two names whose tools the CLI would name alike are refused before launch.
+        await Assert.ThrowsAsync<ArgumentException>(() => new ClaudeCliClient(executable).RunTurnAsync(_directory, "prompt", null,
+            _ => { }, Deny, SystemPrompt, deadline.Token, mcpServers:
+            [
+                new("a.b", ["one"], new Dictionary<string, string>()),
+                new("a_b", ["two"], new Dictionary<string, string>()),
+            ]));
+    }
+
+    [Fact]
+    public void OnlyTheSelectedMcpServersToolsAreApproved()
+    {
+        Assert.True(ClaudeCliCodingPolicy.AllowsAutomatically("mcp__chrome_devtools__navigate", ["chrome.devtools"]));
+        Assert.False(ClaudeCliCodingPolicy.AllowsAutomatically("mcp__chrome_devtools__navigate"));
+        Assert.False(ClaudeCliCodingPolicy.AllowsAutomatically("mcp__chrome_devtools_extra__navigate", ["chrome.devtools"]));
+        Assert.True(ClaudeCliCodingPolicy.AllowsAutomatically("Read", ["chrome.devtools"]));
+    }
+
+    [Fact]
     public async Task OneShotDisablesToolsCustomizationsAndSessionPersistence()
     {
         if (OperatingSystem.IsWindows()) return;
@@ -314,6 +377,12 @@ public sealed class ClaudeCliTests : IDisposable
         // The style is part of the CLI's system prompt; sessions without one keep their version.
         Assert.Equal(version, ClaudeCliCodingPolicy.VersionFor(ClaudeCliCodingPolicy.DefaultSystemPrompt, null));
         Assert.NotEqual(version, ClaudeCliCodingPolicy.VersionFor(ClaudeCliCodingPolicy.DefaultSystemPrompt, "Concise"));
+        // So do the started MCP servers, in any order; sessions without any keep their version.
+        Assert.Equal(version, ClaudeCliCodingPolicy.VersionFor(ClaudeCliCodingPolicy.DefaultSystemPrompt, null, []));
+        var withServers = ClaudeCliCodingPolicy.VersionFor(ClaudeCliCodingPolicy.DefaultSystemPrompt, null, ["db", "browser"]);
+        Assert.NotEqual(version, withServers);
+        Assert.Equal(withServers, ClaudeCliCodingPolicy.VersionFor(ClaudeCliCodingPolicy.DefaultSystemPrompt, null, ["browser", "db"]));
+        Assert.NotEqual(withServers, ClaudeCliCodingPolicy.VersionFor(ClaudeCliCodingPolicy.DefaultSystemPrompt, null, ["browser"]));
     }
 
     [Fact]

@@ -24,7 +24,7 @@ public sealed class ConversationStoreTests : IDisposable
         await _store.InitializeAsync();
         await _store.InitializeAsync();
 
-        Assert.Equal(10L, Scalar("PRAGMA user_version"));
+        Assert.Equal(11L, Scalar("PRAGMA user_version"));
         Assert.Equal("wal", Scalar("PRAGMA journal_mode"));
     }
 
@@ -46,7 +46,7 @@ public sealed class ConversationStoreTests : IDisposable
         await _store.UpdateProjectAsync(project with { WorkingDirectory = "/work/beta2" });
         var older = await _store.CreateConversationAsync(project.Id, "First");
         var newer = await _store.CreateConversationAsync(project.Id, "Second");
-        await _store.RenameConversationAsync(older.Id, "Renamed");
+        await _store.UpdateConversationAsync(older.Id, "Renamed", project.Id, null, false, []);
         await _store.SetConversationModelAsync(older.Id, "sonnet", "high");
         await _store.SetConversationOutputStyleAsync(older.Id, "Concise");
         await _store.SetConversationAutoSummarizeAsync(older.Id, false);
@@ -71,7 +71,36 @@ public sealed class ConversationStoreTests : IDisposable
 
         Assert.Empty(await _store.ListConversationsAsync(project.Id));
         Assert.Equal(0L, Scalar("SELECT COUNT(*) FROM conversation_turn_parts"));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _store.RenameConversationAsync(older.Id, "Gone"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _store.UpdateConversationAsync(older.Id, "Gone", project.Id, null, false, []));
+    }
+
+    [Fact]
+    public async Task EditingAConversationMovesItAndSavesItsWorkspaceProtectionAndMcpServers()
+    {
+        await _store.InitializeAsync();
+        var first = await _store.CreateProjectAsync("First", "/work/first");
+        var second = await _store.CreateProjectAsync("Second", "/work/second");
+        var conversation = await _store.CreateConversationAsync(first.Id, "Conversation");
+        var browser = await _store.CreateMcpServerAsync("browser", "Browser", null, """["npx", "browser"]""", null, null, true);
+        var database = await _store.CreateMcpServerAsync("database", "Database", null, """["db-mcp"]""", null, null, false);
+
+        var saved = await _store.UpdateConversationAsync(conversation.Id, "Moved", second.Id, "/work/elsewhere", true,
+            [database.Id, browser.Id]);
+
+        Assert.Equal(("Moved", second.Id, "/work/elsewhere", true),
+            (saved.Title, saved.ProjectId, saved.WorkingDirectory, saved.IsProtected));
+        Assert.Empty(await _store.ListConversationsAsync(first.Id));
+        Assert.Equal(saved, Assert.Single(await _store.ListConversationsAsync(second.Id)));
+        // By name, disabled ones included.
+        Assert.Equal(["browser", "database"], (await _store.ListConversationMcpServersAsync(conversation.Id)).Select(s => s.Name));
+        Assert.Equal("/work/elsewhere", saved.WorkspaceFor(second));
+
+        // The selection is replaced, a deleted server leaves it, and a blank workspace uses the project's.
+        saved = await _store.UpdateConversationAsync(conversation.Id, "Moved", second.Id, null, false, [browser.Id, database.Id]);
+        await _store.DeleteMcpServerAsync(browser.Id);
+        Assert.Equal(["database"], (await _store.ListConversationMcpServersAsync(conversation.Id)).Select(s => s.Name));
+        Assert.Equal(("/work/second", false), (saved.WorkspaceFor(second), saved.IsProtected));
     }
 
     [Fact]
@@ -191,6 +220,9 @@ public sealed class ConversationStoreTests : IDisposable
         Scalar("ALTER TABLE projects DROP COLUMN color");
         Scalar("ALTER TABLE conversations DROP COLUMN output_style");
         Scalar("ALTER TABLE conversations DROP COLUMN auto_summarize");
+        Scalar("ALTER TABLE conversations DROP COLUMN working_directory");
+        Scalar("ALTER TABLE conversations DROP COLUMN is_protected");
+        Scalar("DROP TABLE conversation_mcp_servers");
         Scalar("DROP TABLE conversation_user_notes");
         Scalar("DROP TABLE models");
         Scalar("DROP TABLE mcp_servers");
@@ -200,11 +232,13 @@ public sealed class ConversationStoreTests : IDisposable
 
         await _store.InitializeAsync();
 
-        Assert.Equal(10L, Scalar("PRAGMA user_version"));
+        Assert.Equal(11L, Scalar("PRAGMA user_version"));
         Assert.Equal(ProjectColor.Default, Assert.Single(await _store.ListProjectsAsync()).Color);
         var conversations = await _store.ListConversationsAsync(project.Id);
         var upgraded = Assert.Single(conversations, c => c.Id == conversation.Id);
         Assert.Equal((null, false), (upgraded.OutputStyle, upgraded.AutoSummarize));
+        // Migration 11 keeps existing conversations in their project's working directory, unprotected.
+        Assert.Equal((null, false), (upgraded.WorkingDirectory, upgraded.IsProtected));
         // Migration 9 lists the model IDs, moves the CLI aliases earlier builds saved to them, and gives a conversation
         // without a model the new conversation model.
         Assert.Equal(8, (await _store.ListModelsAsync()).Count);

@@ -137,5 +137,15 @@ internal static class Migrations
             updated_at TEXT NOT NULL
         );
         """,
+        """
+        ALTER TABLE conversations ADD COLUMN working_directory TEXT;
+        ALTER TABLE conversations ADD COLUMN is_protected INTEGER NOT NULL DEFAULT 0;
+
+        CREATE TABLE conversation_mcp_servers (
+            conversation_id INTEGER NOT NULL REFERENCES conversations (id) ON DELETE CASCADE,
+            mcp_server_id INTEGER NOT NULL REFERENCES mcp_servers (id) ON DELETE CASCADE,
+            PRIMARY KEY (conversation_id, mcp_server_id)
+        );
+        """,
     ];
 }

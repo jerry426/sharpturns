@@ -43,14 +43,18 @@
         <Border Grid.Row="2" Classes="card" BorderBrush="{Binding ProjectBorderColor}" CornerRadius="12" Padding="12"
                 IsVisible="{Binding CurrentConversation, Converter={x:Static ObjectConverters.IsNotNull}}">
           <StackPanel Spacing="8">
-            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
               <TextBlock Text="{Binding CurrentConversation.Title}" Foreground="#FFD54A" FontWeight="SemiBold" FontSize="16"
                          TextWrapping="Wrap" VerticalAlignment="Center" />
-              <Button Grid.Column="1" Classes="secondaryActionButton" Command="{Binding RenameConversationCommand}"
-                      Width="34" Height="34" Padding="0" ToolTip.Tip="Rename this conversation">
+              <TextBlock Grid.Column="1" Text="🔒" IsVisible="{Binding CurrentConversation.IsProtected, FallbackValue=False}"
+                         FontSize="16" VerticalAlignment="Center"
+                         ToolTip.Tip="Protected: it can't be deleted until protection is cleared in Edit Conversation" />
+              <Button Grid.Column="2" Classes="secondaryActionButton dictationLocked" Command="{Binding EditConversationCommand}"
+                      Width="34" Height="34" Padding="0"
+                      ToolTip.Tip="Edit this conversation: title, project, workspace, protection, and MCP servers">
                 <PathIcon Width="16" Height="16" Data="{StaticResource EditIconGeometry}" />
               </Button>
-              <Button Grid.Column="2" Classes="dangerActionButton dictationLocked" Command="{Binding DeleteConversationCommand}"
+              <Button Grid.Column="3" Classes="dangerActionButton dictationLocked" Command="{Binding DeleteConversationCommand}"
                       Width="34" Height="34" Padding="0" ToolTip.Tip="Delete this conversation">
                 <PathIcon Width="16" Height="16" Data="{StaticResource DeleteIconGeometry}" />
               </Button>
@@ -65,7 +69,7 @@
               <TextBlock Grid.Row="2" Grid.Column="1" Classes="cardValue" Text="{Binding CurrentConversation.LastTurn.TimeLabel}"
                          IsVisible="{Binding CurrentConversation.LastTurn, Converter={x:Static ObjectConverters.IsNotNull}}" />
               <TextBlock Grid.Row="3" Classes="cardLabel" Text="Workspace:" />
-              <TextBlock Grid.Row="3" Grid.Column="1" Classes="cardValue" Text="{Binding SelectedProject.WorkingDirectory}" />
+              <TextBlock Grid.Row="3" Grid.Column="1" Classes="cardValue" Text="{Binding CurrentConversation.Workspace}" />
               <TextBlock Grid.Row="4" Classes="cardLabel" Text="Model:" VerticalAlignment="Center" />
               <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding CurrentConversation.ModelOptions}"
                         SelectedItem="{Binding CurrentConversation.SelectedModel}" MinHeight="28" FontSize="11"

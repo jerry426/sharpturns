@@ -14,7 +14,9 @@ public static class ClaudeCliCodingPolicy
     public static string AutomaticTools => OperatingSystem.IsWindows() ? CommonTools + ",PowerShell" : CommonTools;
     public static string AvailableTools => AutomaticTools + ",AskUserQuestion";
     // Pattern-based process killers can stop unrelated apps; block them even when the user's settings don't.
-    public const string DeniedTools = "Agent,Task,Workflow,Bash(pkill:*),Bash(killall:*),Bash(/usr/bin/pkill:*),Bash(/usr/bin/killall:*),mcp__*";
+    public const string DeniedNativeTools = "Agent,Task,Workflow,Bash(pkill:*),Bash(killall:*),Bash(/usr/bin/pkill:*),Bash(/usr/bin/killall:*)";
+    // A turn with selected MCP servers denies only the native tools; --strict-mcp-config still excludes other servers.
+    public const string DeniedTools = DeniedNativeTools + ",mcp__*";
     // Overrides the user's settings files, which load so the CLI keeps discovering CLAUDE.md.
     // The app owns context management, so auto-compact stays off.
     public const string Settings = "{\"fallbackModel\":[],\"switchModelsOnFlag\":false,\"disableAllHooks\":true,\"disableClaudeAiConnectors\":true,\"autoCompactEnabled\":false}";
@@ -57,11 +59,20 @@ public static class ClaudeCliCodingPolicy
     /// <summary>
     /// Session compatibility version. The CLI reuses a session's saved system prompt on resume, so a prompt edit
     /// or an output style change (the style is part of that prompt) must change this value and reseed the next turn.
+    /// So must a change to the started MCP servers, which changes the session's tools; without any, the value is unchanged.
     /// </summary>
-    public static string VersionFor(string systemPrompt, string? outputStyle = null) =>
+    public static string VersionFor(string systemPrompt, string? outputStyle = null, IReadOnlyCollection<string>? mcpServerNames = null) =>
         LaunchProfile + ":" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(systemPrompt)))[..16]
-        + (outputStyle is null ? "" : ":" + outputStyle);
+        + (outputStyle is null ? "" : ":" + outputStyle)
+        + (mcpServerNames is not { Count: > 0 } ? "" : ":mcp-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            string.Join('\n', mcpServerNames.Order(StringComparer.Ordinal)))))[..16]);
 
-    public static bool AllowsAutomatically(string toolName) =>
-        AutomaticTools.Split(',').Contains(toolName, StringComparer.Ordinal);
+    public static bool AllowsAutomatically(string toolName, IReadOnlyCollection<string>? mcpServerNames = null) =>
+        AutomaticTools.Split(',').Contains(toolName, StringComparer.Ordinal)
+        // Selecting a server for a conversation authorizes its tools, like the preapproved native tools.
+        || mcpServerNames?.Any(name => toolName.StartsWith(McpToolPrefix(name) + "__", StringComparison.Ordinal)) == true;
+
+    /// <summary>The CLI's tool-name prefix and permission rule for a server; it replaces unsupported characters.</summary>
+    public static string McpToolPrefix(string serverName) =>
+        "mcp__" + System.Text.RegularExpressions.Regex.Replace(serverName, "[^a-zA-Z0-9_-]", "_");
 }

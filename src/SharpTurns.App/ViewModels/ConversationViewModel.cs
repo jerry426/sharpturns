@@ -26,6 +26,7 @@ public sealed partial class ConversationViewModel : ObservableObject
     private readonly Action<Conversation, string> _conversationBranched;
     private CancellationTokenSource? _turnLifetime;
     private ClaudeCliInputQueue? _queue;
+    private Project _project;
 
     [ObservableProperty]
     private string _title;
@@ -123,7 +124,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         Action<Conversation> conversationUpdated, Action<Conversation, string> conversationBranched)
     {
         Conversation = conversation;
-        Project = project;
+        _project = project;
         _store = store;
         _runner = runner;
         _summarizer = summarizer;
@@ -179,8 +180,23 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     public Conversation Conversation { get; private set; }
 
-    /// <summary>Kept current when the project is edited; a running turn keeps the project it started with.</summary>
-    public Project Project { get; set; }
+    /// <summary>
+    /// Kept current when the project is edited or the conversation moves to another; a running turn keeps the project it
+    /// started with.
+    /// </summary>
+    public Project Project
+    {
+        get => _project;
+        set
+        {
+            if (SetProperty(ref _project, value)) OnPropertyChanged(nameof(Workspace));
+        }
+    }
+
+    /// <summary>The folder turns run in: the conversation's workspace, or else the project's working directory.</summary>
+    public string Workspace => Conversation.WorkspaceFor(Project);
+
+    public bool IsProtected => Conversation.IsProtected;
 
     public ConversationDisplayViewModel Display { get; }
 
@@ -322,15 +338,25 @@ public sealed partial class ConversationViewModel : ObservableObject
         SelectedEffort = conversation.Effort ?? DefaultEffort;
         SelectedOutputStyle = conversation.OutputStyle ?? DefaultOutputStyle;
         AutoSummarize = conversation.AutoSummarize;
+        OnPropertyChanged(nameof(Workspace));
+        OnPropertyChanged(nameof(IsProtected));
         _branchEndpoints.Clear();
         _selectionAnchor = null;
         await LoadAsync();
     }
 
-    public void ApplyRename(Conversation conversation)
+    /// <summary>The Edit Conversation dialog's saved changes; project is the conversation's project after them.</summary>
+    public void ApplyEdit(Conversation conversation, Project project)
     {
-        Conversation = Conversation with { Title = conversation.Title };
+        Conversation = Conversation with
+        {
+            Title = conversation.Title, ProjectId = conversation.ProjectId, WorkingDirectory = conversation.WorkingDirectory,
+            IsProtected = conversation.IsProtected,
+        };
         Title = conversation.Title;
+        Project = project;
+        OnPropertyChanged(nameof(Workspace));
+        OnPropertyChanged(nameof(IsProtected));
     }
 
     public void CancelTurn() => _turnLifetime?.Cancel();
@@ -706,7 +732,7 @@ public sealed partial class ConversationViewModel : ObservableObject
     {
         try
         {
-            MarkdownViewerLauncher.Launch(Project.WorkingDirectory, Preferences.MarkdownViewerWindow.Size, GetScreenPoint?.Invoke());
+            MarkdownViewerLauncher.Launch(Workspace, Preferences.MarkdownViewerWindow.Size, GetScreenPoint?.Invoke());
             Status = "Opened the Markdown Viewer.";
         }
         catch (Exception e)

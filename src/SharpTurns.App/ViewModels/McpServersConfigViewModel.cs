@@ -10,8 +10,8 @@ using SharpTurns.Core.Persistence;
 namespace SharpTurns.App.ViewModels;
 
 /// <summary>
-/// The Config tab's MCP Servers: a server list and editor, storing definitions only. Turns don't use them until v2, so
-/// there is no Test Connection.
+/// The Config tab's MCP Servers: a server list and editor, storing definitions only. Conversations select the servers
+/// their turns start, and the CLI starts them, so there is no Test Connection.
 /// </summary>
 public sealed partial class McpServersConfigViewModel : ObservableObject
 {

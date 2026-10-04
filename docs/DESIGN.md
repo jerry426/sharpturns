@@ -71,11 +71,24 @@ Each turn is one `claude -p` process with stream-json input and output
 - **Tools.** The coding tools (Read, Glob, Grep, Edit, Write, NotebookEdit,
   Bash, WebFetch, WebSearch, and PowerShell on Windows) are preapproved with
   `--allowed-tools`. The CLI still asks the host for its own safety checks,
-  which show an Allow/Deny dialog. Subagents and MCP tools are denied, and so
-  are `pkill` and `killall` (bare and `/usr/bin/`): pattern-based killers can
-  stop unrelated apps, and a user's own settings may not deny them.
+  which show an Allow/Deny dialog. Subagents are denied, and so are `pkill`
+  and `killall` (bare and `/usr/bin/`): pattern-based killers can stop
+  unrelated apps, and a user's own settings may not deny them. MCP tools are
+  denied unless the conversation selected servers (see MCP servers below).
 - **`--strict-mcp-config` and `--disable-slash-commands`** keep the user's MCP
   servers, plugins' skills, and slash commands out of turns.
+- **MCP servers.** The conversation's selected, enabled servers are written
+  to a temporary `--mcp-config` file only the user can read, so their
+  environment values stay out of the process list. The file is deleted when
+  the turn ends. Each server's tools are preapproved with an
+  `mcp__<server>` rule, using the CLI's tool-name form (characters other than
+  letters, digits, `_`, and `-` become `_`), and the `mcp__*` denial is
+  dropped. The CLI's stdio configuration has no working directory (CLI
+  2.1.288 ignores `cwd`), so a server with one is started through
+  `/usr/bin/env -C`; Windows has no equivalent, and such a server fails the
+  turn there. Without one, a server starts in the turn's workspace. Their
+  tools load eagerly while the experimental betas are off, so `--tools` needn't
+  name them.
 - **`CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1`.** The CLI's experimental
   layout uses all four of the API's cache markers, leaving none for the
   marker SharpTurns puts on reseeded history. Without that marker, every
@@ -100,7 +113,12 @@ Each turn is one `claude -p` process with stream-json input and output
   Config → Preferences.
 - The CLI reuses a session's saved system prompt on resume. The session policy
   version therefore hashes the prompt and the conversation's output style, so
-  changing either starts a fresh session.
+  changing either starts a fresh session. It also hashes the names of the MCP
+  servers the turn starts, since they change the session's tools; a session
+  without any keeps its version.
+- A session is tied to its working directory, so changing the conversation's
+  workspace, or moving a conversation without one to another project, starts a
+  fresh session.
 - A session is resumed only after a turn completes cleanly and the saved
   history still matches what the CLI saw. A stopped, failed, or interrupted
   turn, or any change to the saved history (deleting, hiding, compressing, or
@@ -190,8 +208,9 @@ version.
 
 A branch is a new conversation holding a contiguous run of the source's turns,
 renumbered from 1, with their parts, usage, and hidden and compressed state. It
-keeps the source's project, title, model, effort, output style, and
-Auto-Summarize, but not its notes or CLI session, so its first turn reseeds
+keeps the source's project, title, model, effort, output style,
+Auto-Summarize, workspace, and MCP servers, but not its notes, protection, or
+CLI session, so its first turn reseeds
 from the copied history. The source is unchanged. A range must be contiguous,
 and turns hidden from the timeline are copied when they fall inside it. Where a branch came
 from isn't stored, since nothing shows it.
@@ -205,9 +224,10 @@ from isn't stored, since nothing shows it.
 - Every composer shares one dictation service, so only one recording runs at a
   time.
 - While dictation records or transcribes, Send and anything that would show
-  another conversation are locked: switching conversations or projects, New
-  and Delete, branching (a branch opens in place of the current
-  conversation), and the Projects and Config tabs. The transcript belongs to
+  another conversation are locked: switching conversations or projects, New,
+  Edit (which can move the conversation to another project), and Delete,
+  branching (a branch opens in place of the current conversation), and the
+  Projects and Config tabs. The transcript belongs to
   the conversation where recording started, and the lock keeps the user
   looking at it. Clicking a locked control explains why.
 - Deleting a conversation or closing the app stops its recorder, so no
@@ -283,8 +303,15 @@ running instances and docks their windows beside its own.
 - **Models** are raw model IDs in a user-managed list that fills every model
   picker. There is no "default" entry; every conversation names an ID.
   Renaming or deleting an ID moves the conversations and settings that use it.
-- **MCP servers** can be defined in Config, but are not yet passed to turns;
-  turns deny `mcp__*` tools until they are.
+- **Edit Conversation** (the sidebar card's edit button) sets the title, moves
+  the conversation to another project, sets a workspace in place of the
+  project's working directory, protects it from deletion, and selects its MCP
+  servers. A protected conversation can't be deleted, and neither can a
+  project that holds one.
+- **MCP servers** are defined in Config → MCP Servers and selected per
+  conversation. A disabled server stays selected but isn't started. Deleting a
+  server removes it from every conversation. There's no Test Connection, since
+  the CLI, not SharpTurns, starts the servers.
 - **The main window** opens at the Preferences startup size, centered on the
   monitor it was last moved to (`startup_window_screen`: the monitor's name
   and bounds). The monitor is saved when the window reaches it, not on close,

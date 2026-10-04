@@ -118,7 +118,9 @@ focused on what matters, and fewer tokens sent with every request.
 - **Context management**, described above: compress turns into work summaries
   (by hand or automatically), hide them from the replay, choose which images
   are replayed, and clean up or delete turns in bulk.
-- **Projects and conversations**, stored in a local SQLite database.
+- **Projects and conversations**, stored in a local SQLite database. A
+  conversation can move to another project, run in its own workspace folder,
+  be protected from deletion, and start the MCP servers you select for it.
 - **Streaming turns** rendered as Markdown, with a collapsible card for each
   tool call, dialogs for the CLI's questions and permission checks, messages
   queued during a turn, and image attachments.
@@ -143,9 +145,14 @@ Before you use it, know that:
 
 - **Coding tools run without asking.** Read, Glob, Grep, Edit, Write,
   NotebookEdit, Bash, WebFetch, and WebSearch (plus PowerShell on Windows) are
-  preapproved. Turns start in the project's folder, but the tools aren't
-  confined to it. The CLI's own safety checks still open an Allow/Deny dialog. Subagents, MCP tools, and the `pkill` and
-  `killall` commands are denied.
+  preapproved. Turns start in the project's folder, or the conversation's own
+  workspace, but the tools aren't confined to it. The CLI's own safety checks
+  still open an Allow/Deny dialog. Subagents and the `pkill` and `killall`
+  commands are denied.
+- **MCP servers run only where you select them.** Define servers in Config →
+  MCP Servers, then select them for a conversation in Edit Conversation. The
+  CLI starts them with each of its turns, and their tools run without asking.
+  Your own CLI MCP configuration isn't used.
 - **Your CLI setup still applies.** The CLI discovers the project's `CLAUDE.md`
   (or `AGENTS.md`) and loads your settings files. SharpTurns overrides them to
   turn off hooks, auto-compact, and the fallback model.

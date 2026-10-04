@@ -120,8 +120,8 @@ public sealed class ConversationStore
     public async Task<IReadOnlyList<Conversation>> ListConversationsAsync(long projectId, CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = Command(connection, null, """
-            SELECT id, project_id, title, model, effort, updated_at, output_style, auto_summarize FROM conversations
+        await using var command = Command(connection, null, $"""
+            SELECT {ConversationColumns} FROM conversations
             WHERE project_id = $project ORDER BY updated_at DESC, id DESC
             """, ("$project", projectId));
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
@@ -135,9 +135,8 @@ public sealed class ConversationStore
     public async Task<Conversation?> GetConversationAsync(long conversationId, CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = Command(connection, null, """
-            SELECT id, project_id, title, model, effort, updated_at, output_style, auto_summarize FROM conversations
-            WHERE id = $id
+        await using var command = Command(connection, null, $"""
+            SELECT {ConversationColumns} FROM conversations WHERE id = $id
             """, ("$id", conversationId));
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         return await reader.ReadAsync(cancellationToken).ConfigureAwait(false) ? ReadConversation(reader) : null;
@@ -149,22 +148,50 @@ public sealed class ConversationStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = Command(connection, null, """
+        await using var command = Command(connection, null, $"""
             INSERT INTO conversations (project_id, title, model, effort, created_at, updated_at, auto_summarize)
             VALUES ($project, $title, $model, $effort, $now, $now, 1)
-            RETURNING id, project_id, title, model, effort, updated_at, output_style, auto_summarize
+            RETURNING {ConversationColumns}
             """, ("$project", projectId), ("$title", title), ("$model", model), ("$effort", effort), ("$now", Now()));
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
         return ReadConversation(reader);
     }
 
-    public async Task RenameConversationAsync(long conversationId, string title, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Saves the Edit Conversation dialog: the title, the project (a different one moves the conversation), the
+    /// workspace (null uses the project's), protection, and the MCP servers its turns start.
+    /// </summary>
+    public async Task<Conversation> UpdateConversationAsync(long conversationId, string title, long projectId,
+        string? workingDirectory, bool isProtected, IReadOnlyCollection<long> mcpServerIds,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
+        if (workingDirectory is not null) ArgumentException.ThrowIfNullOrWhiteSpace(workingDirectory);
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
-        await ExecuteSingleAsync(connection, null, "UPDATE conversations SET title = $title WHERE id = $id", "Conversation",
-            cancellationToken, ("$id", conversationId), ("$title", title)).ConfigureAwait(false);
+        await using var transaction = connection.BeginTransaction();
+        Conversation conversation;
+        await using (var command = Command(connection, transaction, $"""
+            UPDATE conversations SET title = $title, project_id = $project, working_directory = $directory,
+                is_protected = $protected
+            WHERE id = $id
+            RETURNING {ConversationColumns}
+            """, ("$id", conversationId), ("$title", title), ("$project", projectId), ("$directory", workingDirectory),
+            ("$protected", isProtected)))
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+        {
+            if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                throw new InvalidOperationException("Conversation no longer exists.");
+            conversation = ReadConversation(reader);
+        }
+        await ExecuteAsync(connection, transaction, "DELETE FROM conversation_mcp_servers WHERE conversation_id = $id",
+            cancellationToken, ("$id", conversationId)).ConfigureAwait(false);
+        foreach (var serverId in mcpServerIds)
+            await ExecuteAsync(connection, transaction,
+                "INSERT INTO conversation_mcp_servers (conversation_id, mcp_server_id) VALUES ($id, $server)",
+                cancellationToken, ("$id", conversationId), ("$server", serverId)).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return conversation;
     }
 
     public async Task SetConversationModelAsync(long conversationId, string? model, string? effort,
@@ -378,11 +405,29 @@ public sealed class ConversationStore
             ("$now", Now())).ConfigureAwait(false);
     }
 
+    /// <summary>Deleting a server also removes it from every conversation that selected it.</summary>
     public async Task DeleteMcpServerAsync(long serverId, CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
         await ExecuteSingleAsync(connection, null, "DELETE FROM mcp_servers WHERE id = $id", "MCP server",
             cancellationToken, ("$id", serverId)).ConfigureAwait(false);
+    }
+
+    /// <summary>The servers the conversation selected, by name, including disabled ones.</summary>
+    public async Task<IReadOnlyList<McpServer>> ListConversationMcpServersAsync(long conversationId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = Command(connection, null, $"""
+            SELECT {McpServerColumns} FROM mcp_servers
+            WHERE id IN (SELECT mcp_server_id FROM conversation_mcp_servers WHERE conversation_id = $conversation)
+            ORDER BY name
+            """, ("$conversation", conversationId));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        var servers = new List<McpServer>();
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            servers.Add(ReadMcpServer(reader));
+        return servers;
     }
 
     public async Task<IReadOnlyList<ConversationTurn>> LoadTurnsAsync(long conversationId, CancellationToken cancellationToken = default)
@@ -555,7 +600,8 @@ public sealed class ConversationStore
 
     /// <summary>
     /// Copies a contiguous run of the conversation's turns, renumbered from 1, with their parts and
-    /// context state into a new conversation with the same project, title, and settings. The source is unchanged. The
+    /// context state into a new conversation with the same project, title, workspace, MCP servers, and settings. The
+    /// branch starts unprotected, and the source is unchanged. The
     /// branch has no CLI session, so its first turn reseeds from the copied history. Throws unless turnIds are every
     /// turn between the first and last of them, none still running.
     /// </summary>
@@ -583,10 +629,12 @@ public sealed class ConversationStore
 
         var now = Now();
         Conversation branch;
-        await using (var command = Command(connection, transaction, """
-            INSERT INTO conversations (project_id, title, model, effort, output_style, auto_summarize, created_at, updated_at)
-            SELECT project_id, title, model, effort, output_style, auto_summarize, $now, $now FROM conversations WHERE id = $source
-            RETURNING id, project_id, title, model, effort, updated_at, output_style, auto_summarize
+        await using (var command = Command(connection, transaction, $"""
+            INSERT INTO conversations (project_id, title, model, effort, output_style, auto_summarize, working_directory,
+                created_at, updated_at)
+            SELECT project_id, title, model, effort, output_style, auto_summarize, working_directory, $now, $now
+            FROM conversations WHERE id = $source
+            RETURNING {ConversationColumns}
             """, ("$source", conversationId), ("$now", now)))
         await using (var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
         {
@@ -594,6 +642,10 @@ public sealed class ConversationStore
                 throw new InvalidOperationException("Conversation no longer exists.");
             branch = ReadConversation(reader);
         }
+        await ExecuteAsync(connection, transaction, """
+            INSERT INTO conversation_mcp_servers (conversation_id, mcp_server_id)
+            SELECT $branch, mcp_server_id FROM conversation_mcp_servers WHERE conversation_id = $source
+            """, cancellationToken, ("$branch", branch.Id), ("$source", conversationId)).ConfigureAwait(false);
         for (var i = 0; i < run.Length; i++)
         {
             var turnId = (long)(await ScalarAsync(connection, transaction, $"""
@@ -702,10 +754,14 @@ public sealed class ConversationStore
             """, cancellationToken, ("$turn", turnId), ("$sequence", part.Sequence), ("$role", part.Role),
             ("$type", part.PartType), ("$content", part.Content));
 
+    private const string ConversationColumns =
+        "id, project_id, title, model, effort, updated_at, output_style, auto_summarize, working_directory, is_protected";
+
     private static Conversation ReadConversation(SqliteDataReader reader) =>
         new(reader.GetInt64(0), reader.GetInt64(1), reader.GetString(2),
             reader.IsDBNull(3) ? null : reader.GetString(3), reader.IsDBNull(4) ? null : reader.GetString(4),
-            ParseTime(reader.GetString(5)), reader.IsDBNull(6) ? null : reader.GetString(6), reader.GetBoolean(7));
+            ParseTime(reader.GetString(5)), reader.IsDBNull(6) ? null : reader.GetString(6), reader.GetBoolean(7),
+            reader.IsDBNull(8) ? null : reader.GetString(8), reader.GetBoolean(9));
 
     private const string NoteColumns = "id, conversation_id, title, content, created_at, updated_at";
 

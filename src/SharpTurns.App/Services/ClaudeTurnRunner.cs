@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using SharpTurns.ClaudeCli;
 using SharpTurns.Core;
 using SharpTurns.Core.Persistence;
@@ -65,6 +66,7 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, Func<string?> ex
         var receivedText = false;
         string? model = null;
         ClaudeCodeSessionState? state = null;
+        string[] mcpServerNames = [];
         TurnStatus status;
         string? error = null;
 
@@ -143,7 +145,7 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, Func<string?> ex
         async Task<ClaudeCliPermissionDecision> AnswerAsync(ClaudeCliPermissionRequest request, CancellationToken ct)
         {
             if (request.ToolName == "AskUserQuestion") return await AskQuestionsAsync(request, ct).ConfigureAwait(false);
-            if (!ClaudeCliCodingPolicy.AllowsAutomatically(request.ToolName))
+            if (!ClaudeCliCodingPolicy.AllowsAutomatically(request.ToolName, mcpServerNames))
                 return new(false, Message: "Tool is outside the enabled coding scope.");
             // The CLI runs preapproved tools on its own. It asks the host only for its safety checks, such as
             // edits to its own settings files, and the user decides those.
@@ -264,14 +266,21 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, Func<string?> ex
 
         try
         {
-            var directory = Path.GetFullPath(project.WorkingDirectory);
+            var directory = Path.GetFullPath(conversation.WorkspaceFor(project));
             if (!Directory.Exists(directory))
-                throw new DirectoryNotFoundException($"The project's working directory doesn't exist: {directory}");
+                throw new DirectoryNotFoundException(conversation.WorkingDirectory is null
+                    ? $"The project's working directory doesn't exist: {directory}"
+                    : $"The conversation's workspace doesn't exist: {directory}");
+            // Selected, enabled servers in a stable order so the CLI's tool definitions keep a cacheable prefix.
+            var mcpServers = (await store.ListConversationMcpServersAsync(conversation.Id, token).ConfigureAwait(false))
+                .Where(server => server.Enabled).OrderBy(server => server.Name, StringComparer.Ordinal).Select(ToCli).ToArray();
+            // Set before the CLI starts, so permission requests always see it.
+            mcpServerNames = mcpServers.Select(server => server.Name).ToArray();
             var history = (await store.LoadTurnsAsync(conversation.Id, token).ConfigureAwait(false))
                 .Where(t => t.Id != turn.Id).ToArray();
             var previous = await store.LoadClaudeCodeSessionAsync(conversation.Id, token).ConfigureAwait(false);
             var fingerprint = ClaudeCodeContext.Fingerprint(history);
-            var policyVersion = ClaudeCliCodingPolicy.VersionFor(systemPrompt, conversation.OutputStyle);
+            var policyVersion = ClaudeCliCodingPolicy.VersionFor(systemPrompt, conversation.OutputStyle, mcpServerNames);
             var resume = ClaudeCodeContext.CanResume(previous, directory, fingerprint, policyVersion) ? previous!.SessionId : null;
             var retainedHistory = resume is null
                 ? ClaudeCodeContext.SeedHistoryBlocks(history).Select(block => new ClaudeCliHistoryBlock(block.Text, ToCli(block.Images))).ToArray()
@@ -286,7 +295,7 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, Func<string?> ex
             var result = await new ClaudeCliClient(executable()).RunTurnAsync(directory, prompt, resume, OnEvent, AnswerAsync,
                 systemPrompt, token, conversation.Model, conversation.Effort, sessionName: conversation.Title,
                 retainedHistory: retainedHistory, images: ToCli(images), queuedInput: queue.ToTurnInput(TakeQueued),
-                outputStyle: conversation.OutputStyle).ConfigureAwait(false);
+                outputStyle: conversation.OutputStyle, mcpServers: mcpServers).ConfigureAwait(false);
             state = state with { SessionId = result.SessionId };
             status = result.IsError ? TurnStatus.Failed : TurnStatus.Completed;
             if (result.IsError)
@@ -360,6 +369,17 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, Func<string?> ex
 
     private static ClaudeCliImage[] ToCli(IReadOnlyList<ImageAttachment> images) =>
         images.Select(image => new ClaudeCliImage(image.MediaType, image.Data)).ToArray();
+
+    // The Config tab validated the JSON when it was saved; an environment value that isn't a string passes as its JSON.
+    private static ClaudeCliMcpServer ToCli(McpServer server)
+    {
+        var environment = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (server.EnvJson is not null && JsonNode.Parse(server.EnvJson) is JsonObject values)
+            foreach (var (name, value) in values)
+                environment[name] = value is JsonValue text && text.TryGetValue<string>(out var s) ? s : value?.ToJsonString() ?? "";
+        return new(server.Name, JsonSerializer.Deserialize<string[]>(server.CommandJson)
+            ?? throw new InvalidDataException($"MCP server {server.Name} has no command."), environment, server.WorkingDirectory);
+    }
 
     private static TurnUsage ToTurnUsage(ClaudeCliUsage usage) =>
         new(usage.InputTokens, usage.CachedInputTokens, usage.OutputTokens, usage.ContextTokens,

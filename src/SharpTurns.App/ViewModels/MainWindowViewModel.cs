@@ -39,7 +39,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(WindowTitle), nameof(OtherConversations), nameof(OtherConversationsLabel))]
-    [NotifyCanExecuteChangedFor(nameof(RenameConversationCommand))]
+    [NotifyCanExecuteChangedFor(nameof(EditConversationCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteConversationCommand))]
     private Conversation? _selectedConversation;
 
@@ -169,6 +169,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         + (PlanUsage is { } usage ? $"\nLast reported: {usage.CapturedAt.ToLocalTime():g}" : "");
 
     public Func<ProjectDialogViewModel, Task<bool>>? ShowProjectDialogAsync { get; set; }
+
+    public Func<EditConversationDialogViewModel, Task<bool>>? ShowEditConversationDialogAsync { get; set; }
 
     /// <summary>Title, message, and initial text; returns the entered text, or null when canceled.</summary>
     public Func<string, string, string, Task<string?>>? PromptAsync { get; set; }
@@ -377,7 +379,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         NotifySwitchingChanged();
     }
 
-    // Everything that would show another conversation: picking one, a project change, and creating or deleting either.
+    // Everything that would show another conversation: picking one, a project change, creating or deleting either, and
+    // moving one to another project.
     private void NotifySwitchingChanged()
     {
         SelectProjectCommand.NotifyCanExecuteChanged();
@@ -385,6 +388,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         NewProjectCommand.NotifyCanExecuteChanged();
         DeleteProjectCommand.NotifyCanExecuteChanged();
         NewConversationCommand.NotifyCanExecuteChanged();
+        EditConversationCommand.NotifyCanExecuteChanged();
         DeleteConversationCommand.NotifyCanExecuteChanged();
     }
 
@@ -501,7 +505,14 @@ public sealed partial class MainWindowViewModel : ObservableObject
         var taken = new List<long>();
         try
         {
-            foreach (var conversation in await _store.ListConversationsAsync(project.Id))
+            var conversations = await _store.ListConversationsAsync(project.Id);
+            if (conversations.FirstOrDefault(c => c.IsProtected) is { } protectedConversation)
+            {
+                ErrorMessage = $"\"{protectedConversation.Title}\" is protected, so \"{project.Name}\" can't be deleted. " +
+                    "Clear its protection or move it to another project in Edit Conversation first.";
+                return;
+            }
+            foreach (var conversation in conversations)
             {
                 if (_locks.IsHeld(conversation.Id)) continue;
                 if (!_locks.TryAcquire(conversation.Id))
@@ -548,34 +559,59 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     private bool HasSelectedConversation() => SelectedConversation is not null;
 
-    private bool CanDeleteConversation() => HasSelectedConversation() && CanSwitch();
+    private bool CanSwitchFromSelectedConversation() => HasSelectedConversation() && CanSwitch();
 
-    [RelayCommand(CanExecute = nameof(HasSelectedConversation))]
-    private async Task RenameConversationAsync()
+    // Moving the shown conversation to another project shows that project, with the conversation still open.
+    [RelayCommand(CanExecute = nameof(CanSwitchFromSelectedConversation))]
+    private async Task EditConversationAsync()
     {
         var current = SelectedConversation!;
-        if (PromptAsync is null || await PromptAsync("Rename Conversation", "Title", current.Title) is not { } title
-            || string.IsNullOrWhiteSpace(title))
-            return;
-        await RunAsync("rename the conversation", async () =>
+        if (ShowEditConversationDialogAsync is null) return;
+        EditConversationDialogViewModel dialog;
+        try
         {
-            var conversation = current with { Title = title.Trim() };
-            await _store.RenameConversationAsync(conversation.Id, conversation.Title);
-            if (_openConversations.TryGetValue(conversation.Id, out var open)) open.ApplyRename(conversation);
-            var index = Conversations.IndexOf(current);
-            if (index < 0) return;
-            Conversations[index] = conversation;
-            SelectedConversation = conversation;
+            dialog = new(current, Projects, await _store.ListMcpServersAsync(),
+                (await _store.ListConversationMcpServersAsync(current.Id)).Select(s => s.Id).ToArray());
+        }
+        catch (Exception e)
+        {
+            ErrorMessage = "Couldn't open the conversation's settings: " + e.Message;
+            return;
+        }
+        if (!await ShowEditConversationDialogAsync(dialog) || dialog.SelectedProject is not { } project) return;
+        await RunAsync("save the conversation", async () =>
+        {
+            var saved = await _store.UpdateConversationAsync(current.Id, dialog.Title.Trim(), project.Id,
+                dialog.WorkingDirectoryOrNull, dialog.IsProtected, dialog.SelectedServerIds);
+            if (_openConversations.TryGetValue(saved.Id, out var open)) open.ApplyEdit(saved, project);
+            // A turn may have replaced the listed record meanwhile.
+            if (Conversations.FirstOrDefault(c => c.Id == saved.Id) is not { } listed) return;
+            var selected = SelectedConversation?.Id == saved.Id;
+            if (saved.ProjectId == SelectedProject?.Id)
+            {
+                Conversations[Conversations.IndexOf(listed)] = saved;
+                if (selected) SelectedConversation = saved;
+                return;
+            }
+            Conversations.Remove(listed);
+            if (!selected) return;
+            _conversationToRestore = saved.Id;
+            SelectedProject = Projects.FirstOrDefault(p => p.Id == project.Id);
         });
     }
 
-    [RelayCommand(CanExecute = nameof(CanDeleteConversation))]
+    [RelayCommand(CanExecute = nameof(CanSwitchFromSelectedConversation))]
     private async Task DeleteConversationAsync()
     {
         var conversation = SelectedConversation!;
         if (!_locks.IsHeld(conversation.Id))
         {
             ErrorMessage = $"\"{conversation.Title}\" is open in another SharpTurns instance, so it can't be deleted here.";
+            return;
+        }
+        if (conversation.IsProtected)
+        {
+            ErrorMessage = $"\"{conversation.Title}\" is protected. Clear Protect Conversation in Edit Conversation to delete it.";
             return;
         }
         if (_openConversations.TryGetValue(conversation.Id, out var open) && open.IsRunning)

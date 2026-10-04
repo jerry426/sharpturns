@@ -22,10 +22,15 @@ public static class ProjectColor
 
 /// <summary>
 /// Model, Effort, and OutputStyle are CLI values; null uses the CLI's own default. AutoSummarize compresses each
-/// turn that completes.
+/// turn that completes. WorkingDirectory overrides the project's; null uses it. A protected conversation can't be
+/// deleted, alone or with its project.
 /// </summary>
 public sealed record Conversation(long Id, long ProjectId, string Title, string? Model, string? Effort, DateTimeOffset UpdatedAt,
-    string? OutputStyle = null, bool AutoSummarize = false);
+    string? OutputStyle = null, bool AutoSummarize = false, string? WorkingDirectory = null, bool IsProtected = false)
+{
+    /// <summary>The folder the CLI runs this conversation's turns in.</summary>
+    public string WorkspaceFor(Project project) => WorkingDirectory ?? project.WorkingDirectory;
+}
 
 /// <summary>A user's note on a conversation; Content is Markdown source. Never sent to Claude.</summary>
 public sealed record ConversationNote(long Id, long ConversationId, string Title, string Content, DateTimeOffset CreatedAt,
@@ -33,7 +38,8 @@ public sealed record ConversationNote(long Id, long ConversationId, string Title
 
 /// <summary>
 /// An MCP server definition from the Config tab. CommandJson is a JSON array of argv strings and EnvJson an optional
-/// JSON object of environment variables. Turns don't use them until v2.
+/// JSON object of environment variables. Conversations select the servers their turns start; a disabled one isn't
+/// started.
 /// </summary>
 public sealed record McpServer(long Id, string Name, string DisplayName, string? Description, string CommandJson,
     string? EnvJson, string? WorkingDirectory, bool Enabled, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);

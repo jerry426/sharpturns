@@ -171,13 +171,13 @@
             </ScrollViewer>
           </TabItem>
 
-          <!-- The server list and editor, without Test Connection, since turns don't use the servers until v2. -->
+          <!-- The server list and editor. There's no Test Connection: the CLI starts the servers, not SharpTurns. -->
           <TabItem Header="MCP Servers" FontSize="13">
             <Grid RowDefinitions="Auto,*" RowSpacing="12" Margin="0,0,12,0">
               <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                 <StackPanel Spacing="4">
                   <TextBlock Classes="sectionTitle" Text="{Binding Preferences.McpServers.HeaderLabel}" />
-                  <TextBlock Text="Configure Model Context Protocol servers (stdio). Saved in SharpTurns' local database. Turns don't use them yet: passing them to the CLI arrives in v2, and until then turns can't call MCP tools."
+                  <TextBlock Text="Configure Model Context Protocol servers (stdio). Saved in SharpTurns' local database. Select the servers a conversation's turns start in Edit Conversation; the CLI starts them with each turn."
                              Foreground="{DynamicResource TextSubtleBrush}" FontSize="12" TextWrapping="Wrap" />
                 </StackPanel>
                 <Button Grid.Column="1" Classes="primaryActionButton addServer preferenceButton" Content="Add Server"
@@ -275,9 +275,11 @@
                           <StackPanel Spacing="4">
                             <TextBlock Classes="editorLabel" Text="Working Directory" />
                             <TextBox Text="{Binding WorkingDirectory}" PlaceholderText="Optional absolute path" FontSize="12" MinHeight="30" />
+                            <TextBlock Classes="editorHelp" Text="Optional. Without one, the server starts in the conversation's workspace. Not supported on Windows." />
                           </StackPanel>
 
-                          <CheckBox Content="Enabled" IsChecked="{Binding Enabled}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="13" />
+                          <CheckBox Content="Enabled" IsChecked="{Binding Enabled}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="13"
+                                    ToolTip.Tip="A disabled server stays selected in its conversations but isn't started." />
                         </StackPanel>
 
                         <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">

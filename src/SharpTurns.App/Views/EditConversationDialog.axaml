@@ -1,0 +1,84 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:core="using:SharpTurns.Core"
+        xmlns:vm="using:SharpTurns.App.ViewModels"
+        x:Class="SharpTurns.App.Views.EditConversationDialog"
+        x:DataType="vm:EditConversationDialogViewModel"
+        Title="Edit Conversation"
+        Width="760"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{StaticResource CardBackgroundBrush}">
+  <StackPanel Margin="18" Spacing="14">
+    <TextBlock Text="Edit Conversation" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="18" FontWeight="SemiBold" />
+
+    <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+      <StackPanel Spacing="6">
+        <TextBlock Text="Title" Foreground="{DynamicResource TextStrongBrush}" FontSize="13" />
+        <TextBox x:Name="TitleBox" Text="{Binding Title}" PlaceholderText="Required" />
+      </StackPanel>
+
+      <StackPanel Grid.Column="1" Spacing="6">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+          <TextBlock Text="Project" Foreground="{DynamicResource TextStrongBrush}" FontSize="13" />
+          <TextBlock Grid.Column="1" Text="{Binding ProjectChangeLabel}" IsVisible="{Binding HasProjectChanged}"
+                     Foreground="{DynamicResource TextYellowBrush}" FontSize="11" VerticalAlignment="Center" />
+        </Grid>
+        <ComboBox ItemsSource="{Binding Projects}" SelectedItem="{Binding SelectedProject}" HorizontalAlignment="Stretch">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="core:Project">
+              <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+        <TextBlock Text="Choosing another project moves the conversation there."
+                   Foreground="{DynamicResource TextSubtleBrush}" FontSize="11" TextWrapping="Wrap" />
+      </StackPanel>
+    </Grid>
+
+    <Grid ColumnDefinitions="2*,*" ColumnSpacing="14">
+      <StackPanel Spacing="6">
+        <TextBlock Text="Workspace" Foreground="{DynamicResource TextStrongBrush}" FontSize="13" />
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+          <TextBox Text="{Binding WorkingDirectory}" PlaceholderText="{Binding WorkspacePlaceholder}" />
+          <Button Grid.Column="1" Classes="secondaryActionButton" Content="Browse…" Click="Browse_Click" />
+        </Grid>
+        <TextBlock Text="{Binding WorkspaceError}" IsVisible="{Binding WorkspaceError, Converter={x:Static ObjectConverters.IsNotNull}}"
+                   Foreground="{DynamicResource TextDangerBrush}" FontSize="11" />
+        <TextBlock Text="Optional. The CLI runs this conversation's turns in this folder, and reads its CLAUDE.md, instead of the project's working directory. A change starts a new CLI session from the conversation history on the next turn."
+                   Foreground="{DynamicResource TextSubtleBrush}" FontSize="11" TextWrapping="Wrap" />
+      </StackPanel>
+
+      <StackPanel Grid.Column="1" Spacing="6">
+        <TextBlock Text="Protection" Foreground="{DynamicResource TextStrongBrush}" FontSize="13" />
+        <CheckBox Content="Protect Conversation" IsChecked="{Binding IsProtected}" Foreground="{DynamicResource TextSecondaryBrush}" />
+        <TextBlock Text="{Binding ProtectionLabel}" Foreground="{DynamicResource TextSubtleBrush}" FontSize="11" TextWrapping="Wrap" />
+      </StackPanel>
+    </Grid>
+
+    <Border Background="#121620" BorderBrush="#2D3548" BorderThickness="1" CornerRadius="8" Padding="10">
+      <StackPanel Spacing="8">
+        <TextBlock Text="{Binding McpServersHeaderLabel}" Foreground="{DynamicResource TextStrongBrush}" FontSize="13"
+                   FontWeight="SemiBold" />
+        <TextBlock Text="Selected servers start with each turn, and their tools run without asking. Every tool definition is sent with every request, so select only what this conversation needs. Changing the selection starts a new CLI session from the conversation history on the next turn. Configure servers in Config → MCP Servers."
+                   Foreground="{DynamicResource TextSubtleBrush}" FontSize="11" TextWrapping="Wrap" />
+        <ScrollViewer MaxHeight="280" IsVisible="{Binding HasMcpServers}" HorizontalScrollBarVisibility="Disabled">
+          <ItemsControl ItemsSource="{Binding McpServers}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:McpServerOptionViewModel">
+                <CheckBox IsChecked="{Binding IsSelected}" Content="{Binding Label}" ToolTip.Tip="{Binding ToolTip}" FontSize="12" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </StackPanel>
+    </Border>
+
+    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+      <Button Classes="secondaryActionButton" Content="Cancel" Click="Cancel_Click" MinWidth="90" />
+      <Button Classes="primaryActionButton" Content="Save" Click="Save_Click" IsEnabled="{Binding CanSave}" MinWidth="90"
+              IsDefault="True" />
+    </StackPanel>
+  </StackPanel>
+</Window>
