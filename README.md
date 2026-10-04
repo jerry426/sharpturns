@@ -82,6 +82,34 @@ uncached. Hiding or compressing an older turn changes the history from that
 turn on, so that part is cached again. Each turn card's **First-Request Cache
 Hits** shows how much of the turn's opening request came from the cache.
 
+**One conversation instead of a crowd of subagents.** Subagents exist mainly
+to protect a context window that never shrinks: each one reads and searches
+in a context of its own and hands back only a summary, so the main
+conversation doesn't fill up. That protection is expensive. [Anthropic
+found][multi-agent] that its multi-agent research system used about 15 times
+the tokens of a chat, against about 4 times for a single agent, and that most
+coding tasks split into far fewer truly parallel pieces than research does.
+Each subagent starts cold and rereads the files it needs, parallel subagents
+can duplicate each other's work, and each acts on assumptions the others never
+see. [Cognition argues][cognition] that these conflicting decisions are what
+make multi-agent results unreliable, and the main conversation is left to
+reconcile them. With every finished turn condensed, SharpTurns' main
+conversation doesn't need that protection: one model keeps the whole thread of
+decisions and can take on far more work before its context fills up.
+SharpTurns blocks the CLI's subagent tools, so all of the work happens in the
+one conversation you can see and manage. Each turn still has to fit in the
+context window on its own, so split very large jobs across several turns.
+
+If you want subagents anyway, the change is small. In
+`src/SharpTurns.ClaudeCli/ClaudeCliCodingPolicy.cs`, add `Agent` to
+`CommonTools`, remove `Agent`, `Task`, and `Workflow` from `DeniedTools`, and
+delete the system prompt line that says subagents are disabled. SharpTurns
+isn't tested with subagents, and it shows only the main conversation, so their
+tool calls and token use won't appear in its tool cards or context figures.
+
+[multi-agent]: https://www.anthropic.com/engineering/multi-agent-research-system
+[cognition]: https://cognition.ai/blog/dont-build-multi-agents
+
 The result is conversations that can run far longer, a model that stays
 focused on what matters, and fewer tokens sent with every request.
 
