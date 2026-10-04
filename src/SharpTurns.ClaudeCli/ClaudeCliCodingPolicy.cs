@@ -9,7 +9,7 @@ public static class ClaudeCliCodingPolicy
     // Bump for tool-policy or session-compatibility changes: native snapshots survive resumes.
     // The system prompt is hashed separately by VersionFor.
     private const string LaunchProfile = "sharpturns-2";
-    public const string Description = "Native coding tools run without per-action approval; Git approval is instruction-based.";
+    public const string Description = "Native coding tools run without per-action approval, except commands matching the ask rules.";
     private const string CommonTools = "Read,Glob,Grep,Edit,Write,NotebookEdit,Bash,WebFetch,WebSearch";
     public static string AutomaticTools => OperatingSystem.IsWindows() ? CommonTools + ",PowerShell" : CommonTools;
     public static string AvailableTools => AutomaticTools + ",AskUserQuestion";
@@ -22,13 +22,24 @@ public static class ClaudeCliCodingPolicy
     public const string Settings = "{\"fallbackModel\":[],\"switchModelsOnFlag\":false,\"disableAllHooks\":true,\"disableClaudeAiConnectors\":true,\"autoCompactEnabled\":false}";
     // The CLI's built-in styles. Null leaves the style to the user's settings files.
     public static readonly IReadOnlyList<string> OutputStyles = ["Proactive", "Concise", "Explanatory", "Learning"];
+    // Matching tool calls go to the host's approval dialog even though their tool is preapproved.
+    public static readonly IReadOnlyList<string> DefaultAskRules = ["Bash(git commit:*)", "Bash(git push:*)"];
 
-    public static string SettingsFor(string? outputStyle)
+    /// <summary>A Claude Code permission rule: a tool name, optionally with a specifier in parentheses.</summary>
+    public static bool IsPermissionRule(string rule) =>
+        System.Text.RegularExpressions.Regex.IsMatch(rule, @"^[A-Za-z][A-Za-z0-9_-]*(\(.+\))?$");
+
+    public static string SettingsFor(string? outputStyle, IReadOnlyList<string>? askRules = null)
     {
-        if (outputStyle is null) return Settings;
-        if (!OutputStyles.Contains(outputStyle, StringComparer.Ordinal))
+        if (outputStyle is not null && !OutputStyles.Contains(outputStyle, StringComparer.Ordinal))
             throw new ArgumentException("Unsupported Claude CLI output style.", nameof(outputStyle));
-        return Settings[..^1] + ",\"outputStyle\":\"" + outputStyle + "\"}";
+        if (askRules?.FirstOrDefault(rule => !IsPermissionRule(rule)) is { } invalid)
+            throw new ArgumentException($"Not a permission rule: {invalid}", nameof(askRules));
+        if (outputStyle is null && askRules is not { Count: > 0 }) return Settings;
+        return Settings[..^1]
+            + (outputStyle is null ? "" : ",\"outputStyle\":\"" + outputStyle + "\"")
+            + (askRules is not { Count: > 0 } ? "" : ",\"permissions\":{\"ask\":" + System.Text.Json.JsonSerializer.Serialize(askRules) + "}")
+            + "}";
     }
 
     public const string DefaultSystemPrompt = """

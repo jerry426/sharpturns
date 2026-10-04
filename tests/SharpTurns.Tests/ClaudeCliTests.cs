@@ -386,12 +386,20 @@ public sealed class ClaudeCliTests : IDisposable
     }
 
     [Fact]
-    public void OutputStyleIsOnlyAddedToSettingsWhenChosen()
+    public void OutputStyleAndAskRulesAreOnlyAddedToSettingsWhenChosen()
     {
         Assert.Equal(ClaudeCliCodingPolicy.Settings, ClaudeCliCodingPolicy.SettingsFor(null));
+        Assert.Equal(ClaudeCliCodingPolicy.Settings, ClaudeCliCodingPolicy.SettingsFor(null, []));
         using var settings = JsonDocument.Parse(ClaudeCliCodingPolicy.SettingsFor("Learning"));
         Assert.Equal("Learning", settings.RootElement.GetProperty("outputStyle").GetString());
         Assert.False(settings.RootElement.GetProperty("autoCompactEnabled").GetBoolean());
+        Assert.False(settings.RootElement.TryGetProperty("permissions", out _));
+
+        using var withRules = JsonDocument.Parse(ClaudeCliCodingPolicy.SettingsFor(null, ["Bash(git push:*)", "WebFetch(domain:\"x\")"]));
+        Assert.Equal(["Bash(git push:*)", "WebFetch(domain:\"x\")"], withRules.RootElement.GetProperty("permissions").GetProperty("ask")
+            .EnumerateArray().Select(rule => rule.GetString()));
+        Assert.True(withRules.RootElement.GetProperty("disableAllHooks").GetBoolean());
+        Assert.Throws<ArgumentException>(() => ClaudeCliCodingPolicy.SettingsFor(null, ["git push"]));
     }
 
     private static Task<ClaudeCliPermissionDecision> Deny(ClaudeCliPermissionRequest request, CancellationToken token) =>

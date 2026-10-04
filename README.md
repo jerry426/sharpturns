@@ -147,8 +147,9 @@ Before you use it, know that:
   NotebookEdit, Bash, WebFetch, and WebSearch (plus PowerShell on Windows) are
   preapproved. Turns start in the project's folder, or the conversation's own
   workspace, but the tools aren't confined to it. The CLI's own safety checks
-  still open an Allow/Deny dialog. Subagents and the `pkill` and `killall`
-  commands are denied.
+  still open an Allow/Deny dialog, and so do commands matching the ask rules in
+  Config → Preferences, `git commit` and `git push` by default. Subagents and
+  the `pkill` and `killall` commands are denied.
 - **MCP servers run only where you select them.** Define servers in Config →
   MCP Servers, then select them for a conversation in Edit Conversation. The
   CLI starts them with each of its turns, and their tools run without asking.

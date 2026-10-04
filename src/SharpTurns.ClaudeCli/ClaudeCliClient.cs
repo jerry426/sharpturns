@@ -39,11 +39,12 @@ public sealed class ClaudeCliClient
         IReadOnlyList<string>? contextFiles = null,
         ClaudeCliTurnInput? queuedInput = null,
         string? outputStyle = null,
-        IReadOnlyList<ClaudeCliMcpServer>? mcpServers = null)
+        IReadOnlyList<ClaudeCliMcpServer>? mcpServers = null,
+        IReadOnlyList<string>? askRules = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(systemPrompt);
         if (model is not null) ArgumentException.ThrowIfNullOrWhiteSpace(model);
-        var settings = ClaudeCliCodingPolicy.SettingsFor(outputStyle);
+        var settings = ClaudeCliCodingPolicy.SettingsFor(outputStyle, askRules);
         if (mcpServers is { Count: 0 }) mcpServers = null;
         var mcpConfig = mcpServers is null ? null : McpConfig(mcpServers);
         if (sessionName is not null) ArgumentException.ThrowIfNullOrWhiteSpace(sessionName);
@@ -469,7 +470,8 @@ public sealed class ClaudeCliClient
         else
         {
             // No --restricted or --safe-mode: both stop CLAUDE.md discovery (verified with CLI 2.1.286), so the
-            // user's settings files load too. --settings overrides them for hooks and auto-compact.
+            // user's settings files load too. --settings overrides them for hooks and auto-compact, and its ask rules
+            // join theirs: a matching call reaches the host's approval dialog despite --allowed-tools (CLI 2.1.288).
             // These variables leak in when the app is started from a CLI session and also stop discovery.
             info.Environment.Remove("CLAUDE_CODE_SAFE_MODE");
             info.Environment.Remove("CLAUDE_CODE_DISABLE_CLAUDE_MDS");

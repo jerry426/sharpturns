@@ -158,6 +158,7 @@ public sealed class ClaudeTurnRunnerTests : IDisposable
             previous=
             for argument in "$@"; do
               if [ "$previous" = "--mcp-config" ]; then cp "$argument" mcp.json; fi
+              if [ "$previous" = "--settings" ]; then printf '%s' "$argument" > settings.json; fi
               previous=$argument
             done
             """ + "\n" + Lines(
@@ -174,6 +175,7 @@ public sealed class ClaudeTurnRunnerTests : IDisposable
         var db = await _store.CreateMcpServerAsync("db", "Database", null, """["db-mcp"]""", null, null, false);
         conversation = await _store.UpdateConversationAsync(conversation.Id, conversation.Title, project.Id, workspace, false,
             null, null, [browser.Id, db.Id], []);
+        await _store.SetSettingAsync(ClaudeTurnRunner.AskRulesSetting, "Bash(git push:*)\nmcp__db");
         var approvals = new List<string>();
 
         var result = await RunAsync(runner, project, conversation, Callbacks(approve: (tool, _, _) =>
@@ -193,6 +195,10 @@ public sealed class ClaudeTurnRunnerTests : IDisposable
         Assert.Equal(["mcp__browser__navigate"], approvals);
         Assert.Contains("\"allow\"", await File.ReadAllTextAsync(Path.Combine(workspace, "selected-reply.json")));
         Assert.Contains("outside the enabled coding scope", await File.ReadAllTextAsync(Path.Combine(workspace, "disabled-reply.json")));
+        // The saved ask rules replace the built-in ones.
+        using var settings = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(workspace, "settings.json")));
+        Assert.Equal(["Bash(git push:*)", "mcp__db"], settings.RootElement.GetProperty("permissions").GetProperty("ask")
+            .EnumerateArray().Select(rule => rule.GetString()));
         var state = (await _store.LoadClaudeCodeSessionAsync(conversation.Id))!;
         Assert.Equal(workspace, state.WorkingDirectory);
         Assert.Equal(ClaudeCliCodingPolicy.VersionFor("Host rules.", null, ["browser"]), state.PolicyVersion);

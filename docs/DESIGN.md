@@ -71,7 +71,13 @@ Each turn is one `claude -p` process with stream-json input and output
 - **Tools.** The coding tools (Read, Glob, Grep, Edit, Write, NotebookEdit,
   Bash, WebFetch, WebSearch, and PowerShell on Windows) are preapproved with
   `--allowed-tools`. The CLI still asks the host for its own safety checks,
-  which show an Allow/Deny dialog. Subagents are denied, and so are `pkill`
+  which show an Allow/Deny dialog. So does a call matching an ask rule:
+  `--settings` carries the rules from Config → Preferences (default
+  `Bash(git commit:*)` and `Bash(git push:*)`) as `permissions.ask`, which
+  the CLI checks before `--allowed-tools` (verified with CLI 2.1.288, including
+  commands chained with `&&`). Ask rules in the user's settings files still
+  apply. Rules are read each turn and need no new session, since the CLI
+  applies permissions per launch. Subagents are denied, and so are `pkill`
   and `killall` (bare and `/usr/bin/`): pattern-based killers can stop
   unrelated apps, and a user's own settings may not deny them. MCP tools are
   denied unless the conversation selected servers (see MCP servers below).

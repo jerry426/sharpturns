@@ -172,6 +172,42 @@ public sealed class ApplicationPreferencesViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task AskRulesAreSavedReloadedAndResetToTheBuiltInList()
+    {
+        Directory.CreateDirectory(_directory);
+        var store = new ConversationStore(Path.Combine(_directory, "test.db"));
+        await store.InitializeAsync();
+        var preferences = new ApplicationPreferencesViewModel(store);
+        await preferences.LoadAsync();
+        Assert.Equal(ClaudeCliCodingPolicy.DefaultAskRules, preferences.AskRules);
+        Assert.False(preferences.ResetAskRulesCommand.CanExecute(null));
+
+        // A line that isn't a rule is refused; blank lines, spaces, and repeats are dropped.
+        preferences.AskRulesText = "Bash(git push:*)\ngit commit";
+        await preferences.SaveAskRulesCommand.ExecuteAsync(null);
+        Assert.StartsWith("\"git commit\" isn't a permission rule.", preferences.AskRulesMessage);
+        Assert.Equal(ClaudeCliCodingPolicy.DefaultAskRules, preferences.AskRules);
+        preferences.AskRulesText = " Bash(git push:*) \r\n\r\nBash(git add:*)\nBash(git push:*)\n";
+        await preferences.SaveAskRulesCommand.ExecuteAsync(null);
+        Assert.Equal(["Bash(git push:*)", "Bash(git add:*)"], preferences.AskRules);
+        Assert.False(preferences.HasAskRulesChanges);
+        Assert.Equal("Bash(git push:*)\nBash(git add:*)", await store.GetSettingAsync(ClaudeTurnRunner.AskRulesSetting));
+
+        // An empty list is kept, not replaced by the built-in one.
+        preferences.AskRulesText = "";
+        await preferences.SaveAskRulesCommand.ExecuteAsync(null);
+        var reloaded = new ApplicationPreferencesViewModel(store);
+        await reloaded.LoadAsync();
+        Assert.Empty(reloaded.AskRules);
+
+        // Saving the built-in list removes the setting.
+        reloaded.ResetAskRulesCommand.Execute(null);
+        await reloaded.SaveAskRulesCommand.ExecuteAsync(null);
+        Assert.Equal(ClaudeCliCodingPolicy.DefaultAskRules, reloaded.AskRules);
+        Assert.Null(await store.GetSettingAsync(ClaudeTurnRunner.AskRulesSetting));
+    }
+
+    [Fact]
     public async Task EditConversationChoosesItsSummarizerAndOtherwiseTheCardShowsTheDefault()
     {
         Directory.CreateDirectory(_directory);

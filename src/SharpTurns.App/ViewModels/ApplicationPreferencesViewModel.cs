@@ -10,7 +10,7 @@ namespace SharpTurns.App.ViewModels;
 /// <summary>
 /// The Config tab's Preferences: restoring the last session at startup, the startup, Notes, and Markdown Viewer window
 /// sizes, the DOCX export defaults, the claude path, the model and effort for new conversations, the summarizer model
-/// and effort, and the system prompt. Each is saved in the settings table when it changes.
+/// and effort, the ask rules, and the system prompt. Each is saved in the settings table when it changes.
 /// The Models subtab's list, which the model pickers offer, and the MCP Servers, Sounds, and API Keys subtabs live here too.
 /// </summary>
 public sealed partial class ApplicationPreferencesViewModel : ObservableObject
@@ -55,6 +55,17 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
 
     [ObservableProperty]
     private string _systemPromptMessage = SystemPromptLabel(ClaudeCliCodingPolicy.DefaultSystemPrompt);
+
+    /// <summary>The ask rules as edited, one per line; <see cref="AskRules"/> holds the saved ones.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAskRulesChanges))]
+    [NotifyCanExecuteChangedFor(nameof(SaveAskRulesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CancelAskRulesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ResetAskRulesCommand))]
+    private string _askRulesText = AskRulesLabel(ClaudeCliCodingPolicy.DefaultAskRules);
+
+    [ObservableProperty]
+    private string _askRulesMessage = AskRulesStatus(ClaudeCliCodingPolicy.DefaultAskRules);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RestoreLastSessionDescription))]
@@ -124,6 +135,11 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
 
     public bool HasSystemPromptChanges => SystemPromptText != SystemPrompt;
 
+    /// <summary>The saved ask rules; matching tool calls show the approval dialog.</summary>
+    public IReadOnlyList<string> AskRules { get; private set; } = ClaudeCliCodingPolicy.DefaultAskRules;
+
+    public bool HasAskRulesChanges => AskRulesText != AskRulesLabel(AskRules);
+
     /// <summary>Shows the DOCX export defaults dialog; returns the new settings, or null when canceled.</summary>
     public Func<DocxExportDefaultsDialogViewModel, Task<DocxExportSettings?>>? ShowDocxExportDefaultsDialogAsync { get; set; }
 
@@ -151,6 +167,8 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
             ApplySystemPrompt(await _store.GetSettingAsync(SystemPromptSetting) is { Length: > 0 } prompt
                 ? prompt : ClaudeCliCodingPolicy.DefaultSystemPrompt);
             SystemPromptMessage = SystemPromptLabel(SystemPrompt);
+            ApplyAskRules(ClaudeTurnRunner.AskRules(await _store.GetSettingAsync(ClaudeTurnRunner.AskRulesSetting)));
+            AskRulesMessage = AskRulesStatus(AskRules);
         }
         catch (Exception e) { Status = "Couldn't load the preferences: " + e.Message; }
         finally { _isLoading = false; }
@@ -356,6 +374,62 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
     private static string SystemPromptLabel(string prompt) => prompt == ClaudeCliCodingPolicy.DefaultSystemPrompt
         ? "Using the built-in system prompt."
         : "Using your saved system prompt.";
+
+    private bool CanSaveAskRules() => HasAskRulesChanges;
+
+    /// <summary>Saving the default list removes the setting, so a later change to the built-in list applies.</summary>
+    [RelayCommand(CanExecute = nameof(CanSaveAskRules))]
+    private async Task SaveAskRulesAsync()
+    {
+        var rules = ClaudeTurnRunner.AskRules(AskRulesText.ReplaceLineEndings("\n")).Distinct(StringComparer.Ordinal).ToArray();
+        if (rules.FirstOrDefault(rule => !ClaudeCliCodingPolicy.IsPermissionRule(rule)) is { } invalid)
+        {
+            AskRulesMessage = $"\"{invalid}\" isn't a permission rule. Use a tool name, optionally with a pattern, such as Bash(git push:*).";
+            return;
+        }
+        try
+        {
+            await _store.SetSettingAsync(ClaudeTurnRunner.AskRulesSetting,
+                rules.SequenceEqual(ClaudeCliCodingPolicy.DefaultAskRules) ? null : string.Join('\n', rules));
+            ApplyAskRules(rules);
+            AskRulesMessage = "Saved. Each conversation uses these rules from its next turn.";
+        }
+        catch (Exception e) { AskRulesMessage = "Couldn't save the ask rules: " + e.Message; }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSaveAskRules))]
+    private void CancelAskRules()
+    {
+        AskRulesText = AskRulesLabel(AskRules);
+        AskRulesMessage = AskRulesStatus(AskRules);
+    }
+
+    private bool CanResetAskRules() => AskRulesText != AskRulesLabel(ClaudeCliCodingPolicy.DefaultAskRules);
+
+    /// <summary>Puts the built-in rules in the editor; Save applies them and Cancel brings back the saved ones.</summary>
+    [RelayCommand(CanExecute = nameof(CanResetAskRules))]
+    private void ResetAskRules()
+    {
+        AskRulesText = AskRulesLabel(ClaudeCliCodingPolicy.DefaultAskRules);
+        AskRulesMessage = "The built-in rules are in the editor. Save to use them, or Cancel to keep your saved rules.";
+    }
+
+    private void ApplyAskRules(IReadOnlyList<string> rules)
+    {
+        AskRules = rules;
+        AskRulesText = AskRulesLabel(rules);
+        // AskRulesText may not have changed, so its notifications may not have run.
+        OnPropertyChanged(nameof(HasAskRulesChanges));
+        SaveAskRulesCommand.NotifyCanExecuteChanged();
+        CancelAskRulesCommand.NotifyCanExecuteChanged();
+    }
+
+    private static string AskRulesLabel(IReadOnlyList<string> rules) => string.Join('\n', rules);
+
+    private static string AskRulesStatus(IReadOnlyList<string> rules) =>
+        rules.Count == 0 ? "No ask rules: preapproved tools run without asking."
+        : rules.SequenceEqual(ClaudeCliCodingPolicy.DefaultAskRules) ? "Using the built-in ask rules."
+        : "Using your saved ask rules.";
 
     partial void OnRestoreLastSessionChanged(bool value)
     {

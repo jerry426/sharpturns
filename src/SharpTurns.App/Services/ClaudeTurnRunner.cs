@@ -43,7 +43,13 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, Func<string?> ex
     public const string ClaudeCliNotStarted =
         "Couldn't start the claude CLI. Install it and make sure it's on your PATH, or set its path in Config → Preferences.";
 
+    /// <summary>The ask rules, one per line; unset uses <see cref="ClaudeCliCodingPolicy.DefaultAskRules"/>.</summary>
+    public const string AskRulesSetting = "ask_rules";
+
     public ClaudeTurnRunner(ConversationStore store, string? executable = null) : this(store, () => executable) { }
+
+    public static IReadOnlyList<string> AskRules(string? setting) => setting is null ? ClaudeCliCodingPolicy.DefaultAskRules
+        : setting.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     /// <summary>Returns the saved turn, including after Stop or failure. Throws only if the database fails.</summary>
     public async Task<TurnRunResult> RunAsync(Project project, Conversation conversation, string prompt,
@@ -288,6 +294,8 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, Func<string?> ex
             ContextFiles.ThrowIfRequiredFailed(contextFiles);
             contextFilesFingerprint = ContextFiles.Fingerprint(contextFiles);
             omittedContextFiles = contextFiles.Where(f => f.Content is null).Select(f => $"{f.File.Path}: {f.Error}").ToArray();
+            // Permission rules apply per launch, so a change needs no new session.
+            var askRules = AskRules(await store.GetSettingAsync(AskRulesSetting, token).ConfigureAwait(false));
             var history = (await store.LoadTurnsAsync(conversation.Id, token).ConfigureAwait(false))
                 .Where(t => t.Id != turn.Id).ToArray();
             var previous = await store.LoadClaudeCodeSessionAsync(conversation.Id, token).ConfigureAwait(false);
@@ -312,7 +320,7 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, Func<string?> ex
                 systemPrompt, token, conversation.Model, conversation.Effort, sessionName: conversation.Title,
                 retainedHistory: retainedHistory, images: ToCli(images), contextFiles: contextFileBlocks,
                 queuedInput: queue.ToTurnInput(TakeQueued),
-                outputStyle: conversation.OutputStyle, mcpServers: mcpServers).ConfigureAwait(false);
+                outputStyle: conversation.OutputStyle, mcpServers: mcpServers, askRules: askRules).ConfigureAwait(false);
             state = state with { SessionId = result.SessionId };
             status = result.IsError ? TurnStatus.Failed : TurnStatus.Completed;
             if (result.IsError)

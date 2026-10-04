@@ -365,10 +365,10 @@
                 </Grid>
 
                 <Border Classes="preferenceSection">
-                  <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="16">
+                  <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="16">
                     <TextBlock Classes="sectionTitle" Text="Claude CLI" />
                     <TextBlock Grid.Row="1" Classes="sectionText"
-                               Text="The claude executable that runs turns and summaries, the model and effort new conversations start with, and the model and effort that write compressed turns' summaries." />
+                               Text="The claude executable that runs turns and summaries, the model and effort new conversations start with, the model and effort that write compressed turns' summaries, and the tool calls that ask before running." />
 
                     <Border Grid.Row="2" Classes="preferenceInset">
                       <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="18" RowSpacing="12">
@@ -409,6 +409,29 @@
                       <TextBlock Grid.Row="2" Grid.ColumnSpan="5" Classes="fieldLabel" Text="{Binding Preferences.ClaudeCliMessage}"
                                  TextWrapping="Wrap" />
                     </Grid>
+
+                    <Border Grid.Row="4" Classes="preferenceInset">
+                      <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="18" RowSpacing="12">
+                        <StackPanel Grid.ColumnSpan="2" Spacing="4">
+                          <TextBlock Text="Ask before running" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="14" />
+                          <TextBlock Classes="sectionText" FontSize="12"
+                                     Text="Tool calls matching these Claude Code permission rules, one per line, show the approval dialog before they run, even though their tool is preapproved. For example, Bash(git push:*) matches any git push command, including one chained after another with &amp;&amp;. Ask rules in your Claude Code settings files still apply too." />
+                        </StackPanel>
+                        <TextBox Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Preferences.AskRulesText}" AcceptsReturn="True"
+                                 TextWrapping="NoWrap" MinHeight="90" MaxLength="4000"
+                                 FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="12" />
+                        <TextBlock Grid.Row="2" Classes="fieldLabel" Text="{Binding Preferences.AskRulesMessage}" TextWrapping="Wrap" />
+                        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                          <Button Classes="secondaryActionButton preferenceButton" Content="Reset to Default"
+                                  Command="{Binding Preferences.ResetAskRulesCommand}"
+                                  ToolTip.Tip="Put the built-in rules in the editor; Save applies them" />
+                          <Button Classes="secondaryActionButton preferenceButton" Content="Cancel"
+                                  Command="{Binding Preferences.CancelAskRulesCommand}" />
+                          <Button Classes="primaryActionButton preferenceButton" Content="Save Changes"
+                                  Command="{Binding Preferences.SaveAskRulesCommand}" />
+                        </StackPanel>
+                      </Grid>
+                    </Border>
                   </Grid>
                 </Border>
 
