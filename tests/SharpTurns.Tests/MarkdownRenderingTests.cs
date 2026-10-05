@@ -49,4 +49,43 @@ public sealed class MarkdownRenderingTests
 
         Assert.Empty(document.Descendants<ListBlock>());
     }
+
+    [Fact]
+    public void PreprocessorRendersTaskListMarkersAsGlyphs()
+    {
+        var rendered = MarkdownSourcePreprocessor.PrepareForRendering("- [ ] todo\n  * [X] done\n- [y] other");
+
+        Assert.Equal("- ☐ todo\n  * ☑ done\n- [y] other", rendered);
+    }
+
+    [Fact]
+    public void PreprocessorEncodesSurplusBlankLinesAsMarkerParagraph()
+    {
+        const string marker = "&#8203;&#8288;&#8203;";
+
+        var rendered = MarkdownSourcePreprocessor.PrepareForRendering("a\r\n\r\n\r\n\r\nb");
+
+        Assert.Equal($"a\n\n{marker}  \n{marker}\n\nb", rendered);
+    }
+
+    [Theory]
+    [InlineData("a\n\nb")]
+    [InlineData("\n\n\na")]
+    [InlineData("a\n\n\n")]
+    [InlineData("```\na\n\n\nb\n```")]
+    [InlineData("    a\n\n\n    b")]
+    public void PreprocessorLeavesOtherBlankLinesUnchanged(string markdown)
+    {
+        Assert.Equal(markdown, MarkdownSourcePreprocessor.PrepareForRendering(markdown));
+    }
+
+    [Theory]
+    [InlineData("​⁠​", 1)]
+    [InlineData("​⁠​\r\n​⁠​", 2)]
+    [InlineData("​⁠​\ntext", 0)]
+    [InlineData("text", 0)]
+    public void PreprocessorCountsRenderedBlankLineMarkers(string text, int expected)
+    {
+        Assert.Equal(expected, MarkdownSourcePreprocessor.GetPreservedBlankLineCount(text));
+    }
 }
