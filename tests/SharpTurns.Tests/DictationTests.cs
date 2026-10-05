@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using System.Windows.Input;
 using SharpTurns.App.Services;
+using SharpTurns.App.Services.Dictation;
 using SharpTurns.App.ViewModels;
 using SharpTurns.Core.Persistence;
 using Xunit;

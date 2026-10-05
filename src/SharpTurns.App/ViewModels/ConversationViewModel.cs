@@ -7,6 +7,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SharpTurns.App.Services;
+using SharpTurns.App.Services.Dictation;
 using SharpTurns.ClaudeCli;
 using SharpTurns.Core;
 using SharpTurns.Core.Persistence;

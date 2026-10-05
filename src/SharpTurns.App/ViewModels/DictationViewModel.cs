@@ -1,6 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SharpTurns.App.Services;
+using SharpTurns.App.Services.Dictation;
 
 namespace SharpTurns.App.ViewModels;
 
