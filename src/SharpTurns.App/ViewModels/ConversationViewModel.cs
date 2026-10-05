@@ -237,6 +237,29 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     public string McpServersLabel => string.Join(", ", McpServers);
 
+    public bool HasFolderAccess => HasReadOnlyFolders || HasReadWriteFolders || HasBlockedPathPatterns;
+
+    public bool HasReadOnlyFolders => Conversation.ReadOnlyFolders is not null;
+
+    public bool HasReadWriteFolders => Conversation.ReadWriteFolders is not null;
+
+    public bool HasBlockedPathPatterns => Conversation.BlockedPathPatterns is not null;
+
+    // One entry per line, as saved.
+    public string ReadOnlyFoldersLabel => Conversation.ReadOnlyFolders ?? "";
+
+    public string ReadWriteFoldersLabel => Conversation.ReadWriteFolders ?? "";
+
+    public string BlockedPathPatternsLabel => Conversation.BlockedPathPatterns ?? "";
+
+    private void NotifyFolderAccessChanged()
+    {
+        foreach (var name in new[] { nameof(HasFolderAccess), nameof(HasReadOnlyFolders), nameof(HasReadWriteFolders),
+                     nameof(HasBlockedPathPatterns), nameof(ReadOnlyFoldersLabel), nameof(ReadWriteFoldersLabel),
+                     nameof(BlockedPathPatternsLabel) })
+            OnPropertyChanged(name);
+    }
+
     public ConversationDisplayViewModel Display { get; }
 
     /// <summary>The composer's Voice, confidence, and Undo.</summary>
@@ -399,6 +422,7 @@ public sealed partial class ConversationViewModel : ObservableObject
         OnPropertyChanged(nameof(Workspace));
         OnPropertyChanged(nameof(IsProtected));
         NotifySummarizerChanged();
+        NotifyFolderAccessChanged();
         _branchEndpoints.Clear();
         _selectionAnchor = null;
         await LoadAsync();
@@ -413,13 +437,15 @@ public sealed partial class ConversationViewModel : ObservableObject
         {
             Title = conversation.Title, ProjectId = conversation.ProjectId, WorkingDirectory = conversation.WorkingDirectory,
             IsProtected = conversation.IsProtected, SummarizerModel = conversation.SummarizerModel,
-            SummarizerEffort = conversation.SummarizerEffort,
+            SummarizerEffort = conversation.SummarizerEffort, ReadOnlyFolders = conversation.ReadOnlyFolders,
+            ReadWriteFolders = conversation.ReadWriteFolders, BlockedPathPatterns = conversation.BlockedPathPatterns,
         };
         Title = conversation.Title;
         Project = project;
         OnPropertyChanged(nameof(Workspace));
         OnPropertyChanged(nameof(IsProtected));
         NotifySummarizerChanged();
+        NotifyFolderAccessChanged();
     }
 
     public void CancelTurn() => _turnLifetime?.Cancel();
@@ -547,6 +573,9 @@ public sealed partial class ConversationViewModel : ObservableObject
             if (result.OmittedContextFiles.Count > 0)
                 Status = (Status is null ? "" : Status + " ") + "Left out optional context files: "
                     + string.Join("; ", result.OmittedContextFiles);
+            if (result.SkippedFolders.Count > 0)
+                Status = (Status is null ? "" : Status + " ") + "Skipped additional folders that aren't existing absolute paths: "
+                    + string.Join("; ", result.SkippedFolders);
         }
         catch (Exception e)
         {

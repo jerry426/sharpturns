@@ -601,7 +601,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         {
             var saved = await _store.UpdateConversationAsync(current.Id, dialog.Title.Trim(), project.Id,
                 dialog.WorkingDirectoryOrNull, dialog.IsProtected, dialog.SummarizerModelOrNull, dialog.SummarizerEffortOrNull,
-                dialog.SelectedServerIds, dialog.ContextFileSettings);
+                dialog.SelectedServerIds, dialog.ContextFileSettings, dialog.ReadOnlyFolders, dialog.ReadWriteFolders,
+                dialog.BlockedPathPatterns);
             if (_openConversations.TryGetValue(saved.Id, out var open))
                 open.ApplyEdit(saved, project, dialog.ContextFileSettings, dialog.SelectedServers);
             // A turn may have replaced the listed record meanwhile.

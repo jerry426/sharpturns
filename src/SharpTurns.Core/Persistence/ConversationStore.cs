@@ -161,11 +161,12 @@ public sealed class ConversationStore
     /// <summary>
     /// Saves the Edit Conversation dialog: the title, the project (a different one moves the conversation), the
     /// workspace (null uses the project's), protection, the summarizer model and effort (null uses the default's), the
-    /// MCP servers its turns start, and its context files in order.
+    /// MCP servers its turns start, its context files in order, and its additional folder access, one entry per line.
     /// </summary>
     public async Task<Conversation> UpdateConversationAsync(long conversationId, string title, long projectId,
         string? workingDirectory, bool isProtected, string? summarizerModel, string? summarizerEffort,
         IReadOnlyCollection<long> mcpServerIds, IReadOnlyList<ContextFile> contextFiles,
+        string? readOnlyFolders = null, string? readWriteFolders = null, string? blockedPathPatterns = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
@@ -177,11 +178,15 @@ public sealed class ConversationStore
         Conversation conversation;
         await using (var command = Command(connection, transaction, $"""
             UPDATE conversations SET title = $title, project_id = $project, working_directory = $directory,
-                is_protected = $protected, summarizer_model = $summarizerModel, summarizer_effort = $summarizerEffort
+                is_protected = $protected, summarizer_model = $summarizerModel, summarizer_effort = $summarizerEffort,
+                read_only_folders = $readOnly, read_write_folders = $readWrite, blocked_path_patterns = $blocked
             WHERE id = $id
             RETURNING {ConversationColumns}
             """, ("$id", conversationId), ("$title", title), ("$project", projectId), ("$directory", workingDirectory),
-            ("$protected", isProtected), ("$summarizerModel", summarizerModel), ("$summarizerEffort", summarizerEffort)))
+            ("$protected", isProtected), ("$summarizerModel", summarizerModel), ("$summarizerEffort", summarizerEffort),
+            ("$readOnly", Conversation.NormalizeLines(readOnlyFolders)),
+            ("$readWrite", Conversation.NormalizeLines(readWriteFolders)),
+            ("$blocked", Conversation.NormalizeLines(blockedPathPatterns))))
         await using (var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
         {
             if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -641,8 +646,8 @@ public sealed class ConversationStore
 
     /// <summary>
     /// Copies a contiguous run of the conversation's turns, renumbered from 1, with their parts and
-    /// context state into a new conversation with the same project, title, workspace, MCP servers, context files, and
-    /// settings. The
+    /// context state into a new conversation with the same project, title, workspace, MCP servers, context files, folder
+    /// access, and settings. The
     /// branch starts unprotected, and the source is unchanged. The
     /// branch has no CLI session, so its first turn reseeds from the copied history. Throws unless turnIds are every
     /// turn between the first and last of them, none still running.
@@ -673,9 +678,10 @@ public sealed class ConversationStore
         Conversation branch;
         await using (var command = Command(connection, transaction, $"""
             INSERT INTO conversations (project_id, title, model, effort, output_style, auto_summarize, working_directory,
-                summarizer_model, summarizer_effort, created_at, updated_at)
+                summarizer_model, summarizer_effort, read_only_folders, read_write_folders, blocked_path_patterns,
+                created_at, updated_at)
             SELECT project_id, title, model, effort, output_style, auto_summarize, working_directory,
-                summarizer_model, summarizer_effort, $now, $now
+                summarizer_model, summarizer_effort, read_only_folders, read_write_folders, blocked_path_patterns, $now, $now
             FROM conversations WHERE id = $source
             RETURNING {ConversationColumns}
             """, ("$source", conversationId), ("$now", now)))
@@ -804,14 +810,17 @@ public sealed class ConversationStore
             ("$type", part.PartType), ("$content", part.Content));
 
     private const string ConversationColumns = "id, project_id, title, model, effort, updated_at, output_style, "
-        + "auto_summarize, working_directory, is_protected, summarizer_model, summarizer_effort";
+        + "auto_summarize, working_directory, is_protected, summarizer_model, summarizer_effort, "
+        + "read_only_folders, read_write_folders, blocked_path_patterns";
 
     private static Conversation ReadConversation(SqliteDataReader reader) =>
         new(reader.GetInt64(0), reader.GetInt64(1), reader.GetString(2),
             reader.IsDBNull(3) ? null : reader.GetString(3), reader.IsDBNull(4) ? null : reader.GetString(4),
             ParseTime(reader.GetString(5)), reader.IsDBNull(6) ? null : reader.GetString(6), reader.GetBoolean(7),
             reader.IsDBNull(8) ? null : reader.GetString(8), reader.GetBoolean(9),
-            reader.IsDBNull(10) ? null : reader.GetString(10), reader.IsDBNull(11) ? null : reader.GetString(11));
+            reader.IsDBNull(10) ? null : reader.GetString(10), reader.IsDBNull(11) ? null : reader.GetString(11),
+            reader.IsDBNull(12) ? null : reader.GetString(12), reader.IsDBNull(13) ? null : reader.GetString(13),
+            reader.IsDBNull(14) ? null : reader.GetString(14));
 
     private const string NoteColumns = "id, conversation_id, title, content, created_at, updated_at";
 

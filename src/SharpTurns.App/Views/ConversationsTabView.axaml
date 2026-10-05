@@ -132,6 +132,32 @@
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
+                <StackPanel Spacing="5" IsVisible="{Binding CurrentConversation.HasFolderAccess, FallbackValue=False}">
+                  <Border Height="1" Background="#2B4559" Margin="0,4,0,3" />
+                  <TextBlock Text="Additional Folder Access:" Foreground="{DynamicResource TextGreenBrush}" FontSize="11"
+                             FontWeight="SemiBold" />
+                  <Grid ColumnDefinitions="110,*" ColumnSpacing="8"
+                        IsVisible="{Binding CurrentConversation.HasReadOnlyFolders, FallbackValue=False}">
+                    <TextBlock Text="Read-only:" Foreground="{DynamicResource TextGreenBrush}" FontSize="11" />
+                    <TextBlock Grid.Column="1" Text="{Binding CurrentConversation.ReadOnlyFoldersLabel, FallbackValue=''}"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="11" TextWrapping="Wrap" />
+                  </Grid>
+                  <Grid ColumnDefinitions="110,*" ColumnSpacing="8"
+                        IsVisible="{Binding CurrentConversation.HasReadWriteFolders, FallbackValue=False}">
+                    <TextBlock Text="Read/write:" Foreground="{DynamicResource TextGreenBrush}" FontSize="11" />
+                    <TextBlock Grid.Column="1" Text="{Binding CurrentConversation.ReadWriteFoldersLabel, FallbackValue=''}"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="11" TextWrapping="Wrap" />
+                  </Grid>
+                  <Grid ColumnDefinitions="110,*" ColumnSpacing="8"
+                        IsVisible="{Binding CurrentConversation.HasBlockedPathPatterns, FallbackValue=False}">
+                    <TextBlock Text="Blocked patterns:" Foreground="{DynamicResource TextGreenBrush}" FontSize="11" />
+                    <TextBlock Grid.Column="1" Text="{Binding CurrentConversation.BlockedPathPatternsLabel, FallbackValue=''}"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               FontFamily="{x:Static fonts:MarkdownFontFamilies.Mono}" FontSize="11" TextWrapping="Wrap" />
+                  </Grid>
+                </StackPanel>
                 <Border Height="1" Background="#2B4559" Margin="0,4,0,3" />
                 <TextBlock Text="{Binding CurrentConversation.McpServersHeaderLabel, FallbackValue=''}"
                            Foreground="{DynamicResource TextGreenBrush}" FontSize="11" FontWeight="SemiBold" />

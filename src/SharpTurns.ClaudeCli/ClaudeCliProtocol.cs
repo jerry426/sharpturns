@@ -25,6 +25,13 @@ public sealed record ClaudeCliUserMessage(string Uuid, string Text);
 public sealed record ClaudeCliMcpServer(string Name, IReadOnlyList<string> Command,
     IReadOnlyDictionary<string, string> Environment, string? WorkingDirectory = null);
 
+/// <summary>
+/// Extra working directories for one launch, as fully qualified existing paths. Read-only directories also get
+/// Edit deny rules; blocked fragments deny file-tool paths containing the text.
+/// </summary>
+public sealed record ClaudeCliFolderAccess(IReadOnlyList<string> ReadOnlyDirectories,
+    IReadOnlyList<string> ReadWriteDirectories, IReadOnlyList<string> BlockedPathFragments);
+
 /// <summary>Host-owned input queue. Take and TryClose are serialized with CLI submission/completion.</summary>
 public sealed record ClaudeCliTurnInput(
     Func<CancellationToken, Task> WaitAsync,
@@ -37,9 +44,10 @@ public static class ClaudeCliProtocol
 {
     public static object UserMessage(string prompt, string? sessionId,
         IReadOnlyList<ClaudeCliHistoryBlock>? retainedHistory = null, IReadOnlyList<ClaudeCliImage>? images = null,
-        IReadOnlyList<string>? contextFiles = null, string? uuid = null)
+        IReadOnlyList<string>? contextFiles = null, string? uuid = null, string? note = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
+        if (note is not null) ArgumentException.ThrowIfNullOrWhiteSpace(note);
         object content = prompt;
         var hasHistory = retainedHistory is { Count: > 0 };
         var hasContextFiles = contextFiles is { Count: > 0 };
@@ -47,7 +55,7 @@ public static class ClaudeCliProtocol
             throw new ArgumentException("Retained history is only valid for a fresh Claude session.", nameof(retainedHistory));
         if (hasContextFiles && sessionId is not null)
             throw new ArgumentException("Context files are only valid for a fresh Claude session.", nameof(contextFiles));
-        if (hasHistory || hasContextFiles || images is { Count: > 0 })
+        if (hasHistory || hasContextFiles || note is not null || images is { Count: > 0 })
         {
             var blocks = new List<Dictionary<string, object>>();
             foreach (var history in retainedHistory ?? [])
@@ -70,7 +78,10 @@ public static class ClaudeCliProtocol
                 ArgumentException.ThrowIfNullOrWhiteSpace(file, nameof(contextFiles));
                 blocks.Add(new() { ["type"] = "text", ["text"] = file });
             }
-            blocks.Add(new() { ["type"] = "text", ["text"] = hasHistory || hasContextFiles ? "Current user request:\n" + prompt : prompt });
+            // Host context for this message; unlike the files, a resumed session can get it too.
+            if (note is not null) blocks.Add(new() { ["type"] = "text", ["text"] = note });
+            blocks.Add(new() { ["type"] = "text", ["text"] = hasHistory || hasContextFiles || note is not null
+                ? "Current user request:\n" + prompt : prompt });
             AddImages(blocks, images);
             content = blocks;
         }

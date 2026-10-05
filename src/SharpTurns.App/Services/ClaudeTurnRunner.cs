@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -27,11 +28,11 @@ internal sealed record TurnCallbacks(
     Func<string, string, CancellationToken, Task<bool>> ApproveAsync);
 
 /// <summary>
-/// The saved turn, any messages queued during it that never reached the CLI, and why each optional context file that
-/// couldn't be read was left out.
+/// The saved turn, any messages queued during it that never reached the CLI, why each optional context file that
+/// couldn't be read was left out, and the additional folders skipped because they aren't existing absolute directories.
 /// </summary>
 internal sealed record TurnRunResult(ConversationTurn Turn, IReadOnlyList<string> UndeliveredMessages,
-    IReadOnlyList<string> OmittedContextFiles);
+    IReadOnlyList<string> OmittedContextFiles, IReadOnlyList<string> SkippedFolders);
 
 /// <summary>
 /// Runs one turn through the CLI: saves the prompt, resumes the conversation's CLI session or seeds a fresh one
@@ -79,6 +80,7 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, Func<string?> ex
         string[] mcpServerNames = [];
         string? contextFilesFingerprint = null;
         string[] omittedContextFiles = [];
+        var skippedFolders = new List<string>();
         TurnStatus status;
         string? error = null;
 
@@ -296,12 +298,22 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, Func<string?> ex
             omittedContextFiles = contextFiles.Where(f => f.Content is null).Select(f => $"{f.File.Path}: {f.Error}").ToArray();
             // Permission rules apply per launch, so a change needs no new session.
             var askRules = AskRules(await store.GetSettingAsync(AskRulesSetting, token).ConfigureAwait(false));
+            var previous = await store.LoadClaudeCodeSessionAsync(conversation.Id, token).ConfigureAwait(false);
+            // The deny rules apply per launch. Claude can't see them, so a note tells it the access: on a fresh session
+            // once the conversation has had any, and on a resumed one when it changed, which keeps the session's working
+            // context. The fingerprint stays set after access is cleared, because replayed history can still name it.
+            var folderAccess = ResolveFolderAccess(conversation, skippedFolders);
+            var folderAccessNote = ClaudeCliCodingPolicy.FolderAccessNote(folderAccess);
+            var folderAccessFingerprint = folderAccess is null && previous?.FolderAccessFingerprint is null ? null
+                : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(folderAccessNote)));
             var history = (await store.LoadTurnsAsync(conversation.Id, token).ConfigureAwait(false))
                 .Where(t => t.Id != turn.Id).ToArray();
-            var previous = await store.LoadClaudeCodeSessionAsync(conversation.Id, token).ConfigureAwait(false);
             var fingerprint = ClaudeCodeContext.Fingerprint(history, contextFilesFingerprint);
             var policyVersion = ClaudeCliCodingPolicy.VersionFor(systemPrompt, conversation.OutputStyle, mcpServerNames);
             var resume = ClaudeCodeContext.CanResume(previous, directory, fingerprint, policyVersion) ? previous!.SessionId : null;
+            var note = resume is null
+                ? folderAccessFingerprint is null ? null : folderAccessNote
+                : previous!.FolderAccessFingerprint == folderAccessFingerprint ? null : folderAccessNote;
             var retainedHistory = resume is null
                 ? ClaudeCodeContext.SeedHistoryBlocks(history).Select(block => new ClaudeCliHistoryBlock(block.Text, ToCli(block.Images))).ToArray()
                 : null;
@@ -309,7 +321,7 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, Func<string?> ex
             var contextFileBlocks = resume is null
                 ? contextFiles.Where(f => f.Content is not null).Select(f => ContextFiles.Format(f.File, f.Content!)).ToArray()
                 : null;
-            state = new(resume, directory, fingerprint, InFlight: true, policyVersion);
+            state = new(resume, directory, fingerprint, InFlight: true, policyVersion, folderAccessFingerprint);
             // Persist the uncertainty before launch. A crash cannot silently resume stale native context.
             await store.SaveClaudeCodeSessionAsync(conversation.Id, state, token).ConfigureAwait(false);
             callbacks.StatusChanged(resume is not null ? "Resuming the CLI session…"
@@ -320,7 +332,8 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, Func<string?> ex
                 systemPrompt, token, conversation.Model, conversation.Effort, sessionName: conversation.Title,
                 retainedHistory: retainedHistory, images: ToCli(images), contextFiles: contextFileBlocks,
                 queuedInput: queue.ToTurnInput(TakeQueued),
-                outputStyle: conversation.OutputStyle, mcpServers: mcpServers, askRules: askRules).ConfigureAwait(false);
+                outputStyle: conversation.OutputStyle, mcpServers: mcpServers, askRules: askRules,
+                folderAccess: folderAccess, note: note).ConfigureAwait(false);
             state = state with { SessionId = result.SessionId };
             status = result.IsError ? TurnStatus.Failed : TurnStatus.Completed;
             if (result.IsError)
@@ -375,7 +388,26 @@ internal sealed class ClaudeTurnRunner(ConversationStore store, Func<string?> ex
             await store.SaveClaudeCodeSessionAsync(conversation.Id,
                 state with { ContextFingerprint = ClaudeCodeContext.Fingerprint(turns, contextFilesFingerprint), InFlight = false },
                 CancellationToken.None).ConfigureAwait(false);
-        return new(turns.Single(t => t.Id == turn.Id), undelivered, omittedContextFiles);
+        return new(turns.Single(t => t.Id == turn.Id), undelivered, omittedContextFiles, skippedFolders);
+    }
+
+    // --add-dir rejects a missing directory, so skip it and report it rather than failing the launch.
+    private static ClaudeCliFolderAccess? ResolveFolderAccess(Conversation conversation, List<string> skipped)
+    {
+        string[] Existing(string? list)
+        {
+            var existing = new List<string>();
+            foreach (var path in Conversation.Lines(list))
+            {
+                if (Path.IsPathFullyQualified(path) && Directory.Exists(path)) existing.Add(Path.GetFullPath(path));
+                else skipped.Add(path);
+            }
+            return existing.ToArray();
+        }
+        var readOnly = Existing(conversation.ReadOnlyFolders);
+        var readWrite = Existing(conversation.ReadWriteFolders);
+        var blocked = Conversation.Lines(conversation.BlockedPathPatterns);
+        return readOnly.Length + readWrite.Length + blocked.Length == 0 ? null : new(readOnly, readWrite, blocked);
     }
 
     /// <summary>The question as shown on its card and replayed in later context.</summary>

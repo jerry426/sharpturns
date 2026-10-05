@@ -95,6 +95,22 @@ Each turn is one `claude -p` process with stream-json input and output
   turn there. Without one, a server starts in the turn's workspace. Their
   tools load eagerly while the experimental betas are off, so `--tools` needn't
   name them.
+- **Additional folder access.** The conversation's read-only and read/write
+  folders that exist are passed with `--add-dir`; missing ones are skipped and
+  reported. Without `--restricted` the file tools already reach paths outside
+  the workspace (verified with CLI 2.1.288), so `--add-dir` only lists the
+  folders as working directories for Claude. Claude can't see the deny rules,
+  so a folder access note goes before the request in a fresh session once the
+  conversation has had any access, and in a resumed one when the access differs
+  from the note the session last got, recorded by hash in the session state.
+  After access is cleared, the hash of the "none configured" note stays
+  recorded, because replayed history can still name the old folders. A change
+  therefore keeps the session's working context instead of reseeding. Read-only folders
+  become `Edit(//path/**)` deny rules and blocked patterns become `Read` and
+  `Edit` deny rules for paths containing the text, in `--settings` beside the
+  ask rules. The CLI applies
+  them to its file tools and to shell file commands it parses, such as `cat`
+  and redirections, but not to arbitrary programs.
 - **`CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1`.** The CLI's experimental
   layout uses all four of the API's cache markers, leaving none for the
   marker SharpTurns puts on reseeded history. Without that marker, every

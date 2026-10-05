@@ -20,16 +20,18 @@ public sealed class BranchingTests : IDisposable
         var server = await store.CreateMcpServerAsync("browser", "Browser", null, """["npx", "browser"]""", null, null, true);
         await store.UpdateConversationAsync(source.Id, "Conversation", source.ProjectId, _directory, true,
             "claude-haiku-4-5-20251001", "low", [server.Id],
-            [new("docs/plan.md", ContextFileRoles.ActiveOperationalDocument, "The plan", true, true, false)]);
+            [new("docs/plan.md", ContextFileRoles.ActiveOperationalDocument, "The plan", true, true, false)],
+            "/docs", "/shared", ".env");
         await store.SaveClaudeCodeSessionAsync(source.Id, new(Guid.NewGuid().ToString(), _directory, "fingerprint", false));
 
         var branch = await store.BranchConversationAsync(source.Id, [turns[3].Id, turns[1].Id, turns[2].Id]);
 
         Assert.Equal((source.ProjectId, "Conversation", "claude-opus-5-5", "Concise", true),
             (branch.ProjectId, branch.Title, branch.Model, branch.OutputStyle, branch.AutoSummarize));
-        // The workspace, summarizer, MCP servers, and context files carry over; protection doesn't.
+        // The workspace, summarizer, folder access, MCP servers, and context files carry over; protection doesn't.
         Assert.Equal((_directory, false), (branch.WorkingDirectory, branch.IsProtected));
         Assert.Equal(("claude-haiku-4-5-20251001", "low"), (branch.SummarizerModel, branch.SummarizerEffort));
+        Assert.Equal(("/docs", "/shared", ".env"), (branch.ReadOnlyFolders, branch.ReadWriteFolders, branch.BlockedPathPatterns));
         Assert.Equal(["browser"], (await store.ListConversationMcpServersAsync(branch.Id)).Select(s => s.Name));
         Assert.Equal(await store.ListContextFilesAsync(source.Id), await store.ListContextFilesAsync(branch.Id));
         Assert.Null(await store.LoadClaudeCodeSessionAsync(branch.Id));

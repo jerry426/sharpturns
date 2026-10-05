@@ -250,6 +250,60 @@ public sealed class ClaudeTurnRunnerTests : IDisposable
             required.Turn.ErrorMessage);
     }
 
+    [Fact]
+    public async Task SavedFolderAccessAddsExistingFoldersAndReportsSkippedOnes()
+    {
+        if (OperatingSystem.IsWindows()) return; // The fake CLI is a POSIX shell script.
+        var runner = new ClaudeTurnRunner(_store, CreateFakeCli(Handshake
+            + "printf '%s\\0' \"$@\" > args.bin\nprintf '%s\\n' \"$user\" >> user.jsonl\n" + Lines(
+            $$"""{"type":"result","session_id":"{{Session}}","is_error":false,"result":"Done."}""") + "cat > /dev/null\n"));
+        var (project, conversation) = await CreateConversationAsync();
+        var shared = Directory.CreateDirectory(Path.Combine(_directory, "shared")).FullName;
+        var other = Directory.CreateDirectory(Path.Combine(_directory, "other")).FullName;
+        var missing = Path.Combine(_directory, "missing");
+        conversation = await _store.UpdateConversationAsync(conversation.Id, conversation.Title, project.Id, null, false, null, null,
+            [], [], $"{shared}\n{missing}\nrelative", other, ".env");
+
+        var result = await RunAsync(runner, project, conversation, Callbacks());
+
+        Assert.Equal(TurnStatus.Completed, result.Turn.Status);
+        Assert.Equal([missing, "relative"], result.SkippedFolders);
+        var args = (await File.ReadAllTextAsync(Path.Combine(_directory, "args.bin"))).Split('\0');
+        Assert.Equal([shared, other], args.Where((_, i) => i > 0 && args[i - 1] == "--add-dir"));
+        using var settings = JsonDocument.Parse(args[Array.IndexOf(args, "--settings") + 1]);
+        var deny = settings.RootElement.GetProperty("permissions").GetProperty("deny").EnumerateArray()
+            .Select(rule => rule.GetString()).ToArray();
+        Assert.Contains($"Edit(/{shared}/**)", deny);
+        Assert.DoesNotContain(deny, rule => rule!.Contains(other, StringComparison.Ordinal));
+        Assert.Contains("Read(//**/*.env*)", deny);
+
+        // Claude is told the access on a fresh session, and on a resumed one only when it changed.
+        await RunAsync(runner, project, conversation, Callbacks());
+        conversation = await _store.UpdateConversationAsync(conversation.Id, conversation.Title, project.Id, null, false, null, null,
+            [], [], other, null, ".env");
+        await RunAsync(runner, project, conversation, Callbacks());
+        conversation = await _store.UpdateConversationAsync(conversation.Id, conversation.Title, project.Id, null, false, null, null,
+            [], [], null, null, null);
+        await RunAsync(runner, project, conversation, Callbacks());
+        await RunAsync(runner, project, conversation, Callbacks());
+        // A fresh session after access was cleared still gets the note, because the replayed history names the old access.
+        var saved = await _store.LoadClaudeCodeSessionAsync(conversation.Id);
+        await _store.SaveClaudeCodeSessionAsync(conversation.Id, saved! with { InFlight = true });
+        await RunAsync(runner, project, conversation, Callbacks());
+        var frames = (await File.ReadAllLinesAsync(Path.Combine(_directory, "user.jsonl")))
+            .Select(line => JsonDocument.Parse(line).RootElement).ToArray();
+        Assert.Equal(["", Session, Session, Session, Session, ""], frames.Select(f => f.GetProperty("session_id").GetString()));
+        var content = frames.Select(f => f.GetProperty("message").GetProperty("content")).ToArray();
+        string[] Texts(JsonElement c) => c.EnumerateArray().Select(b => b.GetProperty("text").GetString()!).ToArray();
+        Assert.Equal(ClaudeCliCodingPolicy.FolderAccessNote(new([shared], [other], [".env"])), Texts(content[0])[0]);
+        Assert.Equal("prompt", content[1].GetString());
+        Assert.Equal([ClaudeCliCodingPolicy.FolderAccessNote(new([other], [], [".env"])), "Current user request:\nprompt"],
+            Texts(content[2]));
+        Assert.Equal([ClaudeCliCodingPolicy.FolderAccessNote(null), "Current user request:\nprompt"], Texts(content[3]));
+        Assert.Equal("prompt", content[4].GetString());
+        Assert.Equal([ClaudeCliCodingPolicy.FolderAccessNote(null), "Current user request:\nprompt"], Texts(content[5])[^2..]);
+    }
+
     private async Task<(Project, Conversation)> CreateConversationAsync()
     {
         await _store.InitializeAsync();

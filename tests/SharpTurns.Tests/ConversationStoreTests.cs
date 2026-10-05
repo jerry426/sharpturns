@@ -24,7 +24,7 @@ public sealed class ConversationStoreTests : IDisposable
         await _store.InitializeAsync();
         await _store.InitializeAsync();
 
-        Assert.Equal(13L, Scalar("PRAGMA user_version"));
+        Assert.Equal(14L, Scalar("PRAGMA user_version"));
         Assert.Equal("wal", Scalar("PRAGMA journal_mode"));
     }
 
@@ -91,10 +91,12 @@ public sealed class ConversationStoreTests : IDisposable
             new("AGENTS.md", ContextFileRoles.NormativeGuidance, null, false, false, false),
         ];
         var saved = await _store.UpdateConversationAsync(conversation.Id, "Moved", second.Id, "/work/elsewhere", true,
-            "claude-haiku-4-5-20251001", "low", [database.Id, browser.Id], files);
+            "claude-haiku-4-5-20251001", "low", [database.Id, browser.Id], files, " /docs \r\n\r\n/shared\n", "  ", ".env");
 
         Assert.Equal(("Moved", second.Id, "/work/elsewhere", true, "claude-haiku-4-5-20251001", "low"),
             (saved.Title, saved.ProjectId, saved.WorkingDirectory, saved.IsProtected, saved.SummarizerModel, saved.SummarizerEffort));
+        // Folder access is saved one trimmed entry per line; a blank list is null.
+        Assert.Equal(("/docs\n/shared", (string?)null, ".env"), (saved.ReadOnlyFolders, saved.ReadWriteFolders, saved.BlockedPathPatterns));
         // In the order given, disabled ones included.
         Assert.Equal(files, await _store.ListContextFilesAsync(conversation.Id));
         Assert.Empty(await _store.ListConversationsAsync(first.Id));
@@ -110,6 +112,7 @@ public sealed class ConversationStoreTests : IDisposable
         Assert.Equal(["database"], (await _store.ListConversationMcpServersAsync(conversation.Id)).Select(s => s.Name));
         Assert.Equal(("/work/second", false), (saved.WorkspaceFor(second), saved.IsProtected));
         Assert.Equal(((string?)null, (string?)null), (saved.SummarizerModel, saved.SummarizerEffort));
+        Assert.Equal(((string?)null, (string?)null), (saved.ReadOnlyFolders, saved.BlockedPathPatterns));
         Assert.Empty(await _store.ListContextFilesAsync(conversation.Id));
     }
 
@@ -234,6 +237,9 @@ public sealed class ConversationStoreTests : IDisposable
         Scalar("ALTER TABLE conversations DROP COLUMN is_protected");
         Scalar("ALTER TABLE conversations DROP COLUMN summarizer_model");
         Scalar("ALTER TABLE conversations DROP COLUMN summarizer_effort");
+        Scalar("ALTER TABLE conversations DROP COLUMN read_only_folders");
+        Scalar("ALTER TABLE conversations DROP COLUMN read_write_folders");
+        Scalar("ALTER TABLE conversations DROP COLUMN blocked_path_patterns");
         Scalar("DROP TABLE conversation_context_files");
         Scalar("DROP TABLE conversation_mcp_servers");
         Scalar("DROP TABLE conversation_user_notes");
@@ -245,7 +251,7 @@ public sealed class ConversationStoreTests : IDisposable
 
         await _store.InitializeAsync();
 
-        Assert.Equal(13L, Scalar("PRAGMA user_version"));
+        Assert.Equal(14L, Scalar("PRAGMA user_version"));
         Assert.Equal(ProjectColor.Default, Assert.Single(await _store.ListProjectsAsync()).Color);
         var conversations = await _store.ListConversationsAsync(project.Id);
         var upgraded = Assert.Single(conversations, c => c.Id == conversation.Id);

@@ -8,7 +8,7 @@ namespace SharpTurns.App.ViewModels;
 /// <summary>
 /// The Edit Conversation dialog: the title, the project (a different one moves the conversation), an optional
 /// workspace in place of the project's, protection from deletion, a summarizer model and effort in place of the
-/// default's, the MCP servers its turns start, and the context files they share with Claude.
+/// default's, additional folder access, the MCP servers its turns start, and the context files they share with Claude.
 /// </summary>
 public sealed partial class EditConversationDialogViewModel : ObservableObject
 {
@@ -42,6 +42,18 @@ public sealed partial class EditConversationDialogViewModel : ObservableObject
     [ObservableProperty]
     private string _selectedSummarizerEffort;
 
+    /// <summary>One absolute path per line.</summary>
+    [ObservableProperty]
+    private string _readOnlyFolders;
+
+    /// <summary>One absolute path per line.</summary>
+    [ObservableProperty]
+    private string _readWriteFolders;
+
+    /// <summary>One path fragment per line.</summary>
+    [ObservableProperty]
+    private string _blockedPathPatterns;
+
     /// <summary>
     /// selectedServerIds are the conversation's saved MCP servers; projects includes its own. models is the Config tab's
     /// list, and defaultSummarizerModel and defaultSummarizerEffort are Config → Preferences' choices.
@@ -57,6 +69,9 @@ public sealed partial class EditConversationDialogViewModel : ObservableObject
         _selectedProject = _originalProject;
         _workingDirectory = conversation.WorkingDirectory ?? "";
         _isProtected = conversation.IsProtected;
+        _readOnlyFolders = conversation.ReadOnlyFolders ?? "";
+        _readWriteFolders = conversation.ReadWriteFolders ?? "";
+        _blockedPathPatterns = conversation.BlockedPathPatterns ?? "";
         _defaultSummarizerModelOption = $"Default ({defaultSummarizerModel})";
         _defaultSummarizerEffortOption = defaultSummarizerEffort == ConversationViewModel.DefaultEffort
             ? ConversationViewModel.DefaultEffort : $"Default ({defaultSummarizerEffort})";

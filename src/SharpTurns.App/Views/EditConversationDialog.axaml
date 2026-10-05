@@ -71,6 +71,29 @@
                  Foreground="{DynamicResource TextSubtleBrush}" FontSize="11" TextWrapping="Wrap" />
     </StackPanel>
 
+    <StackPanel Spacing="6">
+      <TextBlock Text="Additional Folder Access" Foreground="{DynamicResource TextStrongBrush}" FontSize="13" />
+      <Grid ColumnDefinitions="*,*,*" ColumnSpacing="14">
+        <StackPanel Spacing="4">
+          <TextBlock Text="Read-only folders" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" />
+          <TextBox Text="{Binding ReadOnlyFolders}" AcceptsReturn="True" TextWrapping="NoWrap"
+                   PlaceholderText="One absolute path per line" MinHeight="64" MaxHeight="120" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Spacing="4">
+          <TextBlock Text="Read/write folders" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" />
+          <TextBox Text="{Binding ReadWriteFolders}" AcceptsReturn="True" TextWrapping="NoWrap"
+                   PlaceholderText="One absolute path per line" MinHeight="64" MaxHeight="120" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Spacing="4">
+          <TextBlock Text="Blocked path patterns" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" />
+          <TextBox Text="{Binding BlockedPathPatterns}" AcceptsReturn="True" TextWrapping="NoWrap"
+                   PlaceholderText="One path fragment per line" MinHeight="64" MaxHeight="120" />
+        </StackPanel>
+      </Grid>
+      <TextBlock Text="Lists these folders as Claude's working directories from the next turn. Claude is told the folder access when a session starts, and again on the next message after you change it. Claude's file tools can reach other folders too, so listing one doesn't confine them. Read-only folders deny edits by Claude's file tools, even inside the workspace. Blocked patterns deny file-tool paths containing the text. Shell commands aren't confined by these lists; only file commands the CLI recognizes, such as cat and redirections, honor blocked and read-only paths."
+                 Foreground="{DynamicResource TextSubtleBrush}" FontSize="11" TextWrapping="Wrap" />
+    </StackPanel>
+
     <Border Background="#121620" BorderBrush="#2D3548" BorderThickness="1" CornerRadius="8" Padding="10">
       <StackPanel Spacing="8">
         <TextBlock Text="{Binding McpServersHeaderLabel}" Foreground="{DynamicResource TextStrongBrush}" FontSize="13"

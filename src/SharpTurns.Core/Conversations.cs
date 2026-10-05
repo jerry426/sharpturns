@@ -24,14 +24,23 @@ public static class ProjectColor
 /// Model, Effort, and OutputStyle are CLI values; null uses the CLI's own default. AutoSummarize compresses each
 /// turn that completes. WorkingDirectory overrides the project's; null uses it. A protected conversation can't be
 /// deleted, alone or with its project. SummarizerModel and SummarizerEffort override the default summarizer's for
-/// this conversation's compressions; null uses the default.
+/// this conversation's compressions; null uses the default. ReadOnlyFolders, ReadWriteFolders, and BlockedPathPatterns
+/// are the additional folder access, one entry per line; null when there are none.
 /// </summary>
 public sealed record Conversation(long Id, long ProjectId, string Title, string? Model, string? Effort, DateTimeOffset UpdatedAt,
     string? OutputStyle = null, bool AutoSummarize = false, string? WorkingDirectory = null, bool IsProtected = false,
-    string? SummarizerModel = null, string? SummarizerEffort = null)
+    string? SummarizerModel = null, string? SummarizerEffort = null, string? ReadOnlyFolders = null,
+    string? ReadWriteFolders = null, string? BlockedPathPatterns = null)
 {
     /// <summary>The folder the CLI runs this conversation's turns in.</summary>
     public string WorkspaceFor(Project project) => WorkingDirectory ?? project.WorkingDirectory;
+
+    /// <summary>A folder access list's trimmed, non-blank lines.</summary>
+    public static string[] Lines(string? list) =>
+        list?.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
+
+    /// <summary>The list as saved: its trimmed, non-blank lines, or null when there are none.</summary>
+    public static string? NormalizeLines(string? list) => Lines(list) is { Length: > 0 } lines ? string.Join('\n', lines) : null;
 }
 
 /// <summary>A user's note on a conversation; Content is Markdown source. Never sent to Claude.</summary>
@@ -134,10 +143,14 @@ public static class TurnParts
         : throw new ArgumentException($"Turn part {part.Sequence} is not a {type} part.", nameof(part));
 }
 
-/// <summary>The app's association only; the CLI owns the native session transcript.</summary>
+/// <summary>
+/// The app's association only; the CLI owns the native session transcript. FolderAccessFingerprint identifies the
+/// folder access note the session last got, or is null when the conversation never had folder access.
+/// </summary>
 public sealed record ClaudeCodeSessionState(
     string? SessionId,
     string WorkingDirectory,
     string ContextFingerprint,
     bool InFlight,
-    string? PolicyVersion = null);
+    string? PolicyVersion = null,
+    string? FolderAccessFingerprint = null);

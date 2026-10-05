@@ -402,6 +402,40 @@ public sealed class ClaudeCliTests : IDisposable
         Assert.Throws<ArgumentException>(() => ClaudeCliCodingPolicy.SettingsFor(null, ["git push"]));
     }
 
+    [Fact]
+    public async Task FolderAccessAddsWorkingDirectoriesAndEscapedDenyRulesBesideAskRules()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        var executable = CreateFakeCli(Handshake + """
+            printf '%s\0' "$@" > args.bin
+            printf '%s\n' '{"type":"result","session_id":"700c7fa5-e552-450e-8712-3ebb74e2857c","is_error":false}'
+            cat > remaining-input.txt
+            """);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await new ClaudeCliClient(executable).RunTurnAsync(_directory, "prompt", null, _ => { }, Deny, SystemPrompt,
+            deadline.Token, askRules: ["Bash(git push:*)"],
+            folderAccess: new(["/docs/a [b]*/"], ["/srv/my work, shared"], ["secret", "a/b", "/Users/me/tmp"]));
+
+        var args = (await File.ReadAllTextAsync(Path.Combine(_directory, "args.bin"))).Split('\0');
+        Assert.Equal(["/docs/a [b]*/", "/srv/my work, shared"], args.Where((_, i) => i > 0 && args[i - 1] == "--add-dir"));
+        using var settings = JsonDocument.Parse(args[Array.IndexOf(args, "--settings") + 1]);
+        var permissions = settings.RootElement.GetProperty("permissions");
+        Assert.Equal(["Bash(git push:*)"], permissions.GetProperty("ask").EnumerateArray().Select(rule => rule.GetString()));
+        Assert.Equal(
+            [
+                @"Edit(//docs/a \[b\]\*/**)",
+                "Read(//**/*secret*)", "Read(//**/*secret*/**)", "Edit(//**/*secret*)", "Edit(//**/*secret*/**)",
+                "Read(//**/*a/b*)", "Read(//**/*a/b*/**)", "Edit(//**/*a/b*)", "Edit(//**/*a/b*/**)",
+                "Read(//**/Users/me/tmp*)", "Read(//**/Users/me/tmp*/**)",
+                "Edit(//**/Users/me/tmp*)", "Edit(//**/Users/me/tmp*/**)",
+            ],
+            permissions.GetProperty("deny").EnumerateArray().Select(rule => rule.GetString()));
+
+        // --add-dir needs absolute paths; a relative one fails before launch.
+        await Assert.ThrowsAsync<ArgumentException>(() => new ClaudeCliClient("not-an-executable").RunTurnAsync(
+            _directory, "prompt", null, _ => { }, Deny, SystemPrompt, folderAccess: new(["docs"], [], [])));
+    }
+
     private static Task<ClaudeCliPermissionDecision> Deny(ClaudeCliPermissionRequest request, CancellationToken token) =>
         Task.FromResult(new ClaudeCliPermissionDecision(false));
 

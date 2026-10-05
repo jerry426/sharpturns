@@ -29,18 +29,63 @@ public static class ClaudeCliCodingPolicy
     public static bool IsPermissionRule(string rule) =>
         System.Text.RegularExpressions.Regex.IsMatch(rule, @"^[A-Za-z][A-Za-z0-9_-]*(\(.+\))?$");
 
-    public static string SettingsFor(string? outputStyle, IReadOnlyList<string>? askRules = null)
+    public static string SettingsFor(string? outputStyle, IReadOnlyList<string>? askRules = null,
+        ClaudeCliFolderAccess? folderAccess = null)
     {
         if (outputStyle is not null && !OutputStyles.Contains(outputStyle, StringComparer.Ordinal))
             throw new ArgumentException("Unsupported Claude CLI output style.", nameof(outputStyle));
         if (askRules?.FirstOrDefault(rule => !IsPermissionRule(rule)) is { } invalid)
             throw new ArgumentException($"Not a permission rule: {invalid}", nameof(askRules));
-        if (outputStyle is null && askRules is not { Count: > 0 }) return Settings;
+        IReadOnlyList<string> denyRules = folderAccess is null ? [] : DenyRules(folderAccess);
+        if (outputStyle is null && askRules is not { Count: > 0 } && denyRules.Count == 0) return Settings;
+        // Settings JSON, unlike --disallowed-tools, keeps commas and spaces in paths intact.
+        var permissions = new List<string>();
+        if (askRules is { Count: > 0 }) permissions.Add("\"ask\":" + System.Text.Json.JsonSerializer.Serialize(askRules));
+        if (denyRules.Count > 0) permissions.Add("\"deny\":" + System.Text.Json.JsonSerializer.Serialize(denyRules));
         return Settings[..^1]
             + (outputStyle is null ? "" : ",\"outputStyle\":\"" + outputStyle + "\"")
-            + (askRules is not { Count: > 0 } ? "" : ",\"permissions\":{\"ask\":" + System.Text.Json.JsonSerializer.Serialize(askRules) + "}")
+            + (permissions.Count == 0 ? "" : ",\"permissions\":{" + string.Join(',', permissions) + "}")
             + "}";
     }
+
+    /// <summary>
+    /// Deny rules use gitignore patterns from the filesystem root. An Edit rule covers every file-editing tool;
+    /// a Read rule also blocks Edit and Write but not NotebookEdit, so blocked fragments get both.
+    /// </summary>
+    public static IReadOnlyList<string> DenyRules(ClaudeCliFolderAccess folderAccess)
+    {
+        var rules = folderAccess.ReadOnlyDirectories.Select(directory => $"Edit({RootPattern(directory)}**)").ToList();
+        foreach (var fragment in folderAccess.BlockedPathFragments.Where(f => !string.IsNullOrWhiteSpace(f)))
+        {
+            // Matches any path containing the text, and everything under a directory whose path contains it.
+            // A leading slash starts at a directory boundary, which may be the root, so no * goes before it.
+            var text = fragment;
+            if (OperatingSystem.IsWindows())
+            {
+                text = text.Replace('\\', '/');
+                if (text.Length >= 2 && text[1] == ':') text = "/" + char.ToLowerInvariant(text[0]) + text[2..];
+            }
+            var pattern = (text.StartsWith('/') ? "//**" : "//**/*") + EscapePattern(text) + "*";
+            rules.AddRange([$"Read({pattern})", $"Read({pattern}/**)", $"Edit({pattern})", $"Edit({pattern}/**)"]);
+        }
+        return rules;
+    }
+
+    // The CLI matches Windows paths in POSIX form: C:\Users becomes //c/Users.
+    private static string RootPattern(string directory)
+    {
+        var path = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
+        if (OperatingSystem.IsWindows())
+        {
+            path = path.Replace('\\', '/');
+            if (path.Length >= 2 && path[1] == ':') path = char.ToLowerInvariant(path[0]) + path[2..];
+        }
+        path = EscapePattern(path.Trim('/'));
+        return path.Length == 0 ? "//" : "//" + path + "/";
+    }
+
+    private static string EscapePattern(string text) =>
+        System.Text.RegularExpressions.Regex.Replace(text, @"[\\*?\[\]]", @"\$0");
 
     public const string DefaultSystemPrompt = """
         You are running inside SharpTurns, a desktop conversation UI for the Claude Code CLI. Claude Code owns tool execution.
@@ -77,6 +122,33 @@ public static class ClaudeCliCodingPolicy
         + (outputStyle is null ? "" : ":" + outputStyle)
         + (mcpServerNames is not { Count: > 0 } ? "" : ":mcp-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
             string.Join('\n', mcpServerNames.Order(StringComparer.Ordinal)))))[..16]);
+
+    /// <summary>
+    /// Tells Claude the folder access, which the deny rules alone don't show it. Null access gives the note that clears an
+    /// earlier one. Each note replaces the previous, so a resumed session needs one only when the access changed.
+    /// </summary>
+    public static string FolderAccessNote(ClaudeCliFolderAccess? folderAccess)
+    {
+        var text = new StringBuilder("[FOLDER ACCESS]\n");
+        if (folderAccess is null)
+            text.Append("No additional folders or blocked path patterns are configured now. This replaces any earlier folder access note.\n");
+        else
+        {
+            text.Append("The user configured this folder access for the conversation. It replaces any earlier folder access note.\n");
+            void List(string heading, IReadOnlyList<string> items)
+            {
+                if (items.Count == 0) return;
+                text.Append(heading).Append('\n');
+                foreach (var item in items) text.Append("- ").Append(item).Append('\n');
+            }
+            List("Read/write folders:", folderAccess.ReadWriteDirectories);
+            List("Read-only folders (file-tool edits are denied; don't modify them with shell commands either):",
+                folderAccess.ReadOnlyDirectories);
+            List("Blocked path patterns (file-tool reads and edits of paths containing the text are denied; don't access them with shell commands either):",
+                folderAccess.BlockedPathFragments);
+        }
+        return text.Append("[/FOLDER ACCESS]").ToString();
+    }
 
     public static bool AllowsAutomatically(string toolName, IReadOnlyCollection<string>? mcpServerNames = null) =>
         AutomaticTools.Split(',').Contains(toolName, StringComparer.Ordinal)

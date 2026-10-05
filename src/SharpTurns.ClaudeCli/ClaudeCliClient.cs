@@ -7,8 +7,8 @@ namespace SharpTurns.ClaudeCli;
 
 /// <summary>
 /// One process per turn; callers retain SessionId and working directory between turns.
-/// Turns run the reviewed native coding tools, and any MCP servers the caller selects, and append the host's system
-/// prompt; the CLI discovers the project's CLAUDE.md itself.
+/// Turns run the reviewed native coding tools, and any MCP servers the caller selects, with any additional folders the
+/// caller grants, and append the host's system prompt; the CLI discovers the project's CLAUDE.md itself.
 /// Callbacks run off the UI thread; UI hosts must marshal observable changes.
 /// </summary>
 public sealed class ClaudeCliClient
@@ -40,11 +40,16 @@ public sealed class ClaudeCliClient
         ClaudeCliTurnInput? queuedInput = null,
         string? outputStyle = null,
         IReadOnlyList<ClaudeCliMcpServer>? mcpServers = null,
-        IReadOnlyList<string>? askRules = null)
+        IReadOnlyList<string>? askRules = null,
+        ClaudeCliFolderAccess? folderAccess = null,
+        string? note = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(systemPrompt);
         if (model is not null) ArgumentException.ThrowIfNullOrWhiteSpace(model);
-        var settings = ClaudeCliCodingPolicy.SettingsFor(outputStyle, askRules);
+        var addDirectories = folderAccess?.ReadOnlyDirectories.Concat(folderAccess.ReadWriteDirectories).ToArray();
+        if (addDirectories?.Any(directory => !Path.IsPathFullyQualified(directory)) == true)
+            throw new ArgumentException("Additional directories must be absolute paths.", nameof(folderAccess));
+        var settings = ClaudeCliCodingPolicy.SettingsFor(outputStyle, askRules, folderAccess);
         if (mcpServers is { Count: 0 }) mcpServers = null;
         var mcpConfig = mcpServers is null ? null : McpConfig(mcpServers);
         if (sessionName is not null) ArgumentException.ThrowIfNullOrWhiteSpace(sessionName);
@@ -55,7 +60,7 @@ public sealed class ClaudeCliClient
         if (sessionId is not null) sessionId = Guid.Parse(sessionId).ToString();
         // Snapshot/validate the input before launching; caller mutations cannot change the frame.
         var initialUuid = Guid.NewGuid().ToString();
-        var userMessage = ClaudeCliProtocol.UserMessage(prompt, sessionId, retainedHistory, images, contextFiles, initialUuid);
+        var userMessage = ClaudeCliProtocol.UserMessage(prompt, sessionId, retainedHistory, images, contextFiles, initialUuid, note);
         if (!Directory.Exists(workingDirectory))
             throw new DirectoryNotFoundException(workingDirectory);
         if (OperatingSystem.IsWindows() && !string.Equals(Path.GetExtension(_executable), ".exe", StringComparison.OrdinalIgnoreCase))
@@ -77,7 +82,8 @@ public sealed class ClaudeCliClient
             }
             return await RunProcessAsync(workingDirectory, userMessage, initialUuid, sessionId, onEvent, onPermission, cancellationToken, model, effort, sessionName, onInputPayloadSent, queuedInput,
                     systemPrompt: systemPrompt, settings: settings,
-                    mcp: mcpConfigPath is null ? null : new(mcpConfigPath, mcpServers!.Select(s => s.Name).ToArray()))
+                    mcp: mcpConfigPath is null ? null : new(mcpConfigPath, mcpServers!.Select(s => s.Name).ToArray()),
+                    addDirectories: addDirectories)
                 .ConfigureAwait(false);
         }
         finally
@@ -164,14 +170,15 @@ public sealed class ClaudeCliClient
         Func<ClaudeCliPermissionRequest, CancellationToken, Task<ClaudeCliPermissionDecision>> onPermission,
         CancellationToken cancellationToken, string? model, string? effort, string? sessionName,
         Action<long>? onInputPayloadSent, ClaudeCliTurnInput? queuedInput, string? systemPrompt = null,
-        OneShotOptions? oneShot = null, string? settings = null, McpLaunch? mcp = null)
+        OneShotOptions? oneShot = null, string? settings = null, McpLaunch? mcp = null,
+        IReadOnlyList<string>? addDirectories = null)
     {
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         using var stderrLifetime = new CancellationTokenSource();
         var token = lifetime.Token;
         using var writeLock = new SemaphoreSlim(1, 1);
         using var inputLock = new SemaphoreSlim(1, 1);
-        using var process = new Process { StartInfo = CreateStartInfo(directory, sessionId, model, effort, sessionName, systemPrompt, oneShot, settings, mcp) };
+        using var process = new Process { StartInfo = CreateStartInfo(directory, sessionId, model, effort, sessionName, systemPrompt, oneShot, settings, mcp, addDirectories) };
         var pending = new ConcurrentDictionary<string, CancellationTokenSource>();
         var handlers = new List<Task>();
         var stderr = new StringBuilder();
@@ -427,7 +434,8 @@ public sealed class ClaudeCliClient
     }
 
     private ProcessStartInfo CreateStartInfo(string directory, string? sessionId, string? model, string? effort,
-        string? sessionName, string? systemPrompt, OneShotOptions? oneShot, string? settings, McpLaunch? mcp)
+        string? sessionName, string? systemPrompt, OneShotOptions? oneShot, string? settings, McpLaunch? mcp,
+        IReadOnlyList<string>? addDirectories)
     {
         var info = new ProcessStartInfo(_executable)
         {
@@ -489,6 +497,13 @@ public sealed class ClaudeCliClient
             {
                 info.ArgumentList.Add("--mcp-config");
                 info.ArgumentList.Add(mcp.ConfigPath);
+            }
+            // The file tools already reach paths outside the working directory without --restricted (CLI 2.1.288);
+            // --add-dir lists these as working directories so Claude knows about them.
+            foreach (var addDirectory in addDirectories ?? [])
+            {
+                info.ArgumentList.Add("--add-dir");
+                info.ArgumentList.Add(addDirectory);
             }
         }
         if (sessionId is not null) info.ArgumentList.Add($"--resume={sessionId}");
