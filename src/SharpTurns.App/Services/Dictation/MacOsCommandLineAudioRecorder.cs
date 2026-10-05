@@ -4,21 +4,18 @@ namespace SharpTurns.App.Services.Dictation;
 
 public sealed class MacOsCommandLineAudioRecorder : IDictationAudioRecorder
 {
-    private const string AfRecordPath = "/usr/bin/afrecord";
     private readonly string? _recorderPath;
-    private readonly RecorderKind _recorderKind;
     public readonly record struct AvFoundationAudioDevice(string Index, string Name);
 
-    private MacOsCommandLineAudioRecorder(string? recorderPath, RecorderKind recorderKind)
+    private MacOsCommandLineAudioRecorder(string? recorderPath)
     {
         _recorderPath = recorderPath;
-        _recorderKind = recorderKind;
     }
 
     public bool IsSupported => OperatingSystem.IsMacOS() && !string.IsNullOrWhiteSpace(_recorderPath);
 
     public string UnsupportedReason => OperatingSystem.IsMacOS()
-        ? "Install ffmpeg to enable dictation audio capture, or set SHARPTURNS_AUDIO_RECORDER_PATH to a recorder executable."
+        ? "Install ffmpeg to enable dictation audio capture, or set SHARPTURNS_AUDIO_RECORDER_PATH to ffmpeg."
         : "Dictation audio capture currently supports macOS command-line recorders only.";
 
     public static IDictationAudioRecorder CreateDefault()
@@ -35,13 +32,7 @@ public sealed class MacOsCommandLineAudioRecorder : IDictationAudioRecorder
         }
 
         var path = RecorderProcess.CreateOutputPath();
-        var recorderStartInfo = _recorderKind switch
-        {
-            RecorderKind.FfmpegAvFoundation => CreateFfmpegStartInfo(_recorderPath, path),
-            RecorderKind.AfRecord => CreateAfRecordStartInfo(_recorderPath, path),
-            _ => throw new NotSupportedException(UnsupportedReason),
-        };
-
+        var recorderStartInfo = CreateFfmpegStartInfo(_recorderPath, path);
         var process = RecorderProcess.Start(recorderStartInfo.ProcessStartInfo);
         return Task.FromResult<IDictationAudioRecording>(
             new CommandLineAudioRecording(process, path, recorderStartInfo.SourceDescription, RecorderProcess.SendInterrupt));
@@ -51,17 +42,13 @@ public sealed class MacOsCommandLineAudioRecorder : IDictationAudioRecorder
     {
         if (!OperatingSystem.IsMacOS())
         {
-            return new MacOsCommandLineAudioRecorder(null, RecorderKind.None);
+            return new MacOsCommandLineAudioRecorder(null);
         }
 
         var configuredPath = RecorderProcess.ResolveConfiguredRecorderPath();
         if (configuredPath is not null)
         {
-            var fileName = Path.GetFileName(configuredPath);
-            var kind = fileName.Equals("ffmpeg", StringComparison.OrdinalIgnoreCase)
-                ? RecorderKind.FfmpegAvFoundation
-                : RecorderKind.AfRecord;
-            return new MacOsCommandLineAudioRecorder(configuredPath, kind);
+            return new MacOsCommandLineAudioRecorder(configuredPath);
         }
 
         var ffmpegPath = RecorderProcess.ResolveExecutablePath("ffmpeg", [
@@ -69,17 +56,7 @@ public sealed class MacOsCommandLineAudioRecorder : IDictationAudioRecorder
             "/usr/local/bin/ffmpeg",
             "/usr/bin/ffmpeg",
         ]);
-        if (ffmpegPath is not null)
-        {
-            return new MacOsCommandLineAudioRecorder(ffmpegPath, RecorderKind.FfmpegAvFoundation);
-        }
-
-        if (File.Exists(AfRecordPath))
-        {
-            return new MacOsCommandLineAudioRecorder(AfRecordPath, RecorderKind.AfRecord);
-        }
-
-        return new MacOsCommandLineAudioRecorder(null, RecorderKind.None);
+        return new MacOsCommandLineAudioRecorder(ffmpegPath);
     }
 
     private static RecorderStartInfo CreateFfmpegStartInfo(string recorderPath, string outputPath)
@@ -105,19 +82,6 @@ public sealed class MacOsCommandLineAudioRecorder : IDictationAudioRecorder
         startInfo.ArgumentList.Add("-y");
         startInfo.ArgumentList.Add(outputPath);
         return new RecorderStartInfo(startInfo, sourceDescription);
-    }
-
-    private static RecorderStartInfo CreateAfRecordStartInfo(string recorderPath, string outputPath)
-    {
-        var startInfo = RecorderProcess.CreateBaseStartInfo(recorderPath);
-        startInfo.ArgumentList.Add("-f");
-        startInfo.ArgumentList.Add("WAVE");
-        startInfo.ArgumentList.Add("-d");
-        startInfo.ArgumentList.Add("LEI16@16000");
-        startInfo.ArgumentList.Add("-c");
-        startInfo.ArgumentList.Add("1");
-        startInfo.ArgumentList.Add(outputPath);
-        return new RecorderStartInfo(startInfo, "afrecord default input");
     }
 
     private static (string InputDevice, string SourceDescription) ResolveDefaultAvFoundationAudioInput(string recorderPath)
@@ -248,12 +212,5 @@ public sealed class MacOsCommandLineAudioRecorder : IDictationAudioRecorder
             || name.Contains("teams", StringComparison.OrdinalIgnoreCase)
             || name.Contains("blackhole", StringComparison.OrdinalIgnoreCase)
             || name.Contains("soundflower", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private enum RecorderKind
-    {
-        None,
-        FfmpegAvFoundation,
-        AfRecord,
     }
 }
