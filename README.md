@@ -1,5 +1,7 @@
 # SharpTurns
 
+Website: <https://sharpturns.ai/>
+
 A lightweight desktop app (.NET 10, Avalonia) that gives your installed Claude
 Code CLI a rendered-Markdown conversation UI, with projects, conversations, and
 context management.
