@@ -16,9 +16,9 @@ The name has two halves:
 SharpTurns is an independent project. It is not affiliated with or endorsed by
 Anthropic.
 
-![The SharpTurns main window: the project and conversation list on the left,
-and a compressed turn on the right with its metrics, work summary, and
-rendered Markdown response](docs/images/main-window.webp)
+![The SharpTurns main window: the conversation card and list on the left, and
+a turn on the right with its metrics and a rendered Markdown response with
+headings, lists, a code block, and a table](docs/images/main-window.webp)
 
 ## Why context management matters
 
@@ -134,6 +134,11 @@ focused on what matters, and fewer tokens sent with every request.
 - **Dictation** with your own Deepgram API key (optional).
 - **Several instances at once**, with an optional Instance Manager that docks
   them beside it and launches, reloads, and ends them.
+
+![Two compressed turns, each with its metrics, a collapsed work summary
+showing its replay reduction, and a View Full Turn Content button; the first
+has an attached image with a checkbox to include it in future
+turns](docs/images/compressed-turns.webp)
 
 ## How it uses the CLI
 
