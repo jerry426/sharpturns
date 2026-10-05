@@ -282,7 +282,7 @@ public sealed partial class ConversationViewModel : ObservableObject
     public TurnViewModel? LastTurn => Turns.Count > 0 ? Turns[^1] : null;
 
     // The metrics row. A live turn counts as visible and uncompressed.
-    public string LastReportedInputLabel => LastTurn?.Usage?.ContextTokens is { } tokens ? Count(tokens) : "—";
+    public string LastReportedInputLabel => LastTurn?.Usage?.ContextTokens is { } tokens ? $"{Count(tokens)} tokens" : "—";
 
     public string TurnsTotalLabel => Count(Turns.Count);
 
