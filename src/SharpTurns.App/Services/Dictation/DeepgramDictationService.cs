@@ -1,7 +1,7 @@
 namespace SharpTurns.App.Services.Dictation;
 
 // Batch dictation only, with no streaming and no IDictationService (the composer is the only user). The key comes from
-// Config → API Keys. SHARPTURNS_AUDIO_RECORDER_PATH and SHARPTURNS_AUDIO_INPUT_DEVICE override the recorder path and
+// Config → API Keys, or else DEEPGRAM_API_KEY. SHARPTURNS_AUDIO_RECORDER_PATH and SHARPTURNS_AUDIO_INPUT_DEVICE override the recorder path and
 // input device.
 
 public sealed record DictationResult(string Text, double Confidence);
@@ -35,7 +35,7 @@ public interface IDeepgramTranscriber
 /// </summary>
 public sealed class DeepgramDictationService
 {
-    internal const string NotConfiguredMessage = "Save a Deepgram API key in Config → API Keys to enable dictation.";
+    internal const string NotConfiguredMessage = "Save a Deepgram API key in Config → API Keys, or set DEEPGRAM_API_KEY, to enable dictation.";
     private readonly IDictationAudioRecorder _audioRecorder;
     private readonly IDeepgramTranscriber _transcriber;
     private readonly double _minimumConfidence;

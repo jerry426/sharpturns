@@ -337,6 +337,24 @@ public sealed class ConversationStoreTests : IDisposable
         Assert.Null(await _store.GetSettingAsync("key"));
     }
 
+    [Fact]
+    public async Task AnErasedSettingLeavesNoCopyInTheFile()
+    {
+        await _store.InitializeAsync();
+        const string secret = "erase-me-7f3c9a";
+        await _store.SetSettingAsync("secret", secret);
+        await _store.SetSettingAsync("other", "kept");
+
+        await _store.EraseSettingAsync("secret");
+
+        Assert.Null(await _store.GetSettingAsync("secret"));
+        Assert.Equal("kept", await _store.GetSettingAsync("other"));
+        // Closing the last connection checkpoints, so the file then holds every page as written.
+        SqliteConnection.ClearAllPools();
+        var bytes = await File.ReadAllBytesAsync(_path);
+        Assert.Equal(-1, bytes.AsSpan().IndexOf(System.Text.Encoding.UTF8.GetBytes(secret)));
+    }
+
     private object? Scalar(string sql)
     {
         using var connection = new SqliteConnection($"Data Source={_path};Pooling=False");

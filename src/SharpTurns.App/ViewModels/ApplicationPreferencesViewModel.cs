@@ -79,12 +79,15 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
     private string _status = "";
 
     /// <param name="soundPlayer">Null uses the platform's system sounds.</param>
-    internal ApplicationPreferencesViewModel(ConversationStore store, IAppSoundPlayer? soundPlayer = null)
+    /// <param name="secrets">The OS's credential store for API keys; null offers only the settings table.</param>
+    /// <param name="deepgramEnvironmentKey">DEEPGRAM_API_KEY at launch, which dictation uses when no key is saved.</param>
+    internal ApplicationPreferencesViewModel(ConversationStore store, IAppSoundPlayer? soundPlayer = null,
+        ISecretStore? secrets = null, string? deepgramEnvironmentKey = null)
     {
         _store = store;
         Models = new(store);
         Sounds = new(store, soundPlayer ?? AppSoundPlayerFactory.CreateDefault());
-        ApiKeys = new(store);
+        ApiKeys = new(store, secrets, deepgramEnvironmentKey);
         McpServers = new(store);
         Models.ModelsChanged += (_, _) => _ = ReloadModelSettingsAsync();
         StartupWindow = new(store, "startup_window_size", "startup window size", new(1400, 860), new(820, 560));

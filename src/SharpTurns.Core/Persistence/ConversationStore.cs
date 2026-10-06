@@ -761,6 +761,32 @@ public sealed class ConversationStore
             cancellationToken, ("$key", key), ("$value", value)).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Removes the setting and overwrites its bytes, for a secret that shouldn't linger in the file. The checkpoint
+    /// copies the zeroed page into the file and empties the WAL; while another instance is reading, it does less,
+    /// and the WAL's old frames are overwritten as it's reused.
+    /// </summary>
+    public async Task EraseSettingAsync(string key, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+        // The connection goes back to the pool, so its secure_delete setting is restored.
+        var secureDelete = Convert.ToInt64(await ScalarAsync(connection, null, "PRAGMA secure_delete", cancellationToken)
+            .ConfigureAwait(false), CultureInfo.InvariantCulture);
+        await ExecuteAsync(connection, null, "PRAGMA secure_delete = 1", cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await ExecuteAsync(connection, null, "DELETE FROM settings WHERE key = $key", cancellationToken, ("$key", key))
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            await ExecuteAsync(connection, null, $"PRAGMA secure_delete = {secureDelete}", CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+        await ExecuteAsync(connection, null, "PRAGMA wal_checkpoint(TRUNCATE)", cancellationToken).ConfigureAwait(false);
+    }
+
     private async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)
     {
         var connection = new SqliteConnection(_connectionString);

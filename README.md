@@ -249,8 +249,12 @@ The starting model list may be out of date. Check it against Anthropic's
   attach, and your settings. A `locks` folder beside it holds a small file for
   each conversation you've opened, which keeps two instances out of the same
   conversation.
-- **The Deepgram API key is stored in plain text** in that database. Anyone who
-  can read the file can read the key.
+- **The Deepgram API key** is kept in your OS credential store: the macOS
+  Keychain, Windows data protection (DPAPI) for your account, or on Linux the
+  Secret Service through `secret-tool`. In **Config → API Keys** you can
+  instead choose to keep it **in plain text** in that database, where anyone
+  who can read the file can read the key. With no key saved, dictation uses
+  the `DEEPGRAM_API_KEY` environment variable SharpTurns was started with.
 - Turns go through the CLI. SharpTurns itself only connects to the network to
   send a dictation recording to Deepgram, to load images that rendered Markdown
   links to, and to fetch a remote file you open in the Markdown Viewer.
@@ -260,8 +264,11 @@ The starting model list may be out of date. Check it against Anthropic's
 Click **Voice** in the composer (or press Ctrl+1 / ⌘+1 in the message box) to
 start recording, then **Stop** to transcribe. The transcript goes in at the
 cursor, and **Undo** removes it. Save your Deepgram key in
-**Config → API Keys** first. On macOS, the first recording may ask for
-microphone permission for the app you launched SharpTurns from.
+**Config → API Keys** first, or set `DEEPGRAM_API_KEY` in the environment
+SharpTurns starts from. On macOS, apps opened from the Dock or Finder don't get
+your shell's variables. On macOS, the first recording may ask for microphone
+permission for the app you launched SharpTurns from, and after a rebuild the
+Keychain may ask whether SharpTurns can use its saved key.
 
 Two environment variables override the recorder:
 

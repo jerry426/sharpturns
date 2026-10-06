@@ -27,7 +27,8 @@ public sealed partial class App : Application
             Directory.CreateDirectory(dataDirectory);
             var store = new ConversationStore(Path.Combine(dataDirectory, "sharpturns.db"));
             // Turns and summaries read the claude path from the preferences at launch, so a saved change applies next time.
-            var preferences = new ApplicationPreferencesViewModel(store);
+            var preferences = new ApplicationPreferencesViewModel(store, secrets: SecretStoreFactory.CreateDefault(dataDirectory),
+                deepgramEnvironmentKey: Environment.GetEnvironmentVariable(ApiKeysConfigViewModel.DeepgramEnvironmentVariable));
             var viewModel = new MainWindowViewModel(store, new ClaudeTurnRunner(store, () => preferences.ClaudePath),
                 new TurnSummarizer(store, () => preferences.ClaudePath), preferences);
             _ = ShowMainWindowAsync(desktop, store, viewModel, AppInstanceLaunchEnvironment.ConsumeStartupSession());

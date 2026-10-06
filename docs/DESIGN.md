@@ -319,7 +319,11 @@ running instances and docks their windows beside its own.
 - Core references `SQLitePCLRaw.bundle_e_sqlite3` directly to override the
   version `Microsoft.Data.Sqlite` brings in, which has a high-severity
   advisory (GHSA-2m69-gcr7-jv3q).
-- The Deepgram key is stored in plain text, and the README says so.
+- The Deepgram key is kept in the OS credential store (macOS Keychain, Windows
+  DPAPI files beside the database, or Linux `secret-tool`), or in plain text in
+  the settings table if the user chooses; the README says so. A key that
+  leaves the settings table is erased with `secure_delete` and a WAL
+  checkpoint. With no key saved, dictation uses `DEEPGRAM_API_KEY`.
 
 ## Settings
 

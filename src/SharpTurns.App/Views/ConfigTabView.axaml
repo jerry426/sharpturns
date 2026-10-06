@@ -590,7 +590,7 @@
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                 <StackPanel Spacing="4">
                   <TextBlock Classes="sectionTitle" Text="API Keys (1)" />
-                  <TextBlock Text="Manage the API keys SharpTurns uses. Values are plain text in SharpTurns' local database, but masked in the UI until explicitly revealed."
+                  <TextBlock Text="Manage the API keys SharpTurns uses. Values are kept in your OS credential store, or in plain text in SharpTurns' local database if you choose, and masked in the UI until explicitly revealed."
                              Foreground="{DynamicResource TextSubtleBrush}" FontSize="12" TextWrapping="Wrap" />
                 </StackPanel>
                 <Button Grid.Column="1" Classes="secondaryActionButton preferenceButton" Content="Reload"
@@ -638,8 +638,21 @@
                       <StackPanel Spacing="6">
                         <TextBlock Text="Edit API Key: Deepgram API Key" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"
                                    FontSize="16" />
-                        <TextBlock Text="The settings table stores the key in plain text. Keep the database file and its backups protected."
+                        <TextBlock Text="The credential store keeps the key encrypted for your account. The database keeps it in plain text, so choose it only if the database file and its backups are protected."
                                    Foreground="{DynamicResource TextSubtleBrush}" FontSize="12" TextWrapping="Wrap" />
+                      </StackPanel>
+
+                      <StackPanel Spacing="5">
+                        <TextBlock Text="Store in" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13" />
+                        <RadioButton GroupName="DeepgramKeyStore" Content="{Binding Preferences.ApiKeys.CredentialStoreLabel}"
+                                     IsChecked="{Binding Preferences.ApiKeys.UseCredentialStore, Mode=TwoWay}"
+                                     IsEnabled="{Binding Preferences.ApiKeys.HasCredentialStore}"
+                                     Foreground="{DynamicResource TextPrimaryBrush}" />
+                        <RadioButton GroupName="DeepgramKeyStore" Content="SharpTurns database (plain text)"
+                                     IsChecked="{Binding Preferences.ApiKeys.UseDatabase, Mode=TwoWay}"
+                                     Foreground="{DynamicResource TextPrimaryBrush}" />
+                        <TextBlock Text="Save to move a saved key to the other place."
+                                   Foreground="{DynamicResource TextMutedBrush}" FontSize="11" TextWrapping="Wrap" />
                       </StackPanel>
 
                       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
@@ -660,7 +673,7 @@
 
                       <StackPanel Spacing="5">
                         <TextBlock Text="Description" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13" />
-                        <TextBlock Text="Used by dictation transcription: the composer's Voice button sends each recording to Deepgram."
+                        <TextBlock Text="Used by dictation transcription: the composer's Voice button sends each recording to Deepgram. With no key saved, dictation uses the DEEPGRAM_API_KEY environment variable SharpTurns was started with."
                                    Foreground="{DynamicResource TextMutedBrush}" FontSize="12" TextWrapping="Wrap" />
                       </StackPanel>
 

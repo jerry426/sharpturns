@@ -103,7 +103,8 @@ persistence.
   `PRAGMA user_version`. Never edit a migration already merged to `main`.
 - Read the schema or migration code before referencing tables or columns.
 - Tests use temporary database files, never a user's database.
-- Settings such as the Deepgram key are stored in plain text. Never log secrets.
+- Settings are stored in plain text. The Deepgram key goes in the OS credential
+  store unless the user chooses the settings table. Never log secrets.
 
 ## Updating the Model List
 

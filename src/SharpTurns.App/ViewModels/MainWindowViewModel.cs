@@ -74,7 +74,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private ClaudeCliRateLimitSnapshot? _planUsage;
 
     /// <summary>
-    /// Without a dictation service, one is made with this platform's recorder and the saved Deepgram key. Without
+    /// Without a dictation service, one is made with this platform's recorder and the preferences' Deepgram key. Without
     /// conversation locks, they go in a folder beside the database.
     /// </summary>
     internal MainWindowViewModel(ConversationStore store, ClaudeTurnRunner runner, TurnSummarizer summarizer,
@@ -85,7 +85,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _summarizer = summarizer;
         _locks = locks ?? ConversationLocks.For(store);
         Preferences = preferences;
-        _dictation = dictation ?? DeepgramDictationService.Create(() => preferences.ApiKeys.DeepgramApiKey);
+        _dictation = dictation ?? DeepgramDictationService.Create(() => preferences.ApiKeys.DictationApiKey);
         preferences.ApiKeys.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(ApiKeysConfigViewModel.IsConfigured)) _dictation.NotifyConfigurationChanged();
