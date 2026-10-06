@@ -836,6 +836,20 @@ public sealed partial class ConversationViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private void OpenWorkspaceInVsCode()
+    {
+        try
+        {
+            VsCodeLauncher.Launch(Workspace);
+            Status = "Opened the workspace in VS Code.";
+        }
+        catch (Exception e)
+        {
+            Status = "Couldn't open VS Code: " + e.Message;
+        }
+    }
+
     private static bool CanExportTurn(TurnViewModel? turn) => turn?.Record is { Status: not TurnStatus.Running };
 
     [RelayCommand(CanExecute = nameof(CanExportTurn))]

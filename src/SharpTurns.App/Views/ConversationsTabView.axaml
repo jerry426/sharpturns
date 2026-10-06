@@ -70,7 +70,13 @@
               <TextBlock Grid.Row="2" Grid.Column="1" Classes="cardValue" Text="{Binding CurrentConversation.LastTurn.TimeLabel}"
                          IsVisible="{Binding CurrentConversation.LastTurn, Converter={x:Static ObjectConverters.IsNotNull}}" />
               <TextBlock Grid.Row="3" Classes="cardLabel" Text="Workspace:" />
-              <TextBlock Grid.Row="3" Grid.Column="1" Classes="cardValue" Text="{Binding CurrentConversation.Workspace}" />
+              <Grid Grid.Row="3" Grid.Column="1" ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                <TextBlock Classes="cardValue" Text="{Binding CurrentConversation.Workspace}" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Classes="secondaryActionButton" Content="VS Code"
+                        Command="{Binding CurrentConversation.OpenWorkspaceInVsCodeCommand}"
+                        AutomationProperties.Name="Open workspace in VS Code" MinHeight="20" Padding="8,1" FontSize="10"
+                        VerticalAlignment="Top" ToolTip.Tip="Open this conversation's workspace folder in Visual Studio Code" />
+              </Grid>
               <TextBlock Grid.Row="4" Classes="cardLabel" Text="Model:" VerticalAlignment="Center" />
               <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding CurrentConversation.ModelOptions}"
                         SelectedItem="{Binding CurrentConversation.SelectedModel}" MinHeight="28" FontSize="11"

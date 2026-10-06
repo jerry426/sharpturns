@@ -130,7 +130,7 @@ focused on what matters, and fewer tokens sent with every request.
   remaining 5-hour and weekly limits as the CLI reports them.
 - **Branching**: copy a run of turns into a new conversation.
 - **Extras**: notes, search, user message history, Markdown and DOCX export,
-  and a separate Markdown Viewer.
+  a separate Markdown Viewer, and a button that opens the workspace in VS Code.
 - **Dictation** with your own Deepgram API key (optional).
 - **Several instances at once**, with an optional Instance Manager that docks
   them beside it and launches, reloads, and ends them.
