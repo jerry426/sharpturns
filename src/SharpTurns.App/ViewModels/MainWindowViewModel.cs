@@ -53,7 +53,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private bool _isConversationSidebarOpen = true;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasNoConversation), nameof(IsDictationBusy))]
+    [NotifyPropertyChangedFor(nameof(HasNoConversation), nameof(IsDictationBusy), nameof(IsTurnRunning), nameof(CanSwitchConversations))]
     private ConversationViewModel? _currentConversation;
 
     /// <summary>The selected conversation while another instance holds it; it opens here once that instance lets it go.</summary>
@@ -166,6 +166,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
     /// </summary>
     public bool IsDictationBusy => CurrentConversation?.Dictation.IsBusy == true;
 
+    /// <summary>A turn is running in the shown conversation. Switching conversations or projects waits for it to end.</summary>
+    public bool IsTurnRunning => CurrentConversation?.IsRunning == true;
+
+    public bool CanSwitchConversations => !IsDictationBusy && !IsTurnRunning;
+
     public bool HasError => ErrorMessage is not null;
 
     public bool HasPlanUsage => PlanUsage is not null;
@@ -249,7 +254,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void DismissError() => ErrorMessage = null;
 
-    private bool CanSwitch() => !IsDictationBusy;
+    private bool CanSwitch() => CanSwitchConversations;
 
     [RelayCommand(CanExecute = nameof(CanSwitch))]
     private void SelectProject(Project project) => SelectedProject = project;
@@ -371,6 +376,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
             OnPropertyChanged(nameof(IsAnyTurnActive));
             ReleaseIfIdle(conversation);
         }
+        if (e.PropertyName == nameof(ConversationViewModel.IsRunning) && conversation == CurrentConversation)
+        {
+            OnPropertyChanged(nameof(IsTurnRunning));
+            OnPropertyChanged(nameof(CanSwitchConversations));
+            NotifySwitchingChanged();
+        }
         if (e.PropertyName is nameof(ConversationViewModel.IsRunning) or nameof(ConversationViewModel.IsCompressing)
             or nameof(ConversationViewModel.Title) or nameof(ConversationViewModel.SelectedModel))
             InstanceStateChanged?.Invoke();
@@ -388,6 +399,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     {
         if (e.PropertyName != nameof(DictationViewModel.IsBusy)) return;
         OnPropertyChanged(nameof(IsDictationBusy));
+        OnPropertyChanged(nameof(CanSwitchConversations));
         NotifySwitchingChanged();
     }
 
@@ -578,8 +590,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     private bool CanSwitchFromSelectedConversation() => HasSelectedConversation() && CanSwitch();
 
-    // Moving the shown conversation to another project shows that project, with the conversation still open.
-    [RelayCommand(CanExecute = nameof(CanSwitchFromSelectedConversation))]
+    // Moving the shown conversation to another project shows that project, with the conversation still open, so a
+    // running turn doesn't block it.
+    private bool CanEditSelectedConversation() => HasSelectedConversation() && !IsDictationBusy;
+
+    [RelayCommand(CanExecute = nameof(CanEditSelectedConversation))]
     private async Task EditConversationAsync()
     {
         var current = SelectedConversation!;

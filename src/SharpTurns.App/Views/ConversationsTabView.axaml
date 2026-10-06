@@ -25,7 +25,7 @@
           <TextBlock Text="Project:" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="16"
                      VerticalAlignment="Center" />
           <ComboBox Grid.Column="1" Classes="dictationLocked" ItemsSource="{Binding Projects}" SelectedItem="{Binding SelectedProject}"
-                    IsEnabled="{Binding !IsDictationBusy}"
+                    IsEnabled="{Binding CanSwitchConversations}"
                     BorderBrush="{Binding ProjectBorderColor}" MinHeight="40" FontSize="14" FontWeight="SemiBold"
                     HorizontalAlignment="Stretch" ToolTip.Tip="The project whose conversations are listed">
             <ComboBox.ItemTemplate>
@@ -204,6 +204,8 @@
 
         <StackPanel Grid.Row="4" Spacing="4">
           <TextBlock Text="Finish dictating before switching conversations, projects, or tabs." IsVisible="{Binding IsDictationBusy}"
+                     Foreground="{DynamicResource TextYellowBrush}" FontSize="12" TextWrapping="Wrap" />
+          <TextBlock Text="Stop the turn or wait for it to finish before switching conversations or projects." IsVisible="{Binding IsTurnRunning}"
                      Foreground="{DynamicResource TextYellowBrush}" FontSize="12" TextWrapping="Wrap" />
           <TextBlock Text="{Binding OtherConversationsLabel}" Foreground="{DynamicResource TextSubtleBrush}" FontSize="11"
                      IsVisible="{Binding SelectedProject, Converter={x:Static ObjectConverters.IsNotNull}}" />

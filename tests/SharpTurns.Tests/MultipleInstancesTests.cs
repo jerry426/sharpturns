@@ -125,6 +125,32 @@ public sealed class MultipleInstancesTests : IDisposable
     }
 
     [Fact]
+    public async Task SwitchingConversationsWaitsForTheShownConversationsTurn()
+    {
+        var (store, _, older, _) = await CreateAsync();
+        var a = await StartAsync(store);
+        var running = a.CurrentConversation!;
+        System.Windows.Input.ICommand[] switching =
+        [
+            a.SelectConversationCommand, a.SelectProjectCommand, a.NewProjectCommand, a.DeleteProjectCommand,
+            a.NewConversationCommand, a.DeleteConversationCommand,
+        ];
+        Assert.All(switching, command => Assert.True(command.CanExecute(null)));
+
+        running.IsRunning = true;
+        Assert.True(a.IsTurnRunning);
+        Assert.False(a.CanSwitchConversations);
+        Assert.All(switching, command => Assert.False(command.CanExecute(null)));
+        Assert.True(a.EditConversationCommand.CanExecute(null));
+
+        running.IsRunning = false;
+        Assert.True(a.CanSwitchConversations);
+        Assert.All(switching, command => Assert.True(command.CanExecute(null)));
+        a.SelectConversationCommand.Execute(a.Conversations.Single(c => c.Id == older.Id));
+        Assert.NotSame(running, a.CurrentConversation);
+    }
+
+    [Fact]
     public async Task StartingUpFailsOnlyTurnsNoLiveInstanceIsRunning()
     {
         var (store, _, older, newer) = await CreateAsync();

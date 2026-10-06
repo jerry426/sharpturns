@@ -640,6 +640,9 @@
     <Style Selector="Button.cardButton:pointerover Border.card">
       <Setter Property="Background" Value="#20242E" />
     </Style>
+    <Style Selector="Button.cardButton:disabled">
+      <Setter Property="Opacity" Value="0.45" />
+    </Style>
 
     <Style Selector="Border.card">
       <Setter Property="Background" Value="#191919" />
