@@ -313,28 +313,29 @@ reloading.
 
 ## About the author
 
-I've been a developer for forty years. For more than half of them I've had my
-eyes glued to a terminal, writing C++, Python, Java and plenty more, or doing
-Linux admin work, all in vim. Eventually the terminal stopped being fun. The
+I've been a developer for forty years. For more than twenty of them, I had my
+eyes glued to a terminal, writing C++, Python, Java and plenty more in vim, and
+administering Linux systems. Eventually the terminal stopped being fun. The
 Claude Code CLI works well, but it isn't something I enjoy looking at all day.
 
 Soon after I got serious about agentic coding, I noticed that many of the
-problems I ran into came from the context: too much noise, too little signal.
-So I set out to see how coherently a model can reason when its context is kept
-clean, turn after turn. SharpTurns is my answer: far better than when every
-turn replays the same noise and bloat.
+problems I ran into came from the context: too much noise, too little signal. So
+I set out to see how coherently a model can reason when its context is kept
+clean, turn after turn. SharpTurns grew out of that experiment: keep the
+decisions and conclusions, condense the intermediate work, and give the next
+turn a cleaner starting point.
 
 SharpTurns is a small piece of a much larger agentic development platform I've
 built for my own work. Unlike SharpTurns, which runs on the Claude Code CLI,
-that platform is completely provider and model agnostic. SharpTurns keeps two
-of its biggest advantages: beautiful Markdown rendering and continuous context
+that platform is completely provider and model agnostic. SharpTurns keeps two of
+its biggest advantages: beautiful Markdown rendering and continuous context
 optimization.
 
-Apart from changing a few color hex values, I haven't written a single line of
-SharpTurns' code, and I'm very happy about that. Porting it out of the larger
-platform into this standalone app took less than two days, and the porting
-itself was done from inside that platform. It shows what's possible in 2026
-with today's excellent models and harnesses.
+Apart from a few color values, SharpTurns' code was written by AI models working
+inside the larger platform. Extracting it into a standalone app took less than
+two days. My part was the design, directing the models, and reviewing and
+testing the result. It shows what's possible in 2026 with today's excellent
+models and harnesses.
 
 If you're interested in custom work, you can reach me at
 [jerry@sharpturns.ai](mailto:jerry@sharpturns.ai).
