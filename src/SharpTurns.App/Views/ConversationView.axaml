@@ -181,7 +181,7 @@
 
                         <Button Classes="railButton copy" Content="📋 Copy Metrics"
                                 Command="{ReflectionBinding $parent[UserControl].DataContext.CopyMetricsCommand}" CommandParameter="{Binding}"
-                                ToolTip.Tip="Copy the details shown here as text" />
+                                ToolTip.Tip="Copy the details shown here as text, for this turn or every turn in the conversation" />
                         <Grid ColumnDefinitions="72,72,72" ColumnSpacing="6" Margin="0,5,0,0">
                           <Button Classes="railButton small compress" Content="{Binding CompressionActionLabel}"
                                   Command="{ReflectionBinding $parent[UserControl].DataContext.ToggleCompressionCommand}"

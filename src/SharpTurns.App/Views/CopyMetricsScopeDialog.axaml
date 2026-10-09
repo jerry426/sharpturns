@@ -1,0 +1,60 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="SharpTurns.App.Views.CopyMetricsScopeDialog"
+        Title="Copy Metrics"
+        Width="520"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="#111318">
+  <!-- Copy Metrics' choice: a green-bordered card, matching the rail's Copy Metrics button. -->
+  <Window.Styles>
+    <Style Selector="Button.dialogButton">
+      <Setter Property="MinHeight" Value="40" />
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.copyScope">
+      <Setter Property="Background" Value="#123F1A" />
+      <Setter Property="BorderBrush" Value="#2B8C3A" />
+      <Setter Property="Foreground" Value="#D9E4F7" />
+    </Style>
+    <Style Selector="Button.copyScope:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#1B5E27" />
+      <Setter Property="BorderBrush" Value="#3FBC52" />
+      <Setter Property="Foreground" Value="#F4F8FF" />
+    </Style>
+    <Style Selector="Button.copyScope:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#0C2D12" />
+      <Setter Property="BorderBrush" Value="#1F6F2B" />
+      <Setter Property="Foreground" Value="#F4F8FF" />
+    </Style>
+  </Window.Styles>
+  <Border Background="#0E1A26" BorderBrush="#2B8C3A" BorderThickness="1" CornerRadius="0,0,12,12" Padding="18">
+    <Grid RowDefinitions="Auto,Auto" RowSpacing="18">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <StackPanel>
+          <TextBlock Text="Copy Metrics" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="20" />
+          <TextBlock Text="Copy the metrics for the current turn, or for every turn in the conversation?"
+                     Foreground="{DynamicResource TextMutedBrush}" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap" />
+        </StackPanel>
+        <Button Grid.Column="1" Classes="secondaryActionButton" Click="Cancel_Click" Width="34" Height="34" Padding="0"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center" VerticalAlignment="Top"
+                ToolTip.Tip="Close" AutomationProperties.Name="Close">
+          <PathIcon Width="12" Height="12" Data="{StaticResource CloseIconGeometry}" />
+        </Button>
+      </Grid>
+
+      <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
+        <Button Grid.Column="1" Classes="secondaryActionButton dialogButton" Content="Cancel" Click="Cancel_Click" MinWidth="96"
+                IsCancel="True" />
+        <Button Grid.Column="2" Classes="dialogButton copyScope" Content="Current Turn" Click="CurrentTurn_Click" MinWidth="120"
+                IsDefault="True" />
+        <Button Grid.Column="3" Classes="dialogButton copyScope" Content="Entire Conversation" Click="EntireConversation_Click"
+                MinWidth="160" />
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

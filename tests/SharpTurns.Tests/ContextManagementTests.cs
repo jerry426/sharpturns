@@ -87,6 +87,53 @@ public sealed class ContextManagementTests : IDisposable
         Assert.Equal("0 selected", conversation.SelectedTurnsLabel);
     }
 
+    [Fact]
+    public async Task CopyMetricsCopiesTheChosenTurnOrTheWholeConversation()
+    {
+        Directory.CreateDirectory(_directory);
+        var store = new ConversationStore(Path.Combine(_directory, "test.db"));
+        await store.InitializeAsync();
+        var project = await store.CreateProjectAsync("Project", _directory);
+        var saved = await store.CreateConversationAsync(project.Id, "Conversation", "claude-opus-5-5");
+        for (var i = 1; i <= 2; i++)
+        {
+            var turn = await store.StartTurnAsync(saved.Id, $"Prompt {i}");
+            await store.FinishTurnAsync(turn.Id, TurnStatus.Completed, null, [new(2, "assistant", "text", $"Reply {i}")]);
+        }
+        var main = new MainWindowViewModel(store, new ClaudeTurnRunner(store), new TurnSummarizer(store),
+            new ApplicationPreferencesViewModel(store));
+        await main.InitializeAsync();
+        await WaitAsync(() => main.Conversations.Count == 1);
+        main.SelectedConversation = main.Conversations[0];
+        var conversation = main.CurrentConversation!;
+        await WaitAsync(() => conversation.Turns.Count == 2);
+        var (first, second) = (conversation.Turns[0], conversation.Turns[1]);
+        string? copied = null;
+        conversation.CopyTextAsync = text => Task.FromResult(copied = text);
+
+        // Without a dialog host, the turn's metrics are copied.
+        await conversation.CopyMetricsCommand.ExecuteAsync(second);
+        Assert.Equal(second.FormatMetrics(), copied);
+
+        // Canceling copies nothing.
+        MetricsCopyScope? scope = null;
+        conversation.ChooseMetricsCopyScopeAsync = () => Task.FromResult(scope);
+        copied = null;
+        await conversation.CopyMetricsCommand.ExecuteAsync(second);
+        Assert.Null(copied);
+
+        // The whole conversation separates each turn's metrics with a blank line.
+        scope = MetricsCopyScope.Conversation;
+        await conversation.CopyMetricsCommand.ExecuteAsync(second);
+        Assert.Equal(first.FormatMetrics() + Environment.NewLine + Environment.NewLine + second.FormatMetrics(), copied);
+        Assert.Equal("Copied the metrics for 2 turns.", conversation.Status);
+
+        scope = MetricsCopyScope.Turn;
+        await conversation.CopyMetricsCommand.ExecuteAsync(first);
+        Assert.Equal(first.FormatMetrics(), copied);
+        Assert.Equal("Copied the turn's metrics.", conversation.Status);
+    }
+
     private static async Task<bool[]> HydratedAsync(ConversationStore store, long conversationId) =>
         (await store.LoadTurnsAsync(conversationId)).OrderBy(t => t.TurnNumber).Select(t => t.IsHydrated).ToArray();
 

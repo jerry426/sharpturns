@@ -14,6 +14,9 @@ using SharpTurns.Core.Persistence;
 
 namespace SharpTurns.App.ViewModels;
 
+/// <summary>What Copy Metrics copies: the turn whose button was clicked, or every turn in the conversation.</summary>
+public enum MetricsCopyScope { Turn, Conversation }
+
 public sealed partial class ConversationViewModel : ObservableObject
 {
     internal const string DefaultEffort = "Default effort";
@@ -357,6 +360,9 @@ public sealed partial class ConversationViewModel : ObservableObject
 
     public Func<string, Task>? CopyTextAsync { get; set; }
 
+    /// <summary>Asks what Copy Metrics copies; returns null when canceled.</summary>
+    public Func<Task<MetricsCopyScope?>>? ChooseMetricsCopyScopeAsync { get; set; }
+
     /// <summary>Shows the conversation's images modally.</summary>
     public Func<ImagesBeingReplayedDialogViewModel, Task>? ShowReplayImagesAsync { get; set; }
 
@@ -638,8 +644,21 @@ public sealed partial class ConversationViewModel : ObservableObject
         return await ShowPermissionAsync(toolName, input, token);
     }
 
+    // Without a dialog host, the turn's metrics are copied as before. The conversation's turns are separated by a blank line.
     [RelayCommand]
-    private Task CopyMetricsAsync(TurnViewModel turn) => CopyAsync(turn.FormatMetrics(), "Copied the turn's metrics.");
+    private async Task CopyMetricsAsync(TurnViewModel turn)
+    {
+        var scope = ChooseMetricsCopyScopeAsync is null ? MetricsCopyScope.Turn : await ChooseMetricsCopyScopeAsync();
+        if (scope is null) return;
+        if (scope == MetricsCopyScope.Turn)
+        {
+            await CopyAsync(turn.FormatMetrics(), "Copied the turn's metrics.");
+            return;
+        }
+        var turns = Turns.ToArray();
+        await CopyAsync(string.Join(Environment.NewLine + Environment.NewLine, turns.Select(t => t.FormatMetrics())),
+            $"Copied the metrics for {turns.Length} {(turns.Length == 1 ? "turn" : "turns")}.");
+    }
 
     [RelayCommand]
     private Task CopyTurnAsync(TurnViewModel turn) => CopyAsync(turn.FormatForClipboard(Conversation.Id), "Copied the turn.");
