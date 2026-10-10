@@ -93,6 +93,26 @@ public sealed class ApplicationPreferencesViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task ASavedPromptLosesItsCopyOfTheFixedPart()
+    {
+        Directory.CreateDirectory(_directory);
+        var store = new ConversationStore(Path.Combine(_directory, "test.db"));
+        await store.InitializeAsync();
+        // Saved when the fixed lines were part of the editable prompt.
+        await store.SetSettingAsync("system_prompt", "Be brief.\n" + ClaudeCliCodingPolicy.FixedSystemPrompt + "\nUse British spelling.");
+        var preferences = new ApplicationPreferencesViewModel(store);
+        await preferences.LoadAsync();
+        Assert.Equal("Be brief.\nUse British spelling.", preferences.SystemPrompt);
+        Assert.False(preferences.HasSystemPromptChanges);
+
+        // Nothing left uses the built-in prompt.
+        await store.SetSettingAsync("system_prompt", ClaudeCliCodingPolicy.FixedSystemPrompt);
+        var onlyFixed = new ApplicationPreferencesViewModel(store);
+        await onlyFixed.LoadAsync();
+        Assert.Equal(ClaudeCliCodingPolicy.DefaultSystemPrompt, onlyFixed.SystemPrompt);
+    }
+
+    [Fact]
     public async Task CliSettingsAreSavedAndReloaded()
     {
         Directory.CreateDirectory(_directory);

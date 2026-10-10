@@ -133,7 +133,7 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
 
     public string? SummarizerEffortOrNull => SummarizerEffort == ConversationViewModel.DefaultEffort ? null : SummarizerEffort;
 
-    /// <summary>The saved system prompt, appended to the CLI's own for every turn.</summary>
+    /// <summary>The saved system prompt, appended to the CLI's own after the fixed part for every turn.</summary>
     public string SystemPrompt { get; private set; } = ClaudeCliCodingPolicy.DefaultSystemPrompt;
 
     public bool HasSystemPromptChanges => SystemPromptText != SystemPrompt;
@@ -167,7 +167,9 @@ public sealed partial class ApplicationPreferencesViewModel : ObservableObject
             NewConversationEffort = Option(EffortOptions, await _store.GetSettingAsync(NewConversationEffortSetting)) ?? ConversationViewModel.DefaultEffort;
             SummarizerModel = Option(ModelOptions, await _store.GetSettingAsync(TurnSummarizer.ModelSetting)) ?? TurnSummarizer.DefaultModel;
             SummarizerEffort = Option(EffortOptions, await _store.GetSettingAsync(TurnSummarizer.EffortSetting)) ?? ConversationViewModel.DefaultEffort;
-            ApplySystemPrompt(await _store.GetSettingAsync(SystemPromptSetting) is { Length: > 0 } prompt
+            // A prompt saved before the fixed part was split off may still contain it.
+            ApplySystemPrompt(await _store.GetSettingAsync(SystemPromptSetting) is { Length: > 0 } saved
+                && ClaudeCliCodingPolicy.WithoutFixedSystemPrompt(saved) is { Length: > 0 } prompt
                 ? prompt : ClaudeCliCodingPolicy.DefaultSystemPrompt);
             SystemPromptMessage = SystemPromptLabel(SystemPrompt);
             ApplyAskRules(ClaudeTurnRunner.AskRules(await _store.GetSettingAsync(ClaudeTurnRunner.AskRulesSetting)));

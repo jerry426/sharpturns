@@ -87,17 +87,22 @@ public static class ClaudeCliCodingPolicy
     private static string EscapePattern(string text) =>
         System.Text.RegularExpressions.Regex.Replace(text, @"[\\*?\[\]]", @"\$0");
 
-    public const string DefaultSystemPrompt = """
+    // Always sent ahead of the user's prompt: replayed records name SharpTurns and label turns by ID and number.
+    public const string FixedSystemPrompt = """
         You are running inside SharpTurns, a desktop conversation UI for the Claude Code CLI. Claude Code owns tool execution.
-        The user interacts with you through SharpTurns' graphical conversation UI, not an interactive terminal.
-        Your response text is streamed and rendered as Markdown. Native tool activity appears in separate collapsible
-        cards. AskUserQuestion opens a graphical dialog, and the user's answers are returned to you within the same turn. Do not assume the user can see raw terminal output or use Claude Code
-        terminal shortcuts or slash commands.
         Each turn has a Turn ID and a Turn #. The Turn ID is a database identifier that is unique across all conversations;
         the Turn # is the turn's position within its conversation, starting at 1. Deleting or hiding a turn does not renumber
         the others. Replayed history labels each turn with turn_id and turn_number, and copied turns show "Turn ID:" and
         "Turn #" lines. Refer to turns by Turn # (for example, "Turn #3"). If the user mentions a turn by a bare number and
         it could be either, say which one you took it to be.
+        """;
+
+    /// <summary>The user-editable part of the system prompt, sent after <see cref="FixedSystemPrompt"/>.</summary>
+    public const string DefaultSystemPrompt = """
+        The user interacts with you through SharpTurns' graphical conversation UI, not an interactive terminal.
+        Your response text is streamed and rendered as Markdown. Native tool activity appears in separate collapsible
+        cards. AskUserQuestion opens a graphical dialog, and the user's answers are returned to you within the same turn. Do not assume the user can see raw terminal output or use Claude Code
+        terminal shortcuts or slash commands.
         Use one brief progress note before a meaningful batch of edits, validation, git operations, long-running work,
         or a retry after failure. Do not narrate routine searches, reads, or every tool call.
         Native file, search, editing, notebook, shell/code execution and network tools are preapproved.
@@ -112,13 +117,28 @@ public static class ClaudeCliCodingPolicy
         Never put credentials or secrets in commands, prompts, or tool descriptions.
         """;
 
+    /// <summary>The text passed to --append-system-prompt for the user's prompt.</summary>
+    public static string AppendedSystemPrompt(string systemPrompt) => FixedSystemPrompt + "\n" + systemPrompt;
+
+    /// <summary>
+    /// Removes the lines of <see cref="FixedSystemPrompt"/> from a prompt saved when they were part of the editable one,
+    /// so they aren't sent twice. Edited lines stay.
+    /// </summary>
+    public static string WithoutFixedSystemPrompt(string prompt)
+    {
+        var fixedLines = FixedSystemPrompt.ReplaceLineEndings("\n").Split('\n');
+        return string.Join('\n', prompt.ReplaceLineEndings("\n").Split('\n')
+            .Where(line => !fixedLines.Contains(line, StringComparer.Ordinal))).Trim();
+    }
+
     /// <summary>
     /// Session compatibility version. The CLI reuses a session's saved system prompt on resume, so a prompt edit
     /// or an output style change (the style is part of that prompt) must change this value and reseed the next turn.
     /// So must a change to the started MCP servers, which changes the session's tools; without any, the value is unchanged.
+    /// The hash covers <see cref="FixedSystemPrompt"/> too, so changing it also reseeds.
     /// </summary>
     public static string VersionFor(string systemPrompt, string? outputStyle = null, IReadOnlyCollection<string>? mcpServerNames = null) =>
-        LaunchProfile + ":" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(systemPrompt)))[..16]
+        LaunchProfile + ":" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(AppendedSystemPrompt(systemPrompt))))[..16]
         + (outputStyle is null ? "" : ":" + outputStyle)
         + (mcpServerNames is not { Count: > 0 } ? "" : ":mcp-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
             string.Join('\n', mcpServerNames.Order(StringComparer.Ordinal)))))[..16]);

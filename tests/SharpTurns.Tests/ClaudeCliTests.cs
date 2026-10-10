@@ -217,7 +217,9 @@ public sealed class ClaudeCliTests : IDisposable
         Assert.Equal("manual", Value("--permission-mode"));
         Assert.Equal("host", Value("--permission-prompts"));
         Assert.Equal("summarized", Value("--thinking-display"));
-        Assert.Equal(SystemPrompt, Value("--append-system-prompt"));
+        // The fixed part comes first, whatever the user's prompt says.
+        Assert.Equal(ClaudeCliCodingPolicy.FixedSystemPrompt + "\n" + SystemPrompt, Value("--append-system-prompt"));
+        Assert.StartsWith("You are running inside SharpTurns", Value("--append-system-prompt"));
         using var settings = JsonDocument.Parse(Value("--settings"));
         Assert.True(settings.RootElement.GetProperty("disableAllHooks").GetBoolean());
         Assert.False(settings.RootElement.GetProperty("autoCompactEnabled").GetBoolean());

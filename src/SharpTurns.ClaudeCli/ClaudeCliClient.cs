@@ -489,7 +489,7 @@ public sealed class ClaudeCliClient
                              : string.Join(',', mcp.ServerNames.Select(ClaudeCliCodingPolicy.McpToolPrefix).Prepend(ClaudeCliCodingPolicy.AutomaticTools)),
                          "--disallowed-tools", mcp is null ? ClaudeCliCodingPolicy.DeniedTools : ClaudeCliCodingPolicy.DeniedNativeTools,
                          "--settings", settings ?? ClaudeCliCodingPolicy.Settings,
-                         "--append-system-prompt", systemPrompt! })
+                         "--append-system-prompt", ClaudeCliCodingPolicy.AppendedSystemPrompt(systemPrompt!) })
                 info.ArgumentList.Add(argument);
             // --strict-mcp-config limits the turn to these servers. Their tools load eagerly while experimental
             // betas are off, so --tools needn't name them (verified with CLI 2.1.288).
