@@ -32,18 +32,48 @@
       <Setter Property="TextDecorations" Value="Strikethrough" />
     </Style>
 
+    <!-- MacDown/GitHub-style underline for top-level headings, including setext headings. -->
+    <Style Selector="^ Border.Heading1Block">
+      <Setter Property="BorderBrush" Value="#3D475C" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+      <Setter Property="Padding" Value="0,0,0,6" />
+      <Setter Property="Margin" Value="0,0,0,12" />
+    </Style>
+
+    <Style Selector="^ Border.Heading2Block">
+      <Setter Property="BorderBrush" Value="#3D475C" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+      <Setter Property="Padding" Value="0,0,0,5" />
+      <Setter Property="Margin" Value="0,2,0,10" />
+    </Style>
+
     <Style Selector="^ Border.Heading1Block md|MarkdownTextBlock">
       <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
       <Setter Property="FontSize" Value="21" />
       <Setter Property="LineHeight" Value="28" />
-      <Setter Property="Margin" Value="0,0,0,12" />
+      <Setter Property="Margin" Value="0" />
     </Style>
 
     <Style Selector="^ Border.Heading2Block md|MarkdownTextBlock">
       <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
       <Setter Property="FontSize" Value="18" />
       <Setter Property="LineHeight" Value="25" />
-      <Setter Property="Margin" Value="0,2,0,10" />
+      <Setter Property="Margin" Value="0" />
+    </Style>
+
+    <!-- LiveMarkdown's thematic break style targets MarkdownRenderer, not our derived control.
+         Mimic MacDown's GitHub2 theme: a 4px band of repeating diagonal hatching. -->
+    <Style Selector="^ Border.ThematicBreak">
+      <Setter Property="Height" Value="4" />
+      <Setter Property="Margin" Value="0,6,0,16" />
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="0,0" EndPoint="3,3" SpreadMethod="Repeat">
+          <GradientStop Offset="0" Color="#6B7487" />
+          <GradientStop Offset="0.5" Color="#6B7487" />
+          <GradientStop Offset="0.5" Color="Transparent" />
+          <GradientStop Offset="1" Color="Transparent" />
+        </LinearGradientBrush>
+      </Setter>
     </Style>
 
     <Style Selector="^ Border.Heading3Block md|MarkdownTextBlock">
