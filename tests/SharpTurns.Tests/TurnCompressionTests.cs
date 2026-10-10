@@ -177,6 +177,21 @@ public sealed class TurnCompressionTests : IDisposable
         return Assert.Single(await store.LoadTurnsAsync(conversation.Id));
     }
 
+    [Fact]
+    public void TheReplayRecordSaysHowTheTurnEnded()
+    {
+        // The response keeps a heading of its own; only the first boundary splits the summary.
+        var (record, response) = TurnCompression.ReplayPresentation(4,
+            "## Work Summary\n\n- Stopped.\n\n## Partial Assistant Response — Verbatim\n\nHalf\n\n## Final Assistant Response — Verbatim\n\nquoted");
+        Assert.StartsWith("[SHARPTURNS RECORD — COMPRESSED TURN 4]\n", record);
+        Assert.Contains("the assistant's partial response, verbatim; the turn did not complete.\n\n## Work Summary\n\n- Stopped.", record);
+        Assert.Equal("Half\n\n## Final Assistant Response — Verbatim\n\nquoted", response);
+
+        (record, response) = TurnCompression.ReplayPresentation(4, "Legacy summary");
+        Assert.EndsWith("the work summary covers the whole turn.\n\nLegacy summary", record);
+        Assert.Null(response);
+    }
+
     private string CreateFakeCli(string body)
     {
         var path = Path.Combine(_directory, "fake-claude");

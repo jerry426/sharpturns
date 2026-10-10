@@ -140,6 +140,35 @@ Output only the generated prefix with exactly one `## Work Summary` section. Do 
     public static string Compose(string workSummary, CompressionSource source) =>
         workSummary + "\n\n" + source.ResponseHeading + "\n\n" + source.Response;
 
+    /// <summary>
+    /// How a compressed turn is described to the model: a record that SharpTurns wrote and labels as its own, carrying the
+    /// work summary, and the kept response, verbatim, for the assistant's own message. Response is null for a summary
+    /// without one.
+    /// </summary>
+    public static (string Record, string? Response) ReplayPresentation(int turnNumber, string summary)
+    {
+        // The work summary can't contain either response heading, so the first one found is the boundary.
+        (int Index, string Heading)? boundary = null;
+        foreach (var heading in new[] { FinalResponseHeading, PartialResponseHeading })
+            if (summary.IndexOf("\n\n" + heading + "\n\n", StringComparison.Ordinal) is >= 0 and var index
+                && (boundary is null || index < boundary.Value.Index))
+                boundary = (index, heading);
+        var workSummary = boundary is { } b ? summary[..b.Index] : summary;
+        var response = boundary is { } r ? summary[(r.Index + r.Heading.Length + 4)..] : null;
+        var responseNote = boundary?.Heading switch
+        {
+            null => "The turn's assistant messages are not retained; the work summary covers the whole turn.",
+            PartialResponseHeading => "The assistant message that ends this turn is the assistant's partial response, verbatim; the turn did not complete.",
+            _ => "The assistant message that ends this turn is the assistant's final response, verbatim.",
+        };
+        var record = string.Create(CultureInfo.InvariantCulture, $"[SHARPTURNS RECORD — COMPRESSED TURN {turnNumber}]\n")
+            + "Written by the SharpTurns app, not by the user or the assistant. This turn was compressed to save context: "
+            + "any user messages in it are verbatim, and any tool calls and tool results in it really ran and were replaced by the work summary below. "
+            + "This record is not a reply format; do not imitate it.\n"
+            + responseNote + "\n\n" + workSummary;
+        return (record, response);
+    }
+
     /// <summary>The UTF-8 size of everything saved with the turn except thinking: dialogue, tool activity, and images.</summary>
     public static long FullContentBytes(ConversationTurn turn) =>
         turn.Parts.Where(p => p.PartType != TurnParts.Thinking).Sum(p => (long)Encoding.UTF8.GetByteCount(p.Content));

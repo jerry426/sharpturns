@@ -27,8 +27,9 @@ public static class ClaudeCodeContext
         turns.Where(t => t.IsHydrated).OrderBy(t => t.TurnNumber).Select(TurnBlock).ToArray();
 
     // Tool activity is display-only and stays out of the replay; questions and answers are dialogue. A compressed turn
-    // keeps its user inputs, its summary replaces its assistant text, and its images are replayed as descriptors, plus
-    // the contents of those chosen to stay in the replay.
+    // keeps its user inputs, a record carrying its work summary replaces its assistant text, its kept response ends
+    // the messages verbatim, and its images are replayed as descriptors, plus the contents of those chosen to stay in
+    // the replay.
     private static HistoryBlock TurnBlock(ConversationTurn t)
     {
         var messages = new List<ReplayMessage>();
@@ -64,8 +65,14 @@ public static class ClaudeCodeContext
         for (var i = 0; i < messages.Count; i++)
             if (messages[i].DescribedImages is { } described)
                 messages[i] = messages[i] with { Content = WithImageDescriptors(messages[i].Content, described), DescribedImages = null };
+        string? record = null;
+        if (t.Summary is not null)
+        {
+            (record, var response) = TurnCompression.ReplayPresentation(t.TurnNumber, t.Summary);
+            if (response is not null) messages.Add(new("assistant", response));
+        }
         return new HistoryBlock(
-            JsonSerializer.Serialize(new { turn_id = t.Id, turn_number = t.TurnNumber, summary = t.Summary, messages },
+            JsonSerializer.Serialize(new { turn_id = t.Id, turn_number = t.TurnNumber, summary = record, messages },
                 ReplayJsonOptions), images);
     }
 

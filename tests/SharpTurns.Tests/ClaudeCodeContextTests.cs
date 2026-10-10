@@ -122,14 +122,18 @@ public sealed class ClaudeCodeContextTests
 
         Assert.Empty(block.Images);
         using var json = JsonDocument.Parse(block.Text);
-        Assert.Equal(turn.Summary, json.RootElement.GetProperty("summary").GetString());
+        // The summary is a record labeled as the app's, carrying the work summary; the response is the assistant's own message.
+        var record = json.RootElement.GetProperty("summary").GetString();
+        Assert.StartsWith("[SHARPTURNS RECORD — COMPRESSED TURN 1]\nWritten by the SharpTurns app, not by the user or the assistant.", record);
+        Assert.Contains("\nThe assistant message that ends this turn is the assistant's final response, verbatim.\n\n", record);
+        Assert.EndsWith("\n\n## Work Summary\n\n- Looked.", record);
         var messages = json.RootElement.GetProperty("messages").EnumerateArray().ToArray();
         Assert.Equal(new (string?, string?)[]
         {
             ("user", "look\n\n[HISTORICAL ATTACHMENT DESCRIPTORS]\n"
                 + "Image contents are omitted from this summarized replay of a prior turn; only their attachment descriptors are included.\n"
                 + "- Image 1: file_name=\"shot.png\", media_type=\"image/png\", size_bytes=8\n[/HISTORICAL ATTACHMENT DESCRIPTORS]"),
-            ("assistant", "Which color?"), ("user", "Blue"), ("user", "also this"),
+            ("assistant", "Which color?"), ("user", "Blue"), ("user", "also this"), ("assistant", "seen"),
         }, messages.Select(m => (m.GetProperty("role").GetString(), m.GetProperty("content").GetString())));
         Assert.All(messages, m => Assert.False(m.TryGetProperty("images", out _)));
         Assert.Equal(System.Text.Encoding.UTF8.GetByteCount(block.Text), ClaudeCodeContext.ReplayBytes(turn));
