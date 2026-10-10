@@ -170,5 +170,8 @@ internal static class Migrations
         ALTER TABLE conversations ADD COLUMN read_write_folders TEXT;
         ALTER TABLE conversations ADD COLUMN blocked_path_patterns TEXT;
         """,
+        """
+        ALTER TABLE conversation_turns ADD COLUMN app_pid INTEGER;
+        """,
     ];
 }

@@ -149,7 +149,8 @@
                             <TextBlock Text="{Binding TurnLabel}" Foreground="{Binding RailAccentBrush}" FontSize="11"
                                        FontWeight="SemiBold" />
                           </Border>
-                          <TextBlock Grid.Column="1" Text="{Binding IdLabel}" Foreground="{DynamicResource TextMutedBrush}" FontSize="12"
+                          <TextBlock Grid.Column="1" Text="{Binding IdAndProcessLabel}" ToolTip.Tip="{Binding IdAndProcessToolTip}"
+                                     Foreground="{DynamicResource TextMutedBrush}" FontSize="12" TextWrapping="Wrap"
                                      VerticalAlignment="Center" />
                         </Grid>
                         <TextBlock Text="{Binding TimeLabel}" Foreground="{DynamicResource TextStrongBrush}" FontSize="13" />

@@ -69,6 +69,13 @@ public sealed class TurnViewModelTests
         Assert.Equal($"Input Cache Misses: {83_348:N0} ({44.0:0.0}%)", turn.CacheMissLabel);
         Assert.Equal($"First-Request Cache Hits: {11_590:N0} ({12.3:0.0}%)", turn.FirstRequestCacheLabel);
         Assert.Contains(turn.CacheMissLabel, turn.FormatMetrics());
+        // Saved before the process ID was recorded, the turn shows only its ID.
+        Assert.Equal(("id: 18620", null), (turn.IdAndProcessLabel, turn.IdAndProcessToolTip));
+        Assert.StartsWith("Turn - 30 · id: 18620" + Environment.NewLine, turn.FormatMetrics());
+        var withProcess = new TurnViewModel(turn.Record! with { AppProcessId = 51137 });
+        Assert.Equal("id: 18620 · PID 51137", withProcess.IdAndProcessLabel);
+        Assert.NotNull(withProcess.IdAndProcessToolTip);
+        Assert.StartsWith("Turn - 30 · id: 18620 · PID 51137" + Environment.NewLine, withProcess.FormatMetrics());
 
         var timestamp = created.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture);
         Assert.Equal($"Conversation ID: 7\nTurn ID: 18620\nTurn #30\nTimestamp: {timestamp}\n\n## User\n\nprompt\n\n[Image: shot.png]"

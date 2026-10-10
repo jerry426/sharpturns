@@ -23,7 +23,7 @@ public sealed partial class TurnViewModel : ObservableObject
 
     /// <summary>The saved turn; null until a new turn is saved.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TurnLabel), nameof(IdLabel), nameof(TimeLabel), nameof(DurationLabel), nameof(HasDuration),
+    [NotifyPropertyChangedFor(nameof(TurnLabel), nameof(IdLabel), nameof(IdAndProcessLabel), nameof(IdAndProcessToolTip), nameof(TimeLabel), nameof(DurationLabel), nameof(HasDuration),
         nameof(ModelLabel), nameof(HasModel), nameof(IsHydrated), nameof(IsCompressed), nameof(HydrationActionLabel),
         nameof(HydrationActionToolTip), nameof(CompressionActionLabel), nameof(CompressionActionToolTip), nameof(CompressedLabel),
         nameof(CardBorderBrush), nameof(CardBorderThickness), nameof(RailAccentBrush),
@@ -100,6 +100,15 @@ public sealed partial class TurnViewModel : ObservableObject
     public string TurnLabel => Record is { } turn ? $"Turn - {turn.TurnNumber.ToString(CultureInfo.InvariantCulture)}" : "Turn";
 
     public string IdLabel => Record is { } turn ? $"id: {turn.Id.ToString(CultureInfo.InvariantCulture)}" : "";
+
+    // Turns saved before the process ID was recorded show only the turn ID.
+    public string IdAndProcessLabel => Record?.AppProcessId is { } processId
+        ? $"{IdLabel} · PID {processId.ToString(CultureInfo.InvariantCulture)}"
+        : IdLabel;
+
+    public string? IdAndProcessToolTip => Record?.AppProcessId is not null
+        ? "PID is the process ID of the SharpTurns instance that ran this turn."
+        : null;
 
     public string TimeLabel => Record?.CreatedAt.ToLocalTime().ToString("MMM d, h:mm tt", CultureInfo.CurrentCulture) ?? "Live";
 
@@ -345,7 +354,7 @@ public sealed partial class TurnViewModel : ObservableObject
     /// <summary>The rail's details as plain text, one per line.</summary>
     public string FormatMetrics()
     {
-        var lines = new List<string> { Record is null ? TurnLabel : $"{TurnLabel} · {IdLabel}", TimeLabel };
+        var lines = new List<string> { Record is null ? TurnLabel : $"{TurnLabel} · {IdAndProcessLabel}", TimeLabel };
         if (HasDuration) lines.Add(DurationLabel);
         lines.Add("Model: " + (HasModel ? ModelLabel : "not recorded"));
         if (HasTokenUsage)

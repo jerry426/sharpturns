@@ -498,7 +498,7 @@ public sealed class ConversationStore
             SELECT id, conversation_id, turn_number, status, error_message, created_at, finished_at,
                 input_tokens, cached_input_tokens, output_tokens, context_tokens,
                 request_count, first_request_input_tokens, first_request_cached_tokens, model,
-                is_hydrated, summary, summary_model
+                is_hydrated, summary, summary_model, app_pid
             FROM conversation_turns WHERE conversation_id = $conversation ORDER BY turn_number
             """, ("$conversation", conversationId));
         await using var turnReader = await turnCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
@@ -518,7 +518,8 @@ public sealed class ConversationStore
                 turnReader.IsDBNull(14) ? null : turnReader.GetString(14),
                 turnReader.GetBoolean(15),
                 turnReader.IsDBNull(16) ? null : turnReader.GetString(16),
-                turnReader.IsDBNull(17) ? null : turnReader.GetString(17)));
+                turnReader.IsDBNull(17) ? null : turnReader.GetString(17),
+                turnReader.IsDBNull(18) ? null : turnReader.GetInt32(18)));
         }
         return turns;
     }
@@ -583,12 +584,12 @@ public sealed class ConversationStore
         long id;
         int number;
         await using (var command = Command(connection, transaction, """
-            INSERT INTO conversation_turns (conversation_id, turn_number, status, created_at)
+            INSERT INTO conversation_turns (conversation_id, turn_number, status, created_at, app_pid)
             VALUES ($conversation,
                 (SELECT COALESCE(MAX(turn_number), 0) + 1 FROM conversation_turns WHERE conversation_id = $conversation),
-                'running', $now)
+                'running', $now, $pid)
             RETURNING id, turn_number
-            """, ("$conversation", conversationId), ("$now", now)))
+            """, ("$conversation", conversationId), ("$now", now), ("$pid", Environment.ProcessId)))
         await using (var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
         {
             await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
@@ -599,7 +600,8 @@ public sealed class ConversationStore
         foreach (var part in parts)
             await InsertPartAsync(connection, transaction, id, part, cancellationToken).ConfigureAwait(false);
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-        return new(id, conversationId, number, TurnStatus.Running, null, ParseTime(now), null, parts);
+        return new(id, conversationId, number, TurnStatus.Running, null, ParseTime(now), null, parts,
+            AppProcessId: Environment.ProcessId);
     }
 
     /// <summary>Adds the response parts and records how the turn ended. Model is the model the CLI reported.</summary>
@@ -720,7 +722,8 @@ public sealed class ConversationStore
     // Every turn column but the key, conversation, and number.
     private const string BranchedTurnColumns = """
         status, error_message, created_at, finished_at, input_tokens, cached_input_tokens, output_tokens, context_tokens,
-        model, request_count, first_request_input_tokens, first_request_cached_tokens, is_hydrated, summary, summary_model
+        model, request_count, first_request_input_tokens, first_request_cached_tokens, is_hydrated, summary, summary_model,
+        app_pid
         """;
 
     public async Task<ClaudeCodeSessionState?> LoadClaudeCodeSessionAsync(long conversationId, CancellationToken cancellationToken = default)

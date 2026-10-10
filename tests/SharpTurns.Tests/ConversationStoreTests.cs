@@ -24,7 +24,7 @@ public sealed class ConversationStoreTests : IDisposable
         await _store.InitializeAsync();
         await _store.InitializeAsync();
 
-        Assert.Equal(14L, Scalar("PRAGMA user_version"));
+        Assert.Equal(15L, Scalar("PRAGMA user_version"));
         Assert.Equal("wal", Scalar("PRAGMA journal_mode"));
     }
 
@@ -141,6 +141,8 @@ public sealed class ConversationStoreTests : IDisposable
         Assert.Equal(("assistant", "thinking"), (turns[0].Parts[2].Role, turns[0].Parts[2].PartType));
         Assert.Equal(new TurnUsage(1200, 1000, 80, 1150, 2, 1100, 900), turns[0].Usage);
         Assert.Equal("claude-haiku-4-5-20251001", turns[0].Model);
+        // Each turn records the process ID of the app instance that ran it.
+        Assert.Equal((Environment.ProcessId, Environment.ProcessId), (first.AppProcessId, turns[0].AppProcessId));
         Assert.Equal((TurnStatus.Failed, "CLI error"), (turns[1].Status, turns[1].ErrorMessage));
         Assert.Equal(["second prompt"], turns[1].Parts.Select(p => p.Content));
         Assert.Null(turns[1].Usage);
@@ -228,7 +230,7 @@ public sealed class ConversationStoreTests : IDisposable
         await _store.FinishTurnAsync(turn.Id, TurnStatus.Completed, null, [new(2, "assistant", "text", "answer")]);
         foreach (var column in new[] { "input_tokens", "cached_input_tokens", "output_tokens", "context_tokens", "model",
                      "request_count", "first_request_input_tokens", "first_request_cached_tokens", "is_hydrated", "summary",
-                     "summary_model" })
+                     "summary_model", "app_pid" })
             Scalar($"ALTER TABLE conversation_turns DROP COLUMN {column}");
         Scalar("ALTER TABLE projects DROP COLUMN color");
         Scalar("ALTER TABLE conversations DROP COLUMN output_style");
@@ -251,7 +253,7 @@ public sealed class ConversationStoreTests : IDisposable
 
         await _store.InitializeAsync();
 
-        Assert.Equal(14L, Scalar("PRAGMA user_version"));
+        Assert.Equal(15L, Scalar("PRAGMA user_version"));
         Assert.Equal(ProjectColor.Default, Assert.Single(await _store.ListProjectsAsync()).Color);
         var conversations = await _store.ListConversationsAsync(project.Id);
         var upgraded = Assert.Single(conversations, c => c.Id == conversation.Id);
@@ -269,7 +271,7 @@ public sealed class ConversationStoreTests : IDisposable
         Assert.Equal(["prompt", "answer"], loaded.Parts.Select(p => p.Content));
         Assert.Null(loaded.Usage);
         Assert.Null(loaded.Model);
-        Assert.Equal((true, null), (loaded.IsHydrated, loaded.Summary));
+        Assert.Equal((true, null, null), (loaded.IsHydrated, loaded.Summary, loaded.AppProcessId));
     }
 
     [Fact]

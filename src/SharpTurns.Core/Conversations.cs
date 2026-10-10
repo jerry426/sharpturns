@@ -60,7 +60,8 @@ public enum TurnStatus { Running, Completed, Stopped, Failed }
 /// <summary>
 /// A hidden (not hydrated) turn stays out of the replayed context. A compressed turn replays its user inputs and
 /// Summary (a work summary plus the verbatim response; see TurnCompression) instead of its assistant text.
-/// SummaryModel is the model that wrote the summary; null when no model was needed.
+/// SummaryModel is the model that wrote the summary; null when no model was needed. AppProcessId is the process ID of
+/// the SharpTurns instance that ran the turn; null for turns saved before it was recorded.
 /// </summary>
 public sealed record ConversationTurn(
     long Id,
@@ -75,7 +76,8 @@ public sealed record ConversationTurn(
     string? Model = null,
     bool IsHydrated = true,
     string? Summary = null,
-    string? SummaryModel = null)
+    string? SummaryModel = null,
+    int? AppProcessId = null)
 {
     public bool IsCompressed => Summary is not null;
 }
