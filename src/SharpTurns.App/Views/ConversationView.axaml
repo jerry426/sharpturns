@@ -265,11 +265,23 @@
                       </ItemsControl>
                       <!-- Plain text is a read-only text box, so search can select its active match.
                            Each searchable control has a search class naming what it shows. -->
-                      <markdown:HighlightableTextBlock Classes="plainText searchPrompt" Text="{Binding UserText, Mode=OneWay}"
-                                                       Foreground="{DynamicResource TextPrimaryBrush}"
-                                                       FontFamily="{DynamicResource ConversationFontFamily}"
-                                                       FontSize="{DynamicResource ConversationFontSize}"
-                                                       LineHeight="{DynamicResource ConversationLineHeight}" />
+                      <Panel>
+                        <markdown:MarkdownDocumentBlock Classes="conversationMarkdown searchPrompt" Markdown="{Binding UserText}"
+                                                        IsVisible="{Binding $parent[UserControl].((vm:ConversationViewModel)DataContext).Display.IsMarkdownRenderingEnabled}"
+                                                        ContentForeground="{DynamicResource TextPrimaryBrush}"
+                                                        ContentFontFamily="{DynamicResource ConversationFontFamily}"
+                                                        ContentFontSize="{DynamicResource ConversationFontSize}"
+                                                        ContentLineHeight="{DynamicResource ConversationLineHeight}"
+                                                        CodeFontSize="{DynamicResource ConversationCodeFontSize}"
+                                                        TextIntensity="{DynamicResource ConversationTextIntensity}"
+                                                        CodeBlockColorTheme="DarkPlus" />
+                        <markdown:HighlightableTextBlock Classes="plainText searchPrompt" Text="{Binding UserText, Mode=OneWay}"
+                                                         IsVisible="{Binding $parent[UserControl].((vm:ConversationViewModel)DataContext).Display.IsMarkdownSourceShown}"
+                                                         Foreground="{DynamicResource TextPrimaryBrush}"
+                                                         FontFamily="{DynamicResource ConversationFontFamily}"
+                                                         FontSize="{DynamicResource ConversationFontSize}"
+                                                         LineHeight="{DynamicResource ConversationLineHeight}" />
+                      </Panel>
                       <Border Height="4" Background="{DynamicResource TextYellowBrush}" Margin="0,10,0,8" />
                       <TextBlock Text="ASSISTANT:" Foreground="#61AFEF" FontSize="15" FontWeight="SemiBold" />
 

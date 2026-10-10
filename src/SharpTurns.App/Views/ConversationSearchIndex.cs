@@ -45,14 +45,14 @@ internal sealed class ConversationSearchIndex
 
     /// <summary>
     /// The text the shown turns display, in order: each prompt, then its items. A collapsed tool card
-    /// or Work Summary card is left out. Response text is Markdown only when it renders as Markdown.
+    /// or Work Summary card is left out. Prompt and response text are Markdown only when they render as Markdown.
     /// </summary>
     public static IReadOnlyList<ConversationSearchSource> CaptureSources(IEnumerable<TurnViewModel> turns, bool renderMarkdown)
     {
         var sources = new List<ConversationSearchSource>();
         foreach (var turn in turns)
         {
-            sources.Add(new(turn, ConversationSearchSegmentKind.Prompt, turn.UserText, IsMarkdown: false));
+            sources.Add(new(turn, ConversationSearchSegmentKind.Prompt, turn.UserText, renderMarkdown));
             foreach (var item in turn.Items)
             {
                 switch (item)

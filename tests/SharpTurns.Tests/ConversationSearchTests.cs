@@ -41,8 +41,8 @@ public sealed class ConversationSearchTests
         first.Items.OfType<ToolItemViewModel>().Single().IsExpanded = true;
         Assert.Equal(8, ConversationSearchIndex.Build("bug", ConversationSearchIndex.CaptureSources(turns, renderMarkdown: true)).TotalMatches);
 
-        // Rendered Markdown is searched as displayed; its source, and the plain prompt, include the markup.
-        Assert.Equal(2, ConversationSearchIndex.Build("**", ConversationSearchIndex.CaptureSources(turns, renderMarkdown: true)).TotalMatches);
+        // Rendered Markdown, in the prompt and the response, is searched as displayed; its source includes the markup.
+        Assert.Equal(0, ConversationSearchIndex.Build("**", ConversationSearchIndex.CaptureSources(turns, renderMarkdown: true)).TotalMatches);
         Assert.Equal(4, ConversationSearchIndex.Build("**", ConversationSearchIndex.CaptureSources(turns, renderMarkdown: false)).TotalMatches);
     }
 
