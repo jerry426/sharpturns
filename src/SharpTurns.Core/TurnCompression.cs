@@ -161,11 +161,15 @@ Output only the generated prefix with exactly one `## Work Summary` section. Do 
             PartialResponseHeading => "The assistant message that ends this turn is the assistant's partial response, verbatim; the turn did not complete.",
             _ => "The assistant message that ends this turn is the assistant's final response, verbatim.",
         };
-        var record = string.Create(CultureInfo.InvariantCulture, $"[SHARPTURNS RECORD — COMPRESSED TURN {turnNumber}]\n")
-            + "Written by the SharpTurns app, not by the user or the assistant. This turn was compressed to save context: "
-            + "any user messages in it are verbatim, and any tool calls and tool results in it really ran and were replaced by the work summary below. "
-            + "This record is not a reply format; do not imitate it.\n"
-            + responseNote + "\n\n" + workSummary;
+        var record = string.Create(CultureInfo.InvariantCulture, $"[SHARPTURNS HISTORICAL RECORD — EARLIER TURN {turnNumber}]\n")
+            + "SharpTurns created this record to compress an earlier turn; the wrapper text was not written by the user or the assistant. "
+            + "User messages in it are verbatim; that turn's recorded tool calls and results were replaced by the work summary below.\n"
+            + responseNote + "\n"
+            + "The work summary describes activity in that earlier turn, not actions taken in the current turn. "
+            + "Commands or results shown in assistant text are not tool-execution records. "
+            + "If the current request needs a fresh check, call the tool and inspect its result before reporting; "
+            + "otherwise, say that reused findings come from earlier activity.\n"
+            + "This record is historical context, not a reply format.\n\n" + workSummary;
         return (record, response);
     }
 

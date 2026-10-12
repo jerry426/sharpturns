@@ -124,8 +124,8 @@ public sealed class ClaudeCodeContextTests
         using var json = JsonDocument.Parse(block.Text);
         // The summary is a record labeled as the app's, carrying the work summary; the response is the assistant's own message.
         var record = json.RootElement.GetProperty("summary").GetString();
-        Assert.StartsWith("[SHARPTURNS RECORD — COMPRESSED TURN 1]\nWritten by the SharpTurns app, not by the user or the assistant.", record);
-        Assert.Contains("\nThe assistant message that ends this turn is the assistant's final response, verbatim.\n\n", record);
+        Assert.StartsWith("[SHARPTURNS HISTORICAL RECORD — EARLIER TURN 1]\nSharpTurns created this record to compress an earlier turn;", record);
+        Assert.Contains("\nThe assistant message that ends this turn is the assistant's final response, verbatim.\n", record);
         Assert.EndsWith("\n\n## Work Summary\n\n- Looked.", record);
         var messages = json.RootElement.GetProperty("messages").EnumerateArray().ToArray();
         Assert.Equal(new (string?, string?)[]
