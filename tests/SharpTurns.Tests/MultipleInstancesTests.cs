@@ -178,6 +178,23 @@ public sealed class MultipleInstancesTests : IDisposable
         Assert.Equal(older.Id, main.CurrentConversation!.Conversation.Id);
     }
 
+    [Fact]
+    public async Task AProjectOnlyStartupSessionOpensTheProjectWithNoConversation()
+    {
+        var (store, project, _, _) = await CreateAsync();
+        var main = new MainWindowViewModel(store, new ClaudeTurnRunner(store), new TurnSummarizer(store),
+            new ApplicationPreferencesViewModel(store), locks: Locks(Path.Combine(_directory, "locks")));
+
+        await main.InitializeAsync(new AppStartupSession(project.Id, null));
+
+        // The project is saved as the last one after its conversation list loads and the selection is made.
+        for (var i = 0; i < 100 && await store.GetSettingAsync("last_project_id") is null; i++) await Task.Delay(20);
+        Assert.Equal(2, main.Conversations.Count);
+        Assert.Equal(project.Id, main.SelectedProject?.Id);
+        Assert.Null(main.SelectedConversation);
+        Assert.Null(main.CurrentConversation);
+    }
+
     private ConversationLocks Locks(string folder)
     {
         var locks = new ConversationLocks(folder);

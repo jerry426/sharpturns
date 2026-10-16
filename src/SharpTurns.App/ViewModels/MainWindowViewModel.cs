@@ -29,6 +29,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private readonly ConversationLocks _locks;
     private DispatcherTimer? _lockWaitTimer;
     private long? _conversationToRestore;
+    // A project-only startup session, from the Instance Manager's project Launch, opens with no conversation selected.
+    private bool _startWithoutConversation;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(WindowTitle), nameof(ProjectBorderColor), nameof(OtherProjects), nameof(OtherProjectsLabel),
@@ -111,6 +113,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         {
             OnPropertyChanged(nameof(OtherConversations));
             OnPropertyChanged(nameof(OtherConversationsLabel));
+            OnPropertyChanged(nameof(NoConversationText));
         };
     }
 
@@ -149,7 +152,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
         ? $"\"{locked.Title}\" is open in another SharpTurns instance. It opens here once that instance switches to another conversation or closes."
         : SelectedProject is null
             ? "Create a project on the Projects tab to get started."
-            : "Create a conversation to get started.";
+            : Conversations.Count > 0
+                ? "Select a conversation, or create one."
+                : "Create a conversation to get started.";
 
     /// <summary>A turn or summary is running in one of this instance's conversations.</summary>
     public bool IsAnyTurnActive => _openConversations.Values.Any(c => !c.IsIdle);
@@ -195,7 +200,10 @@ public sealed partial class MainWindowViewModel : ObservableObject
     /// <summary>Title and message; returns true when confirmed.</summary>
     public Func<string, string, Task<bool>>? ConfirmAsync { get; set; }
 
-    /// <summary>A startup session, from the Instance Manager's Reload, opens its project and conversation either way.</summary>
+    /// <summary>
+    /// A startup session, from the Instance Manager's Reload or project Launch, opens its project and conversation either
+    /// way; one without a conversation opens the project with none selected.
+    /// </summary>
     public async Task InitializeAsync(AppStartupSession? startupSession = null)
     {
         try
@@ -210,6 +218,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
             {
                 lastProject = startupSession.ProjectId;
                 _conversationToRestore = startupSession.ConversationId;
+                _startWithoutConversation = startupSession.ConversationId is null && Projects.Any(p => p.Id == lastProject);
             }
             else if (Preferences.RestoreLastSession)
             {
@@ -474,8 +483,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
             Conversations.Clear();
             foreach (var conversation in conversations) Conversations.Add(conversation);
             var restore = _conversationToRestore;
+            var selectNone = _startWithoutConversation;
             _conversationToRestore = null;
-            SelectedConversation = Conversations.FirstOrDefault(c => c.Id == restore) ?? Conversations.FirstOrDefault();
+            _startWithoutConversation = false;
+            SelectedConversation = selectNone
+                ? null
+                : Conversations.FirstOrDefault(c => c.Id == restore) ?? Conversations.FirstOrDefault();
             await SaveSettingAsync(LastProjectSetting, project.Id);
         }
         catch (Exception e) { ErrorMessage = "Couldn't load conversations: " + e.Message; }

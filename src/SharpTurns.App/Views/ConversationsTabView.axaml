@@ -11,6 +11,25 @@
       <views:ConversationView />
     </DataTemplate>
   </UserControl.DataTemplates>
+  <UserControl.Styles>
+    <Style Selector="Border.conversationRow">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="12,9" />
+    </Style>
+    <Style Selector="Button.cardButton:pointerover Border.conversationRow">
+      <Setter Property="Background" Value="#20242E" />
+    </Style>
+    <Style Selector="Border.conversationDivider">
+      <Setter Property="Height" Value="2" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+      <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+    <!-- No divider above the first conversation in the list. -->
+    <Style Selector="ContentPresenter:nth-child(1) > Button.cardButton Border.conversationDivider">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+  </UserControl.Styles>
 
   <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
     <Button Classes="secondaryActionButton" Content="›" Command="{Binding ToggleConversationSidebarCommand}"
@@ -41,7 +60,8 @@
         <Button Grid.Row="1" Classes="primaryActionButton dictationLocked" Content="+ New Conversation" Command="{Binding NewConversationCommand}"
                 HorizontalAlignment="Right" ToolTip.Tip="Create a conversation in this project" />
 
-        <Border Grid.Row="2" Classes="card" BorderBrush="{Binding ProjectBorderColor}" CornerRadius="12" Padding="12"
+        <!-- Square 3px inset border matches the Instance Manager's selected-row treatment. -->
+        <Border Grid.Row="2" Classes="card" BorderBrush="{Binding ProjectBorderColor}" BorderThickness="3" CornerRadius="0" Padding="10"
                 IsVisible="{Binding CurrentConversation, Converter={x:Static ObjectConverters.IsNotNull}}">
           <StackPanel Spacing="8">
             <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
@@ -216,20 +236,24 @@
           <ItemsControl ItemsSource="{Binding OtherConversations}" Margin="0,0,8,0">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="core:Conversation">
-                <Button Classes="cardButton dictationLocked" Margin="0,0,0,10" ToolTip.Tip="{Binding Title}"
+                <Button Classes="cardButton dictationLocked" ToolTip.Tip="{Binding Title}"
                         Command="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).SelectConversationCommand}"
                         CommandParameter="{Binding}">
-                  <Border Classes="card"
-                          BorderBrush="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).ProjectBorderColor}">
-                    <StackPanel Spacing="3">
-                      <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TextStrongBrush}" FontWeight="SemiBold"
-                                 FontSize="15" TextTrimming="CharacterEllipsis" />
-                      <TextBlock Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" TextTrimming="CharacterEllipsis">
-                        <Run Text="{Binding Id, StringFormat='ID {0} · '}" />
-                        <Run Text="{Binding UpdatedAt.LocalDateTime, StringFormat='{}{0:MMM d, h:mm tt}'}" />
-                      </TextBlock>
-                    </StackPanel>
-                  </Border>
+                  <!-- Plain row with a project-colored divider above it, matching the Instance Manager rows. -->
+                  <Panel>
+                    <Border Classes="conversationRow">
+                      <StackPanel Spacing="3">
+                        <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TextStrongBrush}" FontWeight="SemiBold"
+                                   FontSize="15" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" TextTrimming="CharacterEllipsis">
+                          <Run Text="{Binding Id, StringFormat='ID {0} · '}" />
+                          <Run Text="{Binding UpdatedAt.LocalDateTime, StringFormat='{}{0:MMM d, h:mm tt}'}" />
+                        </TextBlock>
+                      </StackPanel>
+                    </Border>
+                    <Border Classes="conversationDivider"
+                            Background="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).ProjectBorderColor}" />
+                  </Panel>
                 </Button>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
