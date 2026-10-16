@@ -31,6 +31,11 @@ public sealed class InstanceLauncher
         CancellationToken cancellationToken = default) =>
         LaunchAsync(instanceId, registered, new AppStartupSession(projectId, conversationId), cancellationToken);
 
+    /// <summary>Starts an instance that opens the project with no conversation selected.</summary>
+    public Task LaunchProjectAsync(long projectId, string instanceId, Task registered,
+        CancellationToken cancellationToken = default) =>
+        ReloadAsync(projectId, conversationId: null, instanceId, registered, cancellationToken);
+
     private async Task LaunchAsync(string instanceId, Task registered, AppStartupSession? startupSession,
         CancellationToken cancellationToken)
     {

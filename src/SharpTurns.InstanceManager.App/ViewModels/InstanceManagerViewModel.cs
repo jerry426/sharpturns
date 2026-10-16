@@ -10,7 +10,7 @@ using SharpTurns.InstanceManager.App.Services;
 namespace SharpTurns.InstanceManager.App.ViewModels;
 
 /// <summary>
-/// Shows live local IPC reports as cards in one list and coordinates window linking.
+/// Shows live local IPC reports as instance cards grouped into project cards and coordinates window linking.
 /// </summary>
 public sealed partial class InstanceManagerViewModel : ObservableObject, IAsyncDisposable
 {
@@ -26,13 +26,18 @@ public sealed partial class InstanceManagerViewModel : ObservableObject, IAsyncD
 
     private bool _disposed;
 
-    public ObservableCollection<InstanceCardViewModel> Instances { get; } = new();
+    // One project card per project; order is in-memory only.
+    public ObservableCollection<ProjectGroupViewModel> Projects { get; } = new();
 
     // Actions handed to each card so its buttons, and a click on the card, call back into the manager without needing a
     // relative-source DataContext binding.
     private readonly Action<InstanceCardViewModel> _stopAction;
     private readonly Action<InstanceCardViewModel> _reloadAction;
+    // Clicking a card or its Front button brings the instance to the front without linking it; only the Attach button
+    // and launch auto-attach link an instance.
     private readonly Action<InstanceCardViewModel> _focusAction;
+    private readonly Action<InstanceCardViewModel> _attachAction;
+    private readonly Action<InstanceCardViewModel> _detachAction;
 
     // Optional confirmation gates (set by App.axaml.cs) that prompt the user before ending or reloading a process. When
     // null (e.g. in tests) the instance is ended without prompting.
@@ -40,9 +45,13 @@ public sealed partial class InstanceManagerViewModel : ObservableObject, IAsyncD
     private readonly Func<InstanceCardViewModel, Task<bool>>? _confirmReload;
 
     [ObservableProperty] private string? _statusText;
-    [ObservableProperty] private bool _canLaunch;
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(LaunchProjectCommand))]
+    private bool _canLaunch;
     [ObservableProperty] private InstanceCardViewModel? _selectedInstance;
     [ObservableProperty] private bool _hasLinkedInstance;
+    // New cards follow the last Collapse All or Expand All.
+    [ObservableProperty] private bool _isCollapsed = true;
 
     public InstanceManagerViewModel(
         InstanceManagerServer server,
@@ -63,10 +72,30 @@ public sealed partial class InstanceManagerViewModel : ObservableObject, IAsyncD
         _stopAction = card => _ = ConfirmAndStopAsync(card);
         _reloadAction = card => _ = ConfirmAndStopAsync(card, reload: true);
         _focusAction = card => _ = FocusInstanceAsync(card);
+        _attachAction = card => _ = AttachInstanceAsync(card);
+        _detachAction = card => _ = DetachInstanceAsync(card);
         CanLaunch = launcher.HasLaunchTarget;
     }
 
     private async Task FocusInstanceAsync(InstanceCardViewModel card)
+    {
+        if (card.IsLinked)
+        {
+            // Already linked: AttachInstanceAsync only selects and activates it.
+            await AttachInstanceAsync(card).ConfigureAwait(true);
+            return;
+        }
+
+        // Raise the standalone window wherever it currently is.
+        var focused = await _focuser.FocusAsync(card.Pid, _cts.Token).ConfigureAwait(true);
+        if (_disposed)
+            return;
+        StatusText = focused
+            ? $"Brought instance (PID {card.Pid}) to the front."
+            : $"Could not bring instance {card.Pid} to the front.";
+    }
+
+    private async Task AttachInstanceAsync(InstanceCardViewModel card)
     {
         if (ReferenceEquals(SelectedInstance, card) && card.IsLinked)
         {
@@ -111,7 +140,7 @@ public sealed partial class InstanceManagerViewModel : ObservableObject, IAsyncD
         UpdateHasLinkedInstance();
         var focused = await _focuser.FocusAsync(card.Pid, _cts.Token).ConfigureAwait(true);
         StatusText = focused
-            ? $"Focused instance (PID {card.Pid}); linked-window control is unavailable."
+            ? $"Could not attach instance (PID {card.Pid}); focused the window instead. {result.Error}"
             : $"Could not link or focus instance {card.Pid}: {result.Error}";
     }
 
@@ -119,7 +148,7 @@ public sealed partial class InstanceManagerViewModel : ObservableObject, IAsyncD
     private async Task DetachAsync()
     {
         Interlocked.Increment(ref _selectionGeneration);
-        var linkedCards = Instances.Where(card => card.IsLinked).ToArray();
+        var linkedCards = EnumerateCards().Where(card => card.IsLinked).ToArray();
         await _windowCoordinator.DetachAsync(CancellationToken.None).ConfigureAwait(true);
         foreach (var card in linkedCards)
         {
@@ -138,11 +167,26 @@ public sealed partial class InstanceManagerViewModel : ObservableObject, IAsyncD
             : $"Detached {linkedCards.Length} linked instance(s).";
     }
 
+    private async Task DetachInstanceAsync(InstanceCardViewModel card)
+    {
+        if (ReferenceEquals(SelectedInstance, card))
+        {
+            Interlocked.Increment(ref _selectionGeneration);
+            card.IsSelected = false;
+            SelectedInstance = null;
+        }
+
+        await _windowCoordinator.DetachAsync(card.Pid, CancellationToken.None).ConfigureAwait(true);
+        card.IsLinked = false;
+        UpdateHasLinkedInstance();
+        StatusText = $"Detached instance (PID {card.Pid}).";
+    }
+
     private void OnLinkedWindowConnectionChanged(
         object? sender,
         LinkedWindowConnectionChangedEventArgs e)
     {
-        var card = Instances.FirstOrDefault(candidate => candidate.Pid == e.Pid);
+        var card = EnumerateCards().FirstOrDefault(candidate => candidate.Pid == e.Pid);
         if (card is null)
         {
             return;
@@ -156,8 +200,69 @@ public sealed partial class InstanceManagerViewModel : ObservableObject, IAsyncD
         }
     }
 
+    [RelayCommand]
+    private void CollapseAll() => SetCollapsed(true);
+
+    [RelayCommand]
+    private void ExpandAll() => SetCollapsed(false);
+
+    private void SetCollapsed(bool collapsed)
+    {
+        IsCollapsed = collapsed;
+        foreach (var card in EnumerateCards())
+            card.IsCollapsed = collapsed;
+    }
+
+    private IEnumerable<InstanceCardViewModel> EnumerateCards() => Projects.SelectMany(group => group.Instances);
+
+    private ProjectGroupViewModel? FindGroup(InstanceCardViewModel card) =>
+        Projects.FirstOrDefault(group => group.Instances.Contains(card));
+
+    /// <summary>
+    /// Puts the card in its project's card, appending it (and creating the project card at the bottom) when its project
+    /// has changed.
+    /// </summary>
+    private void PlaceCard(InstanceCardViewModel card)
+    {
+        var current = FindGroup(card);
+        if (current is null || current.ProjectId != card.ProjectId)
+        {
+            if (current is not null)
+                RemoveCard(card);
+            current = Projects.FirstOrDefault(group => group.ProjectId == card.ProjectId);
+            if (current is null)
+            {
+                current = new ProjectGroupViewModel(card.ProjectId);
+                Projects.Add(current);
+            }
+            current.Instances.Add(card);
+            UpdateProjectSelection();
+        }
+        current.UpdateFrom(card);
+    }
+
+    /// <summary>Removes the card, dropping its project card once it is empty.</summary>
+    private void RemoveCard(InstanceCardViewModel card)
+    {
+        if (FindGroup(card) is not { } group)
+            return;
+        group.Instances.Remove(card);
+        if (group.Instances.Count == 0)
+            Projects.Remove(group);
+        UpdateProjectSelection();
+    }
+
+    partial void OnSelectedInstanceChanged(InstanceCardViewModel? value) => UpdateProjectSelection();
+
+    /// <summary>Marks the project card holding the selected instance card.</summary>
+    private void UpdateProjectSelection()
+    {
+        foreach (var group in Projects)
+            group.HasSelectedInstance = SelectedInstance is { } selected && group.Instances.Contains(selected);
+    }
+
     private void UpdateHasLinkedInstance() =>
-        HasLinkedInstance = Instances.Any(card => card.IsLinked);
+        HasLinkedInstance = EnumerateCards().Any(card => card.IsLinked);
 
     private async Task ConfirmAndStopAsync(InstanceCardViewModel card, bool reload = false)
     {
@@ -171,7 +276,7 @@ public sealed partial class InstanceManagerViewModel : ObservableObject, IAsyncD
                 return;
 
             // State may have changed while the confirmation dialog was open.
-            if (card.TurnActive || _disposed || !Instances.Contains(card))
+            if (card.TurnActive || _disposed || !EnumerateCards().Contains(card))
                 return;
             var projectId = card.ProjectId;
             var conversationId = card.ConversationId;
@@ -227,7 +332,7 @@ public sealed partial class InstanceManagerViewModel : ObservableObject, IAsyncD
                     {
                         if (!_cpuSamplers.TryGetValue(id, out var current) || current != sampled)
                             continue;
-                        var card = Instances.FirstOrDefault(candidate => candidate.Id == id);
+                        var card = EnumerateCards().FirstOrDefault(candidate => candidate.Id == id);
                         if (card is not null && card.Pid == sampled.Pid)
                             card.CpuLabel = cpu is { } value ? $"CPU {value:F1}%" : "CPU —";
                     }
@@ -244,13 +349,13 @@ public sealed partial class InstanceManagerViewModel : ObservableObject, IAsyncD
     {
         if (_disposed)
             return;
-        var card = Instances.FirstOrDefault(candidate => candidate.Id == record.Id);
+        var card = EnumerateCards().FirstOrDefault(candidate => candidate.Id == record.Id);
         if (record.Status == "stopped")
         {
             _cpuSamplers.TryRemove(record.Id, out _);
             if (card is null)
                 return;
-            Instances.Remove(card);
+            RemoveCard(card);
             if (ReferenceEquals(SelectedInstance, card))
             {
                 Interlocked.Increment(ref _selectionGeneration);
@@ -268,21 +373,25 @@ public sealed partial class InstanceManagerViewModel : ObservableObject, IAsyncD
                 card.CpuLabel = "CPU —";
             }
             card.UpdateFrom(record);
+            PlaceCard(card);
         }
         else
         {
-            card = new InstanceCardViewModel(record, _stopAction, _focusAction, _reloadAction);
+            card = new InstanceCardViewModel(record, _stopAction, _focusAction, _reloadAction, _detachAction, _attachAction)
+            {
+                IsCollapsed = IsCollapsed
+            };
             _cpuSamplers[record.Id] = (record.Pid, new ProcessCpuSampler(record.Pid));
-            Instances.Add(card);
+            PlaceCard(card);
             var pending = Volatile.Read(ref _pendingAutoAttachInstanceId);
             if (pending == record.Id
                 && Interlocked.CompareExchange(ref _pendingAutoAttachInstanceId, null, pending) == pending)
-                _ = FocusInstanceAsync(card);
+                _ = AttachInstanceAsync(card);
             else
                 _ = AttachDiscoveredInstanceAsync(card);
         }
         UpdateHasLinkedInstance();
-        StatusText = $"Monitoring {Instances.Count} running instance(s).";
+        StatusText = $"Monitoring {EnumerateCards().Count()} running instance(s).";
     }
 
     private async Task AttachDiscoveredInstanceAsync(InstanceCardViewModel card)
@@ -290,7 +399,7 @@ public sealed partial class InstanceManagerViewModel : ObservableObject, IAsyncD
         try
         {
             var result = await _windowCoordinator.AttachAsync(card.Pid, activate: false, _cts.Token);
-            if (_disposed || !Instances.Contains(card))
+            if (_disposed || !EnumerateCards().Contains(card))
             {
                 await _windowCoordinator.DetachAsync(card.Pid, CancellationToken.None);
                 return;
@@ -308,6 +417,14 @@ public sealed partial class InstanceManagerViewModel : ObservableObject, IAsyncD
 
     [RelayCommand]
     private Task LaunchAsync() => LaunchInstanceAsync(_launcher.LaunchAsync);
+
+    [RelayCommand(CanExecute = nameof(CanLaunchProject))]
+    private Task LaunchProjectAsync(ProjectGroupViewModel? group) =>
+        group?.ProjectId is { } projectId
+            ? LaunchInstanceAsync((id, registered, token) => _launcher.LaunchProjectAsync(projectId, id, registered, token))
+            : Task.CompletedTask;
+
+    private bool CanLaunchProject(ProjectGroupViewModel? group) => CanLaunch && group?.ProjectId is not null;
 
     private async Task LaunchInstanceAsync(Func<string, Task, CancellationToken, Task> launch)
     {
@@ -407,28 +524,30 @@ public sealed partial class InstanceManagerViewModel : ObservableObject, IAsyncD
     }
 
     /// <summary>
-    /// Moves an instance card to <paramref name="insertBefore"/> (an index into the current list, 0..count, counted
-    /// including the moved item). Used by the view's drag-to-reorder handling. No-op if the id is not found.
+    /// Moves a project card to <paramref name="insertBefore"/> (an index into the project list, 0..count, counted
+    /// including the moved item). Used by the view's drag-to-reorder handling. No-op if the group is not listed.
     /// </summary>
-    public void MoveInstance(string instanceId, int insertBefore)
-    {
-        var from = -1;
-        for (var i = 0; i < Instances.Count; i++)
-        {
-            if (Instances[i].Id == instanceId)
-            {
-                from = i;
-                break;
-            }
-        }
+    public void MoveProject(ProjectGroupViewModel group, int insertBefore) => MoveItem(Projects, group, insertBefore);
 
+    /// <summary>
+    /// Moves an instance card to <paramref name="insertBefore"/> within its own project card (0..count, counted
+    /// including the moved item). Instances never move between project cards. No-op if the card is not found.
+    /// </summary>
+    public void MoveInstance(InstanceCardViewModel card, int insertBefore)
+    {
+        if (FindGroup(card) is { } group)
+            MoveItem(group.Instances, card, insertBefore);
+    }
+
+    private static void MoveItem<T>(ObservableCollection<T> list, T item, int insertBefore)
+    {
+        var from = list.IndexOf(item);
         if (from < 0)
         {
             return;
         }
 
-        var item = Instances[from];
-        Instances.RemoveAt(from);
+        list.RemoveAt(from);
 
         // insertBefore was computed against the list that still included the dragged item; compensate for its removal.
         var target = insertBefore;
@@ -437,8 +556,8 @@ public sealed partial class InstanceManagerViewModel : ObservableObject, IAsyncD
             target--;
         }
 
-        target = Math.Clamp(target, 0, Instances.Count);
-        Instances.Insert(target, item);
+        target = Math.Clamp(target, 0, list.Count);
+        list.Insert(target, item);
     }
 
     public async ValueTask DisposeAsync()

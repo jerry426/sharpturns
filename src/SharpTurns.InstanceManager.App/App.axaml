@@ -26,18 +26,51 @@
       <Setter Property="BorderBrush" Value="#252d3c" />
       <Setter Property="Foreground" Value="#586276" />
     </Style>
+    <!-- Rows span the project panel edge to edge, so the hover background, divider and selection band all reach the
+         project border. -->
     <Style Selector="Border.cardPanel">
-      <Setter Property="Background" Value="#0d1017" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="8" />
-      <Setter Property="Padding" Value="10" />
+      <Setter Property="Background" Value="Transparent" />
     </Style>
     <Style Selector="Border.cardPanel:pointerover">
       <Setter Property="Background" Value="#141a26" />
     </Style>
-    <Style Selector="Border.cardPanel.selected">
-      <Setter Property="Background" Value="#191919" />
-      <Setter Property="BorderThickness" Value="5" />
+    <!-- Every row, including the first, has a divider above it. -->
+    <Style Selector="Border.cardDivider">
+      <Setter Property="Height" Value="2" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+      <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+    <!-- Selected conversation: a full-width band between the dividers. #424242 keeps the dimmest text (#AAB3C5 model
+         name) at about 4.8:1 contrast. -->
+    <Style Selector="Border.cardSelection">
+      <Setter Property="Background" Value="#424242" />
+      <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+    <!-- The project panel has no horizontal padding; the header and row content carry the inset instead (2px border +
+         8px, plus the row's own 10px). -->
+    <Style Selector="Border.projectPanel">
+      <Setter Property="Background" Value="#11151e" />
+      <Setter Property="BorderThickness" Value="2" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="0,8,0,6" />
+    </Style>
+    <Style Selector="Border.projectPanel Grid.projectHeader">
+      <Setter Property="Margin" Value="10,0,8,6" />
+    </Style>
+    <Style Selector="Border.projectPanel StackPanel.cardContent">
+      <Setter Property="Margin" Value="18,9" />
+    </Style>
+    <!-- Project holding the selected conversation: triple border, with padding and insets reduced by the extra 4px so
+         the content doesn't shift. -->
+    <Style Selector="Border.projectPanel.selected">
+      <Setter Property="BorderThickness" Value="6" />
+      <Setter Property="Padding" Value="0,4,0,2" />
+    </Style>
+    <Style Selector="Border.projectPanel.selected Grid.projectHeader">
+      <Setter Property="Margin" Value="6,0,4,6" />
+    </Style>
+    <Style Selector="Border.projectPanel.selected StackPanel.cardContent">
+      <Setter Property="Margin" Value="14,9" />
     </Style>
     <Style Selector="Border.linkedBadge">
       <Setter Property="Background" Value="#173429" />

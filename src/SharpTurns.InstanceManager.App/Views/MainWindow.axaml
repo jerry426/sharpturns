@@ -7,11 +7,89 @@
         Width="380" Height="860" MinWidth="340" MaxWidth="460" MinHeight="560"
         Background="#0e1118"
         WindowStartupLocation="CenterScreen">
-  <!-- One list of running instances. -->
+  <Window.DataTemplates>
+    <!-- Project card: drag its header or edges to reorder projects.
+         Each list sits in a Grid with its drop indicator; the code-behind relies on that. -->
+    <DataTemplate DataType="vm:ProjectGroupViewModel">
+      <Border Classes="projectPanel"
+              Classes.selected="{Binding HasSelectedInstance}"
+              BorderBrush="{Binding ProjectBorderColor}"
+              Margin="0,0,0,8"
+              PointerPressed="Project_PointerPressed"
+              PointerMoved="Drag_PointerMoved"
+              PointerReleased="Drag_PointerReleased">
+        <DockPanel>
+          <Grid DockPanel.Dock="Top" Classes="projectHeader" ColumnDefinitions="*,Auto">
+            <TextBlock Text="{Binding ProjectTitle, TargetNullValue='(no project)'}" VerticalAlignment="Center"
+                       FontSize="16.25" FontWeight="SemiBold" Foreground="#00E5FF" TextTrimming="CharacterEllipsis"
+                       ToolTip.Tip="Drag to reorder projects" />
+            <Button Grid.Column="1" Classes="launchBtn" Content="+ Launch" Padding="9,3" FontSize="12" Margin="8,0,0,0"
+                    IsVisible="{Binding ProjectId, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    Command="{Binding $parent[Window].((vm:InstanceManagerViewModel)DataContext).LaunchProjectCommand}"
+                    CommandParameter="{Binding}"
+                    ToolTip.Tip="Start another SharpTurns instance opened to this project, with no conversation selected" />
+          </Grid>
+          <Grid>
+            <ItemsControl ItemsSource="{Binding Instances}" />
+            <Border Classes="dropIndicator" />
+          </Grid>
+        </DockPanel>
+      </Border>
+    </DataTemplate>
+    <DataTemplate DataType="vm:InstanceCardViewModel">
+      <!-- Conversation row: a divider sits above every row; the selected row gets a
+           background band behind it. Both reach the project border (see App.axaml). -->
+      <Border Classes="cardPanel"
+              Classes.selected="{Binding IsSelected}"
+              ToolTip.Tip="Click to bring to the front (and select, if linked), or drag to reorder within the project"
+              PointerPressed="Card_PointerPressed"
+              PointerMoved="Drag_PointerMoved"
+              PointerReleased="Drag_PointerReleased">
+        <Panel>
+          <Border Classes="cardSelection" IsVisible="{Binding IsSelected}" />
+          <StackPanel Classes="cardContent" Spacing="3">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+              <TextBlock Grid.Column="0" Text="{Binding ConversationTitle, TargetNullValue='(no conversation)'}" FontSize="17" Foreground="#FFD54A" TextTrimming="CharacterEllipsis" />
+              <Border Grid.Column="1" Classes="linkedBadge" IsVisible="{Binding IsLinked}" VerticalAlignment="Center">
+                <TextBlock Text="LINKED" FontSize="9" FontWeight="Bold" Foreground="#42E38F" />
+              </Border>
+              <Button Grid.Column="2" Classes="secondaryBtn" Content="{Binding CollapseToggleLabel}" Command="{Binding ToggleCollapsedCommand}"
+                      FontSize="12" Padding="7,1" Margin="6,0,0,0" VerticalAlignment="Center" ToolTip.Tip="{Binding CollapseToggleToolTip}" />
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsCollapsed}">
+              <TextBlock Grid.Column="0" Text="{Binding ConversationModel}" FontSize="11" Foreground="#AAB3C5" TextTrimming="CharacterEllipsis" IsVisible="{Binding HasConversationModel}" />
+              <TextBlock Grid.Column="1" Text="{Binding CpuLabel}" Margin="9,0,0,0" FontSize="11" Foreground="#AAB3C5"
+                         ToolTip.Tip="SharpTurns process CPU, sampled every 2 seconds. 100% = one logical core; may exceed 100%. Excludes child processes such as claude. — = waiting for samples or unavailable." />
+            </Grid>
+            <StackPanel Spacing="3" IsVisible="{Binding !IsCollapsed}">
+              <TextBlock Text="{Binding ConversationModel}" FontSize="11" Foreground="#AAB3C5" TextTrimming="CharacterEllipsis" IsVisible="{Binding HasConversationModel}" />
+              <Grid ColumnDefinitions="Auto,Auto,*" Margin="0,3,0,0">
+                <TextBlock Text="{Binding PidLabel}" FontSize="15" Foreground="#FFFFFF" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="{Binding HeartbeatLabel}" Margin="9,0,0,0" FontSize="15" Foreground="#FFFFFF" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2" Text="{Binding CpuLabel}" Margin="9,0,0,0" MinWidth="100" TextAlignment="Right" FontSize="13" Foreground="#FFFFFF" VerticalAlignment="Center"
+                           ToolTip.Tip="SharpTurns process CPU, sampled every 2 seconds. 100% = one logical core; may exceed 100%. Excludes child processes such as claude. — = waiting for samples or unavailable." />
+              </Grid>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,2,0,0" IsVisible="{Binding TurnActive}">
+              <TextBlock Text="● turn in progress" FontSize="10" FontWeight="SemiBold" Foreground="#FFB454" VerticalAlignment="Center" />
+              <ProgressBar Classes="turnProgressBar" IsIndeterminate="{Binding TurnActive}" Width="90" Height="4" VerticalAlignment="Center" />
+            </StackPanel>
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="0,5,0,0" IsVisible="{Binding !IsCollapsed}">
+              <Button Grid.Column="0" Classes="stopBtn" Content="End Process" Command="{Binding StopCommand}" Margin="0,0,7,0" ToolTip.Tip="End the running process (disabled while a turn or summary is running in any of its conversations)" />
+              <Button Grid.Column="1" Classes="secondaryBtn" Content="Reload" Command="{Binding ReloadCommand}" Margin="0,0,7,0" ToolTip.Tip="Restart this SharpTurns instance to pick up development changes, reopening the same project and conversation. Disabled while a turn or summary is running." />
+              <Button Grid.Column="3" Classes="secondaryBtn" Content="Front" Command="{Binding FocusCommand}" Margin="0,0,7,0" ToolTip.Tip="Bring this SharpTurns instance to the front where it is now, without attaching or moving it. Same as clicking the card." />
+              <Button Grid.Column="4" Classes="secondaryBtn" Content="{Binding AttachToggleLabel}" Command="{Binding ToggleAttachCommand}" ToolTip.Tip="{Binding AttachToggleToolTip}" />
+            </Grid>
+          </StackPanel>
+          <Border Classes="cardDivider" Background="{Binding ProjectBorderColor}" />
+        </Panel>
+      </Border>
+    </DataTemplate>
+  </Window.DataTemplates>
   <Grid RowDefinitions="Auto,*,Auto">
 
     <Border Grid.Row="0" Padding="14,11" Background="#151923">
-      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+      <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8">
         <StackPanel Grid.Column="0" Spacing="1">
           <TextBlock Text="SharpTurns" FontSize="17" FontWeight="SemiBold" Foreground="#F4F7FB" />
           <TextBlock Text="INSTANCE MANAGER" FontSize="10" FontWeight="Bold" Foreground="#8792A8" />
@@ -30,51 +108,19 @@
                 IsEnabled="{Binding CanLaunch}"
                 VerticalAlignment="Center"
                 ToolTip.Tip="Start another SharpTurns instance from this repository with dotnet run" />
+        <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="6" Margin="0,9,0,0">
+          <Button Classes="secondaryBtn" Content="Collapse All" Command="{Binding CollapseAllCommand}" FontSize="12" Padding="10,4"
+                  ToolTip.Tip="Collapse every instance card" />
+          <Button Classes="secondaryBtn" Content="Expand All" Command="{Binding ExpandAllCommand}" FontSize="12" Padding="10,4"
+                  ToolTip.Tip="Expand every instance card" />
+        </StackPanel>
       </Grid>
     </Border>
 
     <ScrollViewer Grid.Row="1">
-      <Grid x:Name="ListOverlay" Margin="8">
-        <ItemsControl x:Name="InstanceList" ItemsSource="{Binding Instances}">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate DataType="vm:InstanceCardViewModel">
-              <Border Classes="cardPanel"
-                      Classes.selected="{Binding IsSelected}"
-                      BorderBrush="{Binding ProjectBorderColor}"
-                      Margin="0,0,0,7"
-                      ToolTip.Tip="Click to link and select, or drag to reorder"
-                      PointerPressed="Card_PointerPressed"
-                      PointerMoved="Card_PointerMoved"
-                      PointerReleased="Card_PointerReleased">
-                <StackPanel Spacing="3">
-                  <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Grid.Column="0" Text="{Binding ProjectTitle, TargetNullValue='(no project)'}" FontSize="13" FontWeight="SemiBold" Foreground="#00E5FF" TextTrimming="CharacterEllipsis" />
-                    <Border Grid.Column="1" Classes="linkedBadge" IsVisible="{Binding IsLinked}">
-                      <TextBlock Text="LINKED" FontSize="9" FontWeight="Bold" Foreground="#42E38F" />
-                    </Border>
-                  </Grid>
-                  <TextBlock Text="{Binding ConversationTitle, TargetNullValue='(no conversation)'}" FontSize="17" Foreground="#FFD54A" TextTrimming="CharacterEllipsis" />
-                  <TextBlock Text="{Binding ConversationModel}" FontSize="11" Foreground="#AAB3C5" TextTrimming="CharacterEllipsis" IsVisible="{Binding HasConversationModel}" />
-                  <Grid ColumnDefinitions="Auto,Auto,*" Margin="0,3,0,0">
-                    <TextBlock Text="{Binding PidLabel}" FontSize="15" Foreground="#FFFFFF" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="1" Text="{Binding HeartbeatLabel}" Margin="9,0,0,0" FontSize="15" Foreground="#FFFFFF" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="2" Text="{Binding CpuLabel}" Margin="9,0,0,0" MinWidth="100" TextAlignment="Right" FontSize="13" Foreground="#FFFFFF" VerticalAlignment="Center"
-                               ToolTip.Tip="SharpTurns process CPU, sampled every 2 seconds. 100% = one logical core; may exceed 100%. Excludes child processes such as claude. — = waiting for samples or unavailable." />
-                  </Grid>
-                  <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,2,0,0" IsVisible="{Binding TurnActive}">
-                    <TextBlock Text="● turn in progress" FontSize="10" FontWeight="SemiBold" Foreground="#FFB454" VerticalAlignment="Center" />
-                    <ProgressBar Classes="turnProgressBar" IsIndeterminate="{Binding TurnActive}" Width="90" Height="4" VerticalAlignment="Center" />
-                  </StackPanel>
-                  <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,5,0,0">
-                    <Button Classes="stopBtn" Content="End Process" Command="{Binding StopCommand}" ToolTip.Tip="End the running process (disabled while a turn or summary is running in any of its conversations)" />
-                    <Button Classes="secondaryBtn" Content="Reload" Command="{Binding ReloadCommand}" ToolTip.Tip="Restart this SharpTurns instance to pick up development changes, reopening the same project and conversation. Disabled while a turn or summary is running." />
-                  </StackPanel>
-                </StackPanel>
-              </Border>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-        <Border x:Name="DropIndicator" Classes="dropIndicator" />
+      <Grid Margin="8">
+        <ItemsControl ItemsSource="{Binding Projects}" />
+        <Border Classes="dropIndicator" />
       </Grid>
     </ScrollViewer>
 

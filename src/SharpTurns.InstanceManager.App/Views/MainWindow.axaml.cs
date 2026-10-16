@@ -8,10 +8,12 @@ namespace SharpTurns.InstanceManager.App.Views;
 
 public sealed partial class MainWindow : Window
 {
-    // Drag-to-reorder state. Press on a card body starts tracking; movement past a threshold begins a drag (reorder on
-    // release). A press+release without movement is treated as a click and focuses that instance instead.
-    private InstanceCardViewModel? _dragItem;
+    // Drag-to-reorder state. Press on a project or instance card starts tracking; movement past a threshold begins a
+    // drag (reorder on release). Project cards reorder in the project list; instance cards reorder within their project
+    // card. A press+release without movement on an instance card is treated as a click and focuses that instance instead.
+    private object? _dragItem;
     private Border? _dragCard;
+    private ItemsControl? _dragList;
     private Point _dragStart;
     private bool _dragging;
     private const double DragThreshold = 5.0;
@@ -21,11 +23,23 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
     }
 
-    private void ShowDropIndicator(Point pointerInPanel)
+    // Each list sits in a Grid alongside its drop indicator (see MainWindow.axaml).
+    private static (Grid Overlay, Border Indicator)? OverlayForList(ItemsControl list) =>
+        list.Parent is Grid overlay
+        && overlay.Children.OfType<Border>().FirstOrDefault(b => b.Classes.Contains("dropIndicator")) is { } indicator
+            ? (overlay, indicator)
+            : null;
+
+    private static void ShowDropIndicator(ItemsControl list, Point pointerInPanel)
     {
-        if (InstanceList.ItemsPanelRoot is not { } panel)
+        if (OverlayForList(list) is not (var overlay, var indicator))
         {
-            DropIndicator.IsVisible = false;
+            return;
+        }
+
+        if (list.ItemsPanelRoot is not { } panel)
+        {
+            indicator.IsVisible = false;
             return;
         }
 
@@ -35,70 +49,93 @@ public sealed partial class MainWindow : Window
         bool atBottom;
         if (insertBefore < panel.Children.Count)
         {
-            anchor = InstanceList.ContainerFromIndex(insertBefore) as Control;
+            anchor = list.ContainerFromIndex(insertBefore) as Control;
             atBottom = false;
         }
         else if (panel.Children.Count > 0)
         {
-            anchor = InstanceList.ContainerFromIndex(panel.Children.Count - 1) as Control;
+            anchor = list.ContainerFromIndex(panel.Children.Count - 1) as Control;
             atBottom = true;
         }
         else
         {
-            DropIndicator.IsVisible = false;
+            indicator.IsVisible = false;
             return;
         }
 
         if (anchor is null)
         {
-            DropIndicator.IsVisible = false;
+            indicator.IsVisible = false;
             return;
         }
 
         var y = atBottom
-            ? anchor.TranslatePoint(new Point(0, anchor.Bounds.Height), ListOverlay)?.Y ?? double.NaN
-            : anchor.TranslatePoint(new Point(0, 0), ListOverlay)?.Y ?? double.NaN;
+            ? anchor.TranslatePoint(new Point(0, anchor.Bounds.Height), overlay)?.Y ?? double.NaN
+            : anchor.TranslatePoint(new Point(0, 0), overlay)?.Y ?? double.NaN;
 
         if (double.IsNaN(y))
         {
-            DropIndicator.IsVisible = false;
+            indicator.IsVisible = false;
             return;
         }
 
         // Clamp to the overlay so a line scrolled just out of view still renders at the edge rather than disappearing.
-        var maxY = ListOverlay.Bounds.Height - DropIndicator.Bounds.Height;
+        var maxY = overlay.Bounds.Height - indicator.Bounds.Height;
         if (maxY > 0)
         {
             y = Math.Max(0, Math.Min(y, maxY));
         }
 
-        DropIndicator.Margin = new Thickness(0, y, 0, 0);
-        DropIndicator.IsVisible = true;
+        indicator.Margin = new Thickness(0, y, 0, 0);
+        indicator.IsVisible = true;
+    }
+
+    private static void HideDropIndicator(ItemsControl list)
+    {
+        if (OverlayForList(list) is (_, var indicator))
+        {
+            indicator.IsVisible = false;
+        }
     }
 
     private void Card_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        // Don't start a drag when the press lands on a nested button (End Process or Reload).
-        if (IsOverButton(e.Source))
+        if (sender is Border { DataContext: InstanceCardViewModel } card)
+        {
+            BeginTracking(card, e);
+        }
+    }
+
+    private void Project_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is Border { DataContext: ProjectGroupViewModel } card)
+        {
+            BeginTracking(card, e);
+        }
+    }
+
+    private void BeginTracking(Border card, PointerPressedEventArgs e)
+    {
+        // Don't start a drag when the press lands on a nested button (Launch, the collapse toggle, End Process, Reload).
+        if (IsOverButton(e.Source) || card.FindAncestorOfType<ItemsControl>() is not { } list)
         {
             return;
         }
 
-        if (sender is not Border card || card.DataContext is not InstanceCardViewModel vm)
-        {
-            return;
-        }
-
+        // Keep an instance card's press from also starting its project card's drag.
+        e.Handled = true;
         _dragCard = card;
-        _dragItem = vm;
+        _dragItem = card.DataContext;
+        _dragList = list;
         _dragStart = e.GetPosition(card);
         _dragging = false;
         e.Pointer.Capture(card);
     }
 
-    private void Card_PointerMoved(object? sender, PointerEventArgs e)
+    private void Drag_PointerMoved(object? sender, PointerEventArgs e)
     {
-        if (_dragCard is null)
+        // Moves bubble from a captured instance card to its project card; only the tracked card handles them.
+        if (_dragCard is null || !ReferenceEquals(sender, _dragCard) || _dragList is null)
         {
             return;
         }
@@ -116,23 +153,25 @@ public sealed partial class MainWindow : Window
         }
 
         // Show a live drop indicator line at the insertion point.
-        if (InstanceList.ItemsPanelRoot is { } panel)
+        if (_dragList.ItemsPanelRoot is { } panel)
         {
-            ShowDropIndicator(e.GetPosition(panel));
+            ShowDropIndicator(_dragList, e.GetPosition(panel));
         }
     }
 
-    private void Card_PointerReleased(object? sender, PointerReleasedEventArgs e)
+    private void Drag_PointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        if (_dragCard is null || _dragItem is null)
+        if (_dragCard is null || !ReferenceEquals(sender, _dragCard) || _dragItem is null || _dragList is null)
         {
             return;
         }
 
         var card = _dragCard;
         var item = _dragItem;
+        var list = _dragList;
         _dragCard = null;
         _dragItem = null;
+        _dragList = null;
 
         try
         {
@@ -143,21 +182,29 @@ public sealed partial class MainWindow : Window
             // Best-effort release.
         }
 
-        DropIndicator.IsVisible = false;
+        HideDropIndicator(list);
         if (_dragging)
         {
             _dragging = false;
             card.Opacity = 1;
 
-            if (InstanceList.ItemsPanelRoot is { } panel && DataContext is InstanceManagerViewModel vm)
+            if (list.ItemsPanelRoot is { } panel && DataContext is InstanceManagerViewModel vm)
             {
-                vm.MoveInstance(item.Id, InsertionIndexFor(panel, e.GetPosition(panel)));
+                var insertBefore = InsertionIndexFor(panel, e.GetPosition(panel));
+                if (item is ProjectGroupViewModel group)
+                {
+                    vm.MoveProject(group, insertBefore);
+                }
+                else if (item is InstanceCardViewModel instance)
+                {
+                    vm.MoveInstance(instance, insertBefore);
+                }
             }
         }
-        else
+        else if (item is InstanceCardViewModel instance)
         {
             // Plain click → focus that instance.
-            item.FocusCommand.Execute(null);
+            instance.FocusCommand.Execute(null);
         }
     }
 

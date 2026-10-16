@@ -40,6 +40,56 @@ public sealed class InstanceManagerIpcTests
     }
 
     [Fact]
+    public void CardAttachToggleTargetsOnlyThatInstance()
+    {
+        var record = CreateRecord();
+        InstanceCardViewModel? attached = null;
+        InstanceCardViewModel? detached = null;
+        InstanceCardViewModel? focused = null;
+        var card = new InstanceCardViewModel(record, focusAction: value => focused = value, detachAction: value => detached = value, attachAction: value => attached = value);
+        var otherCard = new InstanceCardViewModel(CreateRecord(), focusAction: value => focused = value, detachAction: value => detached = value, attachAction: value => attached = value);
+        var notifications = 0;
+        card.ToggleAttachCommand.CanExecuteChanged += (_, _) => notifications++;
+
+        // Clicking the card (or Front) focuses it; only the Attach button links it.
+        card.FocusCommand.Execute(null);
+        Assert.Same(card, focused);
+        Assert.Null(attached);
+        focused = null;
+
+        Assert.Equal("Attach", card.AttachToggleLabel);
+        Assert.True(card.ToggleAttachCommand.CanExecute(null));
+        card.ToggleAttachCommand.Execute(null);
+        Assert.Same(card, attached);
+        Assert.Null(detached);
+        Assert.Null(focused);
+
+        card.IsLinked = true;
+        Assert.Equal("Detach", card.AttachToggleLabel);
+        Assert.Equal("Attach", otherCard.AttachToggleLabel);
+        attached = null;
+        Assert.True(card.ToggleAttachCommand.CanExecute(null));
+        card.ToggleAttachCommand.Execute(null);
+        Assert.Same(card, detached);
+        Assert.Null(attached);
+
+        card.IsLinked = false;
+        Assert.Equal("Attach", card.AttachToggleLabel);
+        card.IsProcessActionPending = true;
+        Assert.False(card.ToggleAttachCommand.CanExecute(null));
+        card.IsProcessActionPending = false;
+        Assert.True(card.ToggleAttachCommand.CanExecute(null));
+        Assert.Equal(4, notifications);
+
+        // Linking changes window coordination, not the running conversation.
+        card.UpdateFrom(record with { TurnActive = true });
+        Assert.True(card.ToggleAttachCommand.CanExecute(null));
+        Assert.False(new InstanceCardViewModel(record).ToggleAttachCommand.CanExecute(null));
+        var linkedWithoutDetach = new InstanceCardViewModel(record, attachAction: _ => { }) { IsLinked = true };
+        Assert.False(linkedWithoutDetach.ToggleAttachCommand.CanExecute(null));
+    }
+
+    [Fact]
     public async Task ReportsOnlyVisibleChanges_AndHandlesFocusAndStop()
     {
         var endpoint = CreateEndpoint();
