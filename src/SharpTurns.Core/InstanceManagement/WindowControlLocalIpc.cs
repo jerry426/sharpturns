@@ -176,7 +176,10 @@ public sealed class WindowControlLocalIpcListener : IAsyncDisposable
         {
             socket.Bind(new UnixDomainSocketEndPoint(endpoint.Address));
             ownsPath = true;
-            socket.Listen(backlog: 1);
+            // The instance-manager server accepts one client at a time while
+            // several instances may report at once, and macOS refuses
+            // connections beyond the backlog instead of queueing them.
+            socket.Listen(backlog: 16);
             File.SetUnixFileMode(endpoint.Address, SocketMode);
             return new WindowControlLocalIpcListener(endpoint, socket, pipeOwnership: null);
         }
